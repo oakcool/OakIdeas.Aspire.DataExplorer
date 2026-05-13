@@ -1,0 +1,22 @@
+@page "/tables/{connectionName}/{schema}/{tableName}"
+
+<PageTitle>Table</PageTitle>
+
+<h1>Table Viewer</h1>
+
+<p><strong>Connection:</strong> @ConnectionName</p>
+<p><strong>Schema:</strong> @Schema</p>
+<p><strong>Table:</strong> @TableName</p>
+
+<p>Paginated data grid and CRUD operations will be added in follow-up tasks.</p>
+
+@code {
+    [Parameter]
+    public string ConnectionName { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Schema { get; set; } = string.Empty;
+
+    [Parameter]
+    public string TableName { get; set; } = string.Empty;
+}

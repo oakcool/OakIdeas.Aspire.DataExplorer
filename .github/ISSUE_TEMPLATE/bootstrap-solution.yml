@@ -1,0 +1,13 @@
+name: Bootstrap solution structure
+about: Track initial repository and solution bootstrap work
+title: "Bootstrap solution structure"
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Describe the requested bootstrap work
+    validations:
+      required: true
