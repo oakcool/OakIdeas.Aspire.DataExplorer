@@ -14,8 +14,4 @@ var api = builder.AddProject<Projects.OakIdeas_Aspire_DataExplorer_Sample_Api>("
 builder.AddProject<Projects.OakIdeas_Aspire_DataExplorer_Sample_Web>("sample-web")
     .WithReference(api);
 
-builder.AddProject<Projects.OakIdeas_Aspire_DataExplorer_Web>("data-explorer")
-    .WithReference(sql)
-    .WaitFor(sql);
-
 builder.Build().Run();

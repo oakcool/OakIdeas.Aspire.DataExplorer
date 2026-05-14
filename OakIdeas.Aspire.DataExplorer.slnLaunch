@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "DataExplorer + Sample",
+    "Projects": [
+      {
+        "Path": "src/OakIdeas.Aspire.DataExplorer.AppHost/OakIdeas.Aspire.DataExplorer.AppHost.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "samples/OakIdeas.Aspire.DataExplorer.Sample.AppHost/OakIdeas.Aspire.DataExplorer.Sample.AppHost.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]
