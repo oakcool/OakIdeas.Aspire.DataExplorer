@@ -3,11 +3,11 @@
     "Name": "DataExplorer + Sample",
     "Projects": [
       {
-        "Path": "src\\OakIdeas.Aspire.DataExplorer.AppHost\\OakIdeas.Aspire.DataExplorer.AppHost.csproj",
+        "Path": "src/OakIdeas.Aspire.DataExplorer.AppHost/OakIdeas.Aspire.DataExplorer.AppHost.csproj",
         "Action": "Start"
       },
       {
-        "Path": "samples\\OakIdeas.Aspire.DataExplorer.SampleApp\\OakIdeas.Aspire.DataExplorer.SampleApp.csproj",
+        "Path": "samples/OakIdeas.Aspire.DataExplorer.SampleApp/OakIdeas.Aspire.DataExplorer.SampleApp.csproj",
         "Action": "Start"
       }
     ]
