@@ -4,11 +4,28 @@
     "Projects": [
       {
         "Path": "src/OakIdeas.Aspire.DataExplorer.AppHost/OakIdeas.Aspire.DataExplorer.AppHost.csproj",
-        "Action": "Start"
+        "Action": "Start",
+        "LaunchProfile": "https"
       },
       {
         "Path": "samples/OakIdeas.Aspire.DataExplorer.Sample.AppHost/OakIdeas.Aspire.DataExplorer.Sample.AppHost.csproj",
-        "Action": "Start"
+        "Action": "Start",
+        "LaunchProfile": "https"
+      }
+    ]
+  },
+  {
+    "Name": "DataExplorer + Sample (Debug Development)",
+    "Projects": [
+      {
+        "Path": "src/OakIdeas.Aspire.DataExplorer.AppHost/OakIdeas.Aspire.DataExplorer.AppHost.csproj",
+        "Action": "Start",
+        "LaunchProfile": "https"
+      },
+      {
+        "Path": "samples/OakIdeas.Aspire.DataExplorer.Sample.AppHost/OakIdeas.Aspire.DataExplorer.Sample.AppHost.csproj",
+        "Action": "Start",
+        "LaunchProfile": "https"
       }
     ]
   }
