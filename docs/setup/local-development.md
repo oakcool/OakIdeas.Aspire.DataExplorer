@@ -21,5 +21,4 @@ dotnet run --project samples/OakIdeas.Aspire.DataExplorer.Sample.AppHost
 
 Both AppHosts are configured to open the Aspire dashboard in your browser automatically.
 
-If you are using Visual Studio, select the `DataExplorer + Sample` solution launch profile to start both AppHosts together.
-Use `DataExplorer + Sample (Debug Development)` for a debugging-focused launch that uses each AppHost `https` profile and Development environment settings.
+If you are using Visual Studio, select the `DataExplorer + Sample (Development Debug)` solution launch profile to start both AppHosts together with each AppHost `https` launch profile (Development environment settings).
