@@ -1,0 +1,155 @@
+@* Object Explorer panel — tree of connections, databases, schemas, tables *@
+<div class="object-explorer">
+    <div class="object-explorer__header">
+        <span class="object-explorer__title">Object Explorer</span>
+        <div class="object-explorer__actions">
+            <IconButton Icon="↺" Title="Refresh" Variant="ghost" OnClick="Refresh" />
+        </div>
+    </div>
+
+    <div class="object-explorer__search">
+        <input class="object-explorer__search-input"
+               type="search"
+               placeholder="Filter objects…"
+               @bind="_filter"
+               @bind:event="oninput" />
+    </div>
+
+    <div class="object-explorer__tree">
+        @if (IsLoading)
+        {
+            <div class="object-explorer__loading">
+                <LoadingSpinner Label="Discovering connections…" />
+            </div>
+        }
+        else if (!Connections.Any())
+        {
+            <div class="object-explorer__empty">
+                <span>No database connections found.</span>
+                <small>Add a SQL Server resource in your Aspire AppHost.</small>
+            </div>
+        }
+        else
+        {
+            @foreach (var conn in FilteredConnections)
+            {
+                <TreeNode Label="@conn.Name"
+                          Icon="🖧"
+                          HasChildren="true"
+                          Depth="0"
+                          IsExpanded="_expandedConnections.Contains(conn.Name)"
+                          OnExpandToggle="@(expanded => ToggleConnection(conn.Name, expanded))"
+                          OnSelect="@(() => OnConnectionSelect.InvokeAsync(conn.Name))">
+                    @foreach (var db in conn.Databases)
+                    {
+                        <TreeNode Label="@db.Name"
+                                  Icon="🗄"
+                                  HasChildren="@db.Schemas.Any()"
+                                  Depth="1"
+                                  IsExpanded="_expandedDatabases.Contains(db.Name)"
+                                  OnExpandToggle="@(expanded => ToggleDatabase(db.Name, expanded))">
+                            @foreach (var schema in db.Schemas)
+                            {
+                                <TreeNode Label="@schema.Name"
+                                          Icon="📁"
+                                          HasChildren="@schema.Tables.Any()"
+                                          Depth="2"
+                                          IsExpanded="_expandedSchemas.Contains(schema.Name)"
+                                          OnExpandToggle="@(expanded => ToggleSchema(schema.Name, expanded))">
+                                    @if (schema.Tables.Any())
+                                    {
+                                        <TreeNode Label="Tables"
+                                                  Icon="📋"
+                                                  HasChildren="true"
+                                                  Depth="3"
+                                                  IsExpanded="_expandedTableGroups.Contains(schema.Name)"
+                                                  OnExpandToggle="@(expanded => ToggleTableGroup(schema.Name, expanded))">
+                                            @foreach (var table in schema.Tables)
+                                            {
+                                                <TreeNode Label="@table"
+                                                          Icon="▤"
+                                                          Depth="4"
+                                                          IsSelected="_selectedTable == table"
+                                                          OnSelect="@(() => SelectTable(conn.Name, schema.Name, table))" />
+                                            }
+                                        </TreeNode>
+                                    }
+                                </TreeNode>
+                            }
+                        </TreeNode>
+                    }
+                </TreeNode>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<ConnectionNode> Connections { get; set; } = [];
+
+    [Parameter]
+    public bool IsLoading { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnConnectionSelect { get; set; }
+
+    [Parameter]
+    public EventCallback<TableSelection> OnTableSelect { get; set; }
+
+    [Parameter]
+    public EventCallback OnRefresh { get; set; }
+
+    private string _filter = string.Empty;
+    private string _selectedTable = string.Empty;
+    private readonly HashSet<string> _expandedConnections = [];
+    private readonly HashSet<string> _expandedDatabases = [];
+    private readonly HashSet<string> _expandedSchemas = [];
+    private readonly HashSet<string> _expandedTableGroups = [];
+
+    private IEnumerable<ConnectionNode> FilteredConnections =>
+        string.IsNullOrWhiteSpace(_filter)
+            ? Connections
+            : Connections.Where(c =>
+                c.Name.Contains(_filter, StringComparison.OrdinalIgnoreCase) ||
+                c.Databases.Any(d =>
+                    d.Name.Contains(_filter, StringComparison.OrdinalIgnoreCase) ||
+                    d.Schemas.Any(s =>
+                        s.Tables.Any(t => t.Contains(_filter, StringComparison.OrdinalIgnoreCase)))));
+
+    private void ToggleConnection(string name, bool expanded)
+    {
+        if (expanded) _expandedConnections.Add(name); else _expandedConnections.Remove(name);
+    }
+
+    private void ToggleDatabase(string name, bool expanded)
+    {
+        if (expanded) _expandedDatabases.Add(name); else _expandedDatabases.Remove(name);
+    }
+
+    private void ToggleSchema(string name, bool expanded)
+    {
+        if (expanded) _expandedSchemas.Add(name); else _expandedSchemas.Remove(name);
+    }
+
+    private void ToggleTableGroup(string name, bool expanded)
+    {
+        if (expanded) _expandedTableGroups.Add(name); else _expandedTableGroups.Remove(name);
+    }
+
+    private async Task SelectTable(string connectionName, string schemaName, string tableName)
+    {
+        _selectedTable = tableName;
+        await OnTableSelect.InvokeAsync(new TableSelection(connectionName, schemaName, tableName));
+    }
+
+    private async Task Refresh()
+    {
+        await OnRefresh.InvokeAsync();
+    }
+
+    public record ConnectionNode(string Name, IReadOnlyList<DatabaseNode> Databases);
+    public record DatabaseNode(string Name, IReadOnlyList<SchemaNode> Schemas);
+    public record SchemaNode(string Name, IReadOnlyList<string> Tables);
+    public record TableSelection(string ConnectionName, string SchemaName, string TableName);
+}

@@ -1,0 +1,28 @@
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 3rem 1rem;
+    color: #94a3b8;
+}
+
+.loading-state__spinner {
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 3px solid #e2e8f0;
+    border-top-color: #3b82f6;
+    border-radius: 50%;
+    animation: sample-spin 0.8s linear infinite;
+}
+
+@keyframes sample-spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-state__label {
+    font-size: 0.9rem;
+    margin: 0;
+    color: #64748b;
+}

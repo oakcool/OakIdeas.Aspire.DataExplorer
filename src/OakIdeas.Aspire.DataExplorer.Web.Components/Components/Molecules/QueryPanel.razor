@@ -1,0 +1,76 @@
+@* Query editor panel with SQL textarea and execute toolbar *@
+<div class="query-panel">
+    <div class="query-panel__toolbar">
+        <IconButton Icon="▶"
+                    Label="Execute"
+                    Title="Execute (F5)"
+                    Variant="primary"
+                    Disabled="IsExecuting || string.IsNullOrWhiteSpace(Sql)"
+                    OnClick="Execute" />
+        <IconButton Icon="✕"
+                    Label="Clear"
+                    Title="Clear editor"
+                    Variant="ghost"
+                    OnClick="Clear" />
+        @if (!string.IsNullOrEmpty(ConnectionName))
+        {
+            <StatusBadge Text="@ConnectionName" Variant="connected" />
+        }
+        else
+        {
+            <StatusBadge Text="No connection" Variant="disconnected" />
+        }
+        @if (IsExecuting)
+        {
+            <LoadingSpinner Label="Running…" />
+        }
+    </div>
+
+    <div class="query-panel__editor">
+        <textarea class="query-panel__textarea"
+                  placeholder="@Placeholder"
+                  spellcheck="false"
+                  autocorrect="off"
+                  autocapitalize="off"
+                  @bind="Sql"
+                  @bind:event="oninput"
+                  @onkeydown="HandleKeyDown"></textarea>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string Sql { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> SqlChanged { get; set; }
+
+    [Parameter]
+    public string ConnectionName { get; set; } = string.Empty;
+
+    [Parameter]
+    public bool IsExecuting { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnExecute { get; set; }
+
+    private string Placeholder => "-- Enter your SQL query here\nSELECT TOP 100 * FROM [dbo].[YourTable];";
+
+    private async Task Execute()
+    {
+        if (!string.IsNullOrWhiteSpace(Sql))
+            await OnExecute.InvokeAsync(Sql);
+    }
+
+    private async Task Clear()
+    {
+        Sql = string.Empty;
+        await SqlChanged.InvokeAsync(Sql);
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "F5" || (e.Key == "Enter" && e.CtrlKey))
+            await Execute();
+    }
+}

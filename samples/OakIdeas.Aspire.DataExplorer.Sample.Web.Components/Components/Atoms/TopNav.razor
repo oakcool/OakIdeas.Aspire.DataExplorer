@@ -1,0 +1,46 @@
+@* Top navigation bar for the Sample Web app *@
+<nav class="top-nav">
+    <div class="top-nav__brand">
+        <span class="top-nav__logo" aria-hidden="true">🗃</span>
+        <span class="top-nav__name">@AppName</span>
+        <span class="top-nav__tag">Aspire Sample</span>
+    </div>
+
+    <button class="top-nav__mobile-toggle"
+            aria-label="Toggle navigation"
+            @onclick="ToggleMenu">
+        <span></span><span></span><span></span>
+    </button>
+
+    <ul class="top-nav__links @(_menuOpen ? "top-nav__links--open" : "")">
+        @foreach (var link in Links)
+        {
+            <li>
+                <NavLink class="top-nav__link"
+                         href="@link.Href"
+                         Match="@(link.Exact ? NavLinkMatch.All : NavLinkMatch.Prefix)"
+                         ActiveClass="top-nav__link--active">
+                    @if (!string.IsNullOrEmpty(link.Icon))
+                    {
+                        <span aria-hidden="true">@link.Icon</span>
+                    }
+                    @link.Label
+                </NavLink>
+            </li>
+        }
+    </ul>
+</nav>
+
+@code {
+    [Parameter]
+    public string AppName { get; set; } = "DataExplorer Sample";
+
+    [Parameter]
+    public IReadOnlyList<NavLinkItem> Links { get; set; } = [];
+
+    private bool _menuOpen;
+
+    private void ToggleMenu() => _menuOpen = !_menuOpen;
+
+    public record NavLinkItem(string Label, string Href, string Icon = "", bool Exact = false);
+}

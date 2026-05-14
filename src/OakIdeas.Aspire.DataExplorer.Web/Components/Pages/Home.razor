@@ -1,12 +1,70 @@
 @page "/"
 
-<PageTitle>Dashboard</PageTitle>
+<PageTitle>Dashboard — Data Explorer</PageTitle>
 
-<h1>Dashboard</h1>
+<div class="de-dashboard">
+    <div class="de-sidebar">
+        <ObjectExplorer IsLoading="false"
+                        Connections="@_connections"
+                        OnTableSelect="@HandleTableSelect"
+                        OnRefresh="@HandleRefresh" />
+    </div>
 
-<p>Discovered database resources will appear here as connection discovery is implemented.</p>
+    <div class="de-main">
+        <div class="de-main__header">
+            <h2 class="de-main__title">Dashboard</h2>
+            <StatusBadge Text="Ready" Variant="connected" />
+        </div>
 
-<ul>
-    <li>Provider: SQL Server (MVP)</li>
-    <li>Status: Initial setup complete</li>
-</ul>
+        <div class="de-main__body">
+            <div class="de-info-grid">
+                <div class="de-info-card">
+                    <span class="de-info-card__icon">🔌</span>
+                    <div>
+                        <div class="de-info-card__label">Provider</div>
+                        <div class="de-info-card__value">SQL Server (MVP)</div>
+                    </div>
+                </div>
+                <div class="de-info-card">
+                    <span class="de-info-card__icon">🗄</span>
+                    <div>
+                        <div class="de-info-card__label">Connections</div>
+                        <div class="de-info-card__value">@_connections.Count discovered</div>
+                    </div>
+                </div>
+                <div class="de-info-card">
+                    <span class="de-info-card__icon">✔</span>
+                    <div>
+                        <div class="de-info-card__label">Status</div>
+                        <div class="de-info-card__value">Initial setup complete</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="de-tip">
+                <span class="de-tip__icon">💡</span>
+                <p>Use the <strong>Object Explorer</strong> on the left to browse connections, schemas and tables. Select a table to open it, or use <strong>Explorer</strong> and <strong>Query</strong> in the top bar.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<ObjectExplorer.ConnectionNode> _connections = [
+        new("sample", [
+            new("applicationdb", [
+                new("dbo", ["Users", "TodoItems", "Logs"])
+            ])
+        ])
+    ];
+
+    private void HandleTableSelect(ObjectExplorer.TableSelection sel)
+    {
+        // Navigation to table page would go here
+    }
+
+    private void HandleRefresh()
+    {
+        // Refresh connections would go here
+    }
+}

@@ -1,0 +1,10 @@
+@* Inline loading state placeholder *@
+<div class="loading-state" role="status">
+    <div class="loading-state__spinner"></div>
+    <p class="loading-state__label">@Label</p>
+</div>
+
+@code {
+    [Parameter]
+    public string Label { get; set; } = "Loading…";
+}

@@ -1,0 +1,32 @@
+@* Icon-only or icon+label button used in toolbars *@
+<button class="icon-btn icon-btn--@Variant.ToLowerInvariant()"
+        title="@Title"
+        disabled="@Disabled"
+        @onclick="OnClick">
+    <span class="icon-btn__icon" aria-hidden="true">@Icon</span>
+    @if (!string.IsNullOrEmpty(Label))
+    {
+        <span class="icon-btn__label">@Label</span>
+    }
+</button>
+
+@code {
+    [Parameter]
+    public string Icon { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Label { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    /// <summary>Variant: primary | ghost | danger</summary>
+    [Parameter]
+    public string Variant { get; set; } = "ghost";
+
+    [Parameter]
+    public EventCallback OnClick { get; set; }
+}

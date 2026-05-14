@@ -1,18 +1,53 @@
 @page "/query/{connectionName?}"
 
-<PageTitle>Query</PageTitle>
+<PageTitle>Query — Data Explorer</PageTitle>
 
-<h1>Query Editor</h1>
+<div class="de-query-page">
+    <div class="de-query-pane de-query-pane--editor">
+        <div class="de-query-pane__label">SQL Editor</div>
+        <QueryPanel ConnectionName="@(ConnectionName ?? string.Empty)"
+                    @bind-Sql="_sql"
+                    IsExecuting="_running"
+                    OnExecute="RunQuery" />
+    </div>
 
-<p>Connection: @ConnectionName</p>
+    <div class="de-query-divider" aria-hidden="true"></div>
 
-<textarea class="form-control" rows="8" placeholder="SELECT TOP 100 * FROM [dbo].[YourTable];"></textarea>
-
-<div class="mt-2">
-    <button class="btn btn-primary" disabled>Execute (coming soon)</button>
+    <div class="de-query-pane de-query-pane--results">
+        <div class="de-query-pane__label">Results</div>
+        <ResultsTable Columns="@_columns"
+                      Rows="@_rows"
+                      IsLoading="_running"
+                      ErrorMessage="@_error" />
+    </div>
 </div>
 
 @code {
     [Parameter]
     public string? ConnectionName { get; set; }
+
+    private string _sql = string.Empty;
+    private bool _running;
+    private string _error = string.Empty;
+    private IReadOnlyList<string> _columns = [];
+    private IReadOnlyList<IReadOnlyList<string?>> _rows = [];
+
+    private async Task RunQuery(string sql)
+    {
+        _running = true;
+        _error = string.Empty;
+        _columns = [];
+        _rows = [];
+        StateHasChanged();
+
+        // Simulate async query execution (real implementation added in follow-up)
+        await Task.Delay(400);
+        _columns = ["Id", "Name", "Value", "CreatedAt"];
+        _rows = [
+            ["1", "Sample Row", "42", "2025-01-01"],
+            ["2", "Another Row", "99", "2025-01-02"]
+        ];
+        _running = false;
+    }
 }
+

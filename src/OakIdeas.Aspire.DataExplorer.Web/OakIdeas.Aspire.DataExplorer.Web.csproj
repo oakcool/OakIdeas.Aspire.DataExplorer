@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
+    <ProjectReference Include="..\OakIdeas.Aspire.DataExplorer.Web.Components\OakIdeas.Aspire.DataExplorer.Web.Components.csproj" />
     <ProjectReference Include="..\OakIdeas.Aspire.DataExplorer.Core\OakIdeas.Aspire.DataExplorer.Core.csproj" />
     <ProjectReference Include="..\OakIdeas.Aspire.DataExplorer.Contracts\OakIdeas.Aspire.DataExplorer.Contracts.csproj" />
     <ProjectReference Include="..\OakIdeas.Aspire.DataExplorer.Data\OakIdeas.Aspire.DataExplorer.Data.csproj" />

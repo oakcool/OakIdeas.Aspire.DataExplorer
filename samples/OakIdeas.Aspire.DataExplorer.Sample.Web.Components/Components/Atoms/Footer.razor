@@ -1,0 +1,20 @@
+@* Application footer *@
+<footer class="app-footer">
+    <div class="app-footer__inner">
+        <div class="app-footer__brand">
+            <span aria-hidden="true">🗃</span>
+            <span>@AppName</span>
+        </div>
+        <p class="app-footer__copy">
+            Powered by <strong>.NET Aspire</strong> &amp; <strong>OakIdeas.Aspire.DataExplorer</strong> · Development Sample
+        </p>
+        <p class="app-footer__disclaimer">
+            This is a demonstration application. Do not use in production.
+        </p>
+    </div>
+</footer>
+
+@code {
+    [Parameter]
+    public string AppName { get; set; } = "DataExplorer Sample";
+}

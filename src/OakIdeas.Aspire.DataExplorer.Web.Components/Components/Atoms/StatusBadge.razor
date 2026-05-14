@@ -1,0 +1,11 @@
+@* Small colored badge indicating a status *@
+<span class="status-badge status-badge--@Variant.ToLowerInvariant()">@Text</span>
+
+@code {
+    [Parameter]
+    public string Text { get; set; } = string.Empty;
+
+    /// <summary>Variant: connected | disconnected | loading | error | info</summary>
+    [Parameter]
+    public string Variant { get; set; } = "info";
+}

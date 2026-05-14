@@ -1,19 +1,28 @@
 @inherits LayoutComponentBase
+@using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Atoms
+@using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Molecules
 
-<div class="alert alert-warning text-center rounded-0 mb-0" role="alert">
-    Development Tool Only — Do Not Use Against Production Databases
-</div>
+<div class="de-shell">
+    <AlertBanner />
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
+    <div class="de-header">
+        <div class="de-header__brand">
+            <span class="de-header__logo" aria-hidden="true">🗄</span>
+            <span class="de-header__title">Data Explorer</span>
+        </div>
+        <nav class="de-header__nav">
+            <NavLink class="de-nav-link" href="" Match="NavLinkMatch.All">Dashboard</NavLink>
+            <NavLink class="de-nav-link" href="explorer">Explorer</NavLink>
+            <NavLink class="de-nav-link" href="query/sample">Query</NavLink>
+        </nav>
+        <div class="de-header__end">
+            <span class="de-header__version">dev</span>
+        </div>
     </div>
 
-    <main>
-        <article class="content px-4 py-3">
-            @Body
-        </article>
-    </main>
+    <div class="de-workspace">
+        @Body
+    </div>
 </div>
 
 <div id="blazor-error-ui" data-nosnippet>

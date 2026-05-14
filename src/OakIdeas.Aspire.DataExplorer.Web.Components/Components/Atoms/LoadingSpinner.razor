@@ -1,0 +1,13 @@
+@* Animated spinner for loading states *@
+<span class="loading-spinner" role="status" aria-label="@Label">
+    <span class="loading-spinner__ring"></span>
+    @if (!string.IsNullOrEmpty(Label))
+    {
+        <span class="loading-spinner__label">@Label</span>
+    }
+</span>
+
+@code {
+    [Parameter]
+    public string Label { get; set; } = "Loading…";
+}

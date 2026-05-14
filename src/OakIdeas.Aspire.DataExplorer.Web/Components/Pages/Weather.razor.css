@@ -1,0 +1,45 @@
+.de-query-page {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    background-color: #0d1117;
+}
+
+.de-query-pane {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.de-query-pane--editor {
+    flex: 0 0 45%;
+}
+
+.de-query-pane--results {
+    flex: 1;
+}
+
+.de-query-pane__label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6e7681;
+    padding: 0.3rem 0.75rem;
+    background-color: #161b22;
+    border-bottom: 1px solid #21262d;
+    flex-shrink: 0;
+}
+
+.de-query-divider {
+    height: 4px;
+    background-color: #21262d;
+    flex-shrink: 0;
+    cursor: row-resize;
+    transition: background-color 0.15s;
+}
+
+.de-query-divider:hover {
+    background-color: #388bfd;
+}

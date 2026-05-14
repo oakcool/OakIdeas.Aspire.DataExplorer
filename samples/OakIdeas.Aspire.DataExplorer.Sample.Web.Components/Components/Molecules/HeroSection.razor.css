@@ -1,0 +1,131 @@
+.hero {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+    align-items: center;
+    padding: 4rem 2rem 5rem;
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
+    overflow: hidden;
+    position: relative;
+}
+
+.hero__content {
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.hero__eyebrow {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.hero__headline {
+    font-size: clamp(1.75rem, 3.5vw, 2.75rem);
+    font-weight: 800;
+    color: #f8fafc;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+
+.hero__sub {
+    font-size: 1rem;
+    color: #94a3b8;
+    line-height: 1.7;
+    margin: 0;
+    max-width: 480px;
+}
+
+.hero__actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.hero__graphic {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+}
+
+.hero__orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(60px);
+    pointer-events: none;
+}
+
+.hero__orb--1 {
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.3), transparent);
+    top: -80px;
+    right: -40px;
+}
+
+.hero__orb--2 {
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.2), transparent);
+    bottom: -60px;
+    left: 0;
+}
+
+.hero__terminal {
+    background-color: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    width: 100%;
+    max-width: 420px;
+    position: relative;
+    z-index: 2;
+}
+
+.hero__terminal-bar {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+    padding: 0.6rem 0.75rem;
+    background-color: #161b22;
+    border-bottom: 1px solid #21262d;
+}
+
+.hero__terminal-bar span {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 50%;
+}
+
+.hero__terminal-bar span:nth-child(1) { background-color: #f87171; }
+.hero__terminal-bar span:nth-child(2) { background-color: #fbbf24; }
+.hero__terminal-bar span:nth-child(3) { background-color: #4ade80; }
+
+.hero__terminal-code {
+    padding: 1rem 1.1rem;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.8rem;
+    color: #e6edf3;
+    line-height: 1.7;
+    margin: 0;
+    overflow-x: auto;
+    white-space: pre;
+}
+
+@media (max-width: 768px) {
+    .hero {
+        grid-template-columns: 1fr;
+        padding: 2.5rem 1.25rem 3rem;
+        gap: 2rem;
+    }
+
+    .hero__graphic {
+        display: none;
+    }
+}

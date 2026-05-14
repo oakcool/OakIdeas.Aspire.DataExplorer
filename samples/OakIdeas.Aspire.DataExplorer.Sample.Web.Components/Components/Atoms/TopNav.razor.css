@@ -1,0 +1,124 @@
+.top-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1.5rem;
+    height: 3.5rem;
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 16px rgba(0, 0, 0, 0.3);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    gap: 1rem;
+}
+
+.top-nav__brand {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    flex-shrink: 0;
+}
+
+.top-nav__logo {
+    font-size: 1.4rem;
+}
+
+.top-nav__name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #f8fafc;
+    letter-spacing: -0.01em;
+}
+
+.top-nav__tag {
+    font-size: 0.65rem;
+    background: #1d4ed8;
+    color: #bfdbfe;
+    padding: 0.1rem 0.45rem;
+    border-radius: 9999px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.top-nav__mobile-toggle {
+    display: none;
+    flex-direction: column;
+    justify-content: space-around;
+    width: 1.5rem;
+    height: 1.5rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+}
+
+.top-nav__mobile-toggle span {
+    display: block;
+    height: 2px;
+    background-color: #e2e8f0;
+    border-radius: 1px;
+    transition: 0.2s;
+}
+
+.top-nav__links {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.top-nav__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.85rem;
+    color: #94a3b8;
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 6px;
+    transition: color 0.15s, background-color 0.15s;
+    white-space: nowrap;
+}
+
+.top-nav__link:hover {
+    color: #f1f5f9;
+    background-color: rgba(255, 255, 255, 0.07);
+}
+
+.top-nav__link--active {
+    color: #60a5fa;
+    background-color: rgba(59, 130, 246, 0.12);
+}
+
+@media (max-width: 640px) {
+    .top-nav__mobile-toggle {
+        display: flex;
+    }
+
+    .top-nav__links {
+        display: none;
+        position: absolute;
+        top: 3.5rem;
+        left: 0;
+        right: 0;
+        background: #0f172a;
+        flex-direction: column;
+        align-items: stretch;
+        padding: 0.5rem;
+        border-bottom: 1px solid #1e293b;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    .top-nav__links--open {
+        display: flex;
+    }
+
+    .top-nav__link {
+        padding: 0.6rem 1rem;
+    }
+}
