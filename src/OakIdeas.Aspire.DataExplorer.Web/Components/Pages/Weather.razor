@@ -1,0 +1,18 @@
+@page "/query/{connectionName?}"
+
+<PageTitle>Query</PageTitle>
+
+<h1>Query Editor</h1>
+
+<p>Connection: @ConnectionName</p>
+
+<textarea class="form-control" rows="8" placeholder="SELECT TOP 100 * FROM [dbo].[YourTable];"></textarea>
+
+<div class="mt-2">
+    <button class="btn btn-primary" disabled>Execute (coming soon)</button>
+</div>
+
+@code {
+    [Parameter]
+    public string? ConnectionName { get; set; }
+}

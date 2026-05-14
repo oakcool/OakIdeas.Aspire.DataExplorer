@@ -1,0 +1,23 @@
+@inherits LayoutComponentBase
+
+<div class="alert alert-warning text-center rounded-0 mb-0" role="alert">
+    Development Tool Only — Do Not Use Against Production Databases
+</div>
+
+<div class="page">
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+
+    <main>
+        <article class="content px-4 py-3">
+            @Body
+        </article>
+    </main>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
