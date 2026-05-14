@@ -18,6 +18,9 @@ OakIdeas.Aspire.DataExplorer is split into UI, orchestration, contracts, and pro
 | `02 - Services` | _(reserved)_ |
 | `03 - Data` | Data, SqlServer |
 | `04 - Core` | Core |
-| `05 - Tools` | All test projects |
+| `01 - Packages/Tests` | Web.Tests |
+| `03 - Data/Tests` | Data.Tests, SqlServer.Tests |
+| `04 - Core/Tests` | Core.Tests |
 | `06 - Orchestration` | AppHost |
-| `07 - Samples` | Sample.AppHost, Sample.Api, Sample.Web |
+| `07 - Tests` | Solution-wide tests (for example: IntegrationTests) |
+| `08 - Samples` | Sample.AppHost, Sample.Api, Sample.Web |

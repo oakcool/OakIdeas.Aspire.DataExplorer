@@ -9,7 +9,9 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider
     public string ProviderName => "sqlserver";
 
     public bool CanHandle(DatabaseResource resource)
-        => resource.Provider.Contains("sql", StringComparison.OrdinalIgnoreCase);
+        => resource.Provider.Contains("sqlserver", StringComparison.OrdinalIgnoreCase)
+            || resource.Provider.Contains("mssql", StringComparison.OrdinalIgnoreCase)
+            || resource.Provider.Contains("sqlclient", StringComparison.OrdinalIgnoreCase);
 
     public Task<IReadOnlyList<SchemaMetadata>> GetSchemasAsync(
         DatabaseResource resource,

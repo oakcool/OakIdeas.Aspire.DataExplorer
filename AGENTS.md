@@ -22,6 +22,8 @@ OakIdeas.Aspire.DataExplorer is a development-time-only Aspire add-on for explor
 
 - Add focused tests for new behavior.
 - Add integration tests for provider behavior where practical.
+- Place project-specific test projects under the matching solution section's `Tests` virtual folder.
+- Keep `07 - Tests` reserved for solution-wide test coverage (for example, integration and usability suites).
 - Validate build and tests before completing work.
 
 ## Documentation Rules

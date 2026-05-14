@@ -1,10 +1,18 @@
-﻿namespace OakIdeas.Aspire.DataExplorer.Data.Tests;
+﻿using FluentAssertions;
+using OakIdeas.Aspire.DataExplorer.Data.Infrastructure;
 
-public class UnitTest1
+namespace OakIdeas.Aspire.DataExplorer.Data.Tests;
+
+public sealed class DbConnectionFactoryTests
 {
     [Fact]
-    public void Test1()
+    public void CreateSqlConnection_UsesProvidedConnectionString()
     {
+        const string connectionString = "Server=localhost;Database=DataExplorer;Integrated Security=True;";
+        var factory = new DbConnectionFactory();
 
+        using var connection = factory.CreateSqlConnection(connectionString);
+
+        connection.ConnectionString.Should().Be(connectionString);
     }
 }
