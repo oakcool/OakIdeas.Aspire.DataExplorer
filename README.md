@@ -25,7 +25,13 @@ dotnet build OakIdeas.Aspire.DataExplorer.sln
 dotnet run --project /home/runner/work/OakIdeas.Aspire.DataExplorer/OakIdeas.Aspire.DataExplorer/src/OakIdeas.Aspire.DataExplorer.AppHost
 ```
 
-Open the DataExplorer web endpoint from the Aspire dashboard.
+The Aspire dashboard opens automatically in your browser.
+
+To run both AppHosts side-by-side during development:
+
+- Start `src/OakIdeas.Aspire.DataExplorer.AppHost` for DataExplorer development
+- Start `samples/OakIdeas.Aspire.DataExplorer.SampleApp` for the sample consuming DataExplorer
+- In Visual Studio, use the `DataExplorer + Sample` solution launch profile
 
 ## Solution layout
 

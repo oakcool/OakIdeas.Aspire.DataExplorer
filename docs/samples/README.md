@@ -23,6 +23,8 @@ The `samples/` folder contains a self-contained Aspire application that demonstr
 dotnet run --project samples/OakIdeas.Aspire.DataExplorer.SampleApp
 ```
 
-Open the Aspire dashboard at `http://localhost:15888` and navigate to:
+The Aspire dashboard opens automatically at `http://localhost:15888`.
+
+Navigate to:
 - **sample-web** — the Blazor frontend
 - **data-explorer** — the DataExplorer tool pointing at the SQL Server

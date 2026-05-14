@@ -15,4 +15,10 @@ dotnet build OakIdeas.Aspire.DataExplorer.sln
 dotnet test OakIdeas.Aspire.DataExplorer.sln
 
 dotnet run --project src/OakIdeas.Aspire.DataExplorer.AppHost
+
+dotnet run --project samples/OakIdeas.Aspire.DataExplorer.SampleApp
 ```
+
+Both AppHosts are configured to open the Aspire dashboard in your browser automatically.
+
+If you are using Visual Studio, select the `DataExplorer + Sample` solution launch profile to start both AppHosts together.
