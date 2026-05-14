@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Hosting;
 using OakIdeas.Aspire.DataExplorer.Hosting.Extensions;
 
 var builder = DistributedApplication.CreateBuilder(args);
