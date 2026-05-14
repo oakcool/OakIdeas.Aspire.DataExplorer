@@ -1,0 +1,21 @@
+@inherits LayoutComponentBase
+@using OakIdeas.Aspire.DataExplorer.Sample.Web.Components.Components.Atoms
+@using OakIdeas.Aspire.DataExplorer.Sample.Web.Components.Components.Molecules
+
+<div class="page-wrapper">
+    <TopNav AppName="DataExplorer Sample"
+            Links="@_navLinks" />
+
+    <main>
+        @Body
+    </main>
+
+    <Footer AppName="DataExplorer Sample" />
+</div>
+
+@code {
+    private static readonly TopNav.NavLinkItem[] _navLinks = [
+        new("Home", "/", "🏠", Exact: true),
+        new("Todos", "/todos", "✅"),
+    ];
+}

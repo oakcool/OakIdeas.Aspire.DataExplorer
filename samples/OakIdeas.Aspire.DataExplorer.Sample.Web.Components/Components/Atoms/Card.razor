@@ -1,0 +1,31 @@
+@* Generic card container with optional header *@
+<div class="sample-card sample-card--@Variant.ToLowerInvariant()">
+    @if (!string.IsNullOrEmpty(Title))
+    {
+        <div class="sample-card__header">
+            @if (!string.IsNullOrEmpty(Icon))
+            {
+                <span class="sample-card__icon" aria-hidden="true">@Icon</span>
+            }
+            <span class="sample-card__title">@Title</span>
+        </div>
+    }
+    <div class="sample-card__body">
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Icon { get; set; } = string.Empty;
+
+    /// <summary>Variant: default | accent | success | warning</summary>
+    [Parameter]
+    public string Variant { get; set; } = "default";
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

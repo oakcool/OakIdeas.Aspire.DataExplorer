@@ -1,0 +1,11 @@
+@* Colored semantic badge pill *@
+<span class="sample-badge sample-badge--@Variant.ToLowerInvariant()">@Text</span>
+
+@code {
+    [Parameter]
+    public string Text { get; set; } = string.Empty;
+
+    /// <summary>Variant: success | warning | danger | info | neutral</summary>
+    [Parameter]
+    public string Variant { get; set; } = "neutral";
+}

@@ -1,0 +1,10 @@
+@* Development-only warning banner shown at the top of every page *@
+<div class="dev-warning-banner" role="alert">
+    <span class="dev-warning-icon">⚠</span>
+    <span>@Message</span>
+</div>
+
+@code {
+    [Parameter]
+    public string Message { get; set; } = "Development Tool Only — Do Not Use Against Production Databases";
+}

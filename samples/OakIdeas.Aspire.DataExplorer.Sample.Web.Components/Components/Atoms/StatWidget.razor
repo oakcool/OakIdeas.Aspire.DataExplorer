@@ -1,0 +1,24 @@
+@* Compact stat widget card *@
+<div class="stat-widget">
+    <div class="stat-widget__icon-wrap" style="background-color: @IconBg">
+        <span class="stat-widget__icon" aria-hidden="true">@Icon</span>
+    </div>
+    <div class="stat-widget__info">
+        <span class="stat-widget__value">@Value</span>
+        <span class="stat-widget__label">@Label</span>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string Label { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Value { get; set; } = "—";
+
+    [Parameter]
+    public string Icon { get; set; } = "📊";
+
+    [Parameter]
+    public string IconBg { get; set; } = "#dbeafe";
+}

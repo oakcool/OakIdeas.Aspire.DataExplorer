@@ -1,0 +1,55 @@
+.query-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background-color: #0d1117;
+    overflow: hidden;
+}
+
+.query-panel__toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.75rem;
+    background-color: #161b22;
+    border-bottom: 1px solid #21262d;
+    flex-shrink: 0;
+}
+
+.query-panel__editor {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+}
+
+.query-panel__textarea {
+    flex: 1;
+    resize: none;
+    border: none;
+    outline: none;
+    background-color: #0d1117;
+    color: #e6edf3;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', 'Courier New', monospace;
+    font-size: 0.87rem;
+    line-height: 1.6;
+    padding: 1rem;
+    tab-size: 4;
+    caret-color: #58a6ff;
+}
+
+.query-panel__textarea::placeholder {
+    color: #30363d;
+}
+
+.query-panel__textarea::-webkit-scrollbar {
+    width: 8px;
+}
+
+.query-panel__textarea::-webkit-scrollbar-track {
+    background: #0d1117;
+}
+
+.query-panel__textarea::-webkit-scrollbar-thumb {
+    background-color: #30363d;
+    border-radius: 4px;
+}

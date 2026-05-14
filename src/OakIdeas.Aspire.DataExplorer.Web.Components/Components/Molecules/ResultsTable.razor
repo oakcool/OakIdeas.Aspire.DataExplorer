@@ -1,0 +1,66 @@
+@* Results grid for query/table-browse output *@
+<div class="results-table">
+    <div class="results-table__meta">
+        @if (IsLoading)
+        {
+            <LoadingSpinner Label="Fetching results…" />
+        }
+        else if (!string.IsNullOrEmpty(ErrorMessage))
+        {
+            <span class="results-table__error">⚠ @ErrorMessage</span>
+        }
+        else if (Rows.Count > 0)
+        {
+            <span class="results-table__count">@Rows.Count row@(Rows.Count != 1 ? "s" : "") returned</span>
+        }
+        else
+        {
+            <span class="results-table__empty">No results</span>
+        }
+    </div>
+
+    @if (!IsLoading && string.IsNullOrEmpty(ErrorMessage) && Columns.Count > 0)
+    {
+        <div class="results-table__scroll">
+            <table class="results-table__grid">
+                <thead>
+                    <tr>
+                        <th class="results-table__row-num">#</th>
+                        @foreach (var col in Columns)
+                        {
+                            <th>@col</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @{int rowNum = 1;}
+                    @foreach (var row in Rows)
+                    {
+                        <tr>
+                            <td class="results-table__row-num">@rowNum</td>
+                            @foreach (var cell in row)
+                            {
+                                <td title="@cell">@(cell ?? "(null)")</td>
+                            }
+                        </tr>
+                        rowNum++;
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<string> Columns { get; set; } = [];
+
+    [Parameter]
+    public IReadOnlyList<IReadOnlyList<string?>> Rows { get; set; } = [];
+
+    [Parameter]
+    public bool IsLoading { get; set; }
+
+    [Parameter]
+    public string ErrorMessage { get; set; } = string.Empty;
+}

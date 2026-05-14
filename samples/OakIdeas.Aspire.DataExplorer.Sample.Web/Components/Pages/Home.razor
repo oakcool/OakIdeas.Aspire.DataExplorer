@@ -1,12 +1,39 @@
 @page "/"
+@layout HomeLayout
 
-<PageTitle>DataExplorer Sample</PageTitle>
+<PageTitle>Home — DataExplorer Sample</PageTitle>
 
-<h1>DataExplorer Sample</h1>
+<HeroSection Headline="Explore Your Aspire Databases"
+             SubText="A development-time companion for inspecting and querying SQL Server databases registered with .NET Aspire. Browse tables, run queries, and understand your data.">
+    <Actions>
+        <a href="/todos" class="btn btn-primary">View Todos ✅</a>
+        <a href="https://learn.microsoft.com/dotnet/aspire" target="_blank" rel="noopener" class="btn btn-outline">
+            .NET Aspire Docs ↗
+        </a>
+    </Actions>
+</HeroSection>
 
-<p>This sample demonstrates OakIdeas.Aspire.DataExplorer consuming a SQL Server database.</p>
+<div class="sample-stats-section">
+    <h2 class="sample-stats-section__title">What This Sample Demonstrates</h2>
+    <div class="sample-stats-grid">
+        <StatWidget Label="Todo Items" Value="Live" Icon="✅" IconBg="#d1fae5" />
+        <StatWidget Label="SQL Server" Value="Connected" Icon="🗄" IconBg="#dbeafe" />
+        <StatWidget Label="Aspire" Value="Orchestrated" Icon="⚡" IconBg="#fef3c7" />
+        <StatWidget Label="DataExplorer" Value="Active" Icon="🔍" IconBg="#f3e8ff" />
+    </div>
+</div>
 
-<ul>
-    <li><a href="/todos">Manage Todos</a> — CRUD over the <code>TodoItems</code> table</li>
-    <li>Open the <strong>DataExplorer</strong> from the Aspire dashboard to inspect the database live</li>
-</ul>
+<div class="sample-features">
+    <Card Title="Todo CRUD" Icon="✅" Variant="success">
+        <p>Create, complete, and delete todos backed by a real SQL Server database. Each change is persisted and visible in the DataExplorer.</p>
+        <a href="/todos" class="btn btn-primary" style="margin-top:0.75rem">Open Todos</a>
+    </Card>
+
+    <Card Title="Live Database" Icon="🗄" Variant="accent">
+        <p>The <strong>DataExplorer</strong> tool is wired to the same SQL Server instance. Launch it from the Aspire dashboard to inspect the <code>TodoItems</code> table live.</p>
+    </Card>
+
+    <Card Title=".NET Aspire Integration" Icon="⚡">
+        <p>Resources are orchestrated via the Aspire AppHost. Service discovery, health checks, and configuration are all managed automatically.</p>
+    </Card>
+</div>

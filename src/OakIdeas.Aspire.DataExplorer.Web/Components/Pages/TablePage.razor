@@ -1,14 +1,25 @@
 @page "/tables/{connectionName}/{schema}/{tableName}"
 
-<PageTitle>Table</PageTitle>
+<PageTitle>@TableName — Data Explorer</PageTitle>
 
-<h1>Table Viewer</h1>
+<div class="de-table-page">
+    <div class="de-main__header">
+        <span class="de-table-breadcrumb">
+            <span class="de-table-breadcrumb__part">@ConnectionName</span>
+            <span class="de-table-breadcrumb__sep">›</span>
+            <span class="de-table-breadcrumb__part">@Schema</span>
+            <span class="de-table-breadcrumb__sep">›</span>
+            <strong class="de-table-breadcrumb__table">@TableName</strong>
+        </span>
+    </div>
 
-<p><strong>Connection:</strong> @ConnectionName</p>
-<p><strong>Schema:</strong> @Schema</p>
-<p><strong>Table:</strong> @TableName</p>
-
-<p>Paginated data grid and CRUD operations will be added in follow-up tasks.</p>
+    <div class="de-table-body">
+        <ResultsTable Columns="@_columns"
+                      Rows="@_rows"
+                      IsLoading="false"
+                      ErrorMessage="" />
+    </div>
+</div>
 
 @code {
     [Parameter]
@@ -19,4 +30,11 @@
 
     [Parameter]
     public string TableName { get; set; } = string.Empty;
+
+    private IReadOnlyList<string> _columns = ["Id", "Title", "IsCompleted", "CreatedAt"];
+    private IReadOnlyList<IReadOnlyList<string?>> _rows = [
+        ["1", "Set up DataExplorer", "true", "2025-01-01T10:00:00Z"],
+        ["2", "Explore schemas", "false", "2025-01-02T11:30:00Z"]
+    ];
 }
+

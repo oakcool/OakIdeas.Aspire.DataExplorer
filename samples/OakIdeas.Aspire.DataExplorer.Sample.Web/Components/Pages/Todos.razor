@@ -2,46 +2,75 @@
 @rendermode InteractiveServer
 @inject TodoApiClient Api
 
-<PageTitle>Todo Items</PageTitle>
+<PageTitle>Todos — DataExplorer Sample</PageTitle>
 
-<h1>Todo Items</h1>
-<p>Manage your todos here. Use the <strong>DataExplorer</strong> to inspect the database directly.</p>
-
-@if (_todos is null)
-{
-    <p><em>Loading...</em></p>
-}
-else
-{
-    <form @onsubmit="AddTodo">
-        <div class="input-group mb-3">
-            <input class="form-control" placeholder="New todo..." @bind="_newTitle" />
-            <button class="btn btn-primary" type="submit">Add</button>
+<div class="todos-page">
+    <div class="todos-header">
+        <div>
+            <h1 class="todos-header__title">Todo Items</h1>
+            <p class="todos-header__sub">Manage your tasks. Every change is reflected live in the DataExplorer.</p>
         </div>
-    </form>
+        @if (_todos is not null)
+        {
+            <div class="todos-header__stats">
+                <StatWidget Label="Total" Value="@_todos.Count.ToString()" Icon="📋" IconBg="#dbeafe" />
+                <StatWidget Label="Completed" Value="@_todos.Count(t => t.IsCompleted).ToString()" Icon="✅" IconBg="#d1fae5" />
+                <StatWidget Label="Pending" Value="@_todos.Count(t => !t.IsCompleted).ToString()" Icon="⏳" IconBg="#fef3c7" />
+            </div>
+        }
+    </div>
 
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Done</th>
-                <th>Title</th>
-                <th>Created</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var todo in _todos)
+    <Card Title="Add a new todo" Icon="➕" Variant="accent">
+        <form @onsubmit="AddTodo" class="todo-add-form">
+            <input class="todo-input"
+                   type="text"
+                   placeholder="What needs to be done?"
+                   @bind="_newTitle"
+                   @bind:event="oninput"
+                   maxlength="200" />
+            <button class="btn btn-primary" type="submit" disabled="@string.IsNullOrWhiteSpace(_newTitle)">
+                Add Todo
+            </button>
+        </form>
+    </Card>
+
+    @if (_todos is null)
+    {
+        <LoadingState Label="Loading todos…" />
+    }
+    else if (!_todos.Any())
+    {
+        <div class="todos-empty">
+            <span class="todos-empty__icon">🎉</span>
+            <p>All done! Add a new todo above to get started.</p>
+        </div>
+    }
+    else
+    {
+        <div class="todo-list">
+            @foreach (var todo in _todos.OrderBy(t => t.IsCompleted).ThenByDescending(t => t.CreatedAt))
             {
-                <tr>
-                    <td><input type="checkbox" checked="@todo.IsCompleted" @onchange="() => ToggleTodo(todo)" /></td>
-                    <td style="text-decoration: @(todo.IsCompleted ? "line-through" : "none")">@todo.Title</td>
-                    <td>@todo.CreatedAt.ToString("g")</td>
-                    <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteTodo(todo.Id)">Delete</button></td>
-                </tr>
+                <div class="todo-item @(todo.IsCompleted ? "todo-item--done" : "")">
+                    <label class="todo-item__check-wrap">
+                        <input type="checkbox"
+                               class="todo-item__checkbox"
+                               checked="@todo.IsCompleted"
+                               @onchange="() => ToggleTodo(todo)" />
+                    </label>
+                    <div class="todo-item__content">
+                        <span class="todo-item__title">@todo.Title</span>
+                        <span class="todo-item__date">@todo.CreatedAt.ToString("MMM dd, yyyy · h:mm tt")</span>
+                    </div>
+                    <Badge Text="@(todo.IsCompleted ? "Done" : "Pending")"
+                           Variant="@(todo.IsCompleted ? "success" : "warning")" />
+                    <button class="todo-item__delete"
+                            title="Delete"
+                            @onclick="() => DeleteTodo(todo.Id)">✕</button>
+                </div>
             }
-        </tbody>
-    </table>
-}
+        </div>
+    }
+</div>
 
 @code {
     private List<TodoItem>? _todos;
@@ -70,3 +99,4 @@ else
         _todos = await Api.GetTodosAsync();
     }
 }
+

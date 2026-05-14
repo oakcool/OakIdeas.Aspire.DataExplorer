@@ -10,4 +10,13 @@
     <PackageReference Include="Microsoft.Extensions.ServiceDiscovery" Version="9.3.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\OakIdeas.Aspire.DataExplorer.Sample.Web.Components\OakIdeas.Aspire.DataExplorer.Sample.Web.Components.csproj" />
+  </ItemGroup>
+
+  <Target Name="BuildTailwindCSS" BeforeTargets="Build" Condition="'$(NpmBuildEnabled)' != 'false'">
+    <Exec Command="npm install" WorkingDirectory="$(MSBuildProjectDirectory)" />
+    <Exec Command="npm run build:css" WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+
 </Project>

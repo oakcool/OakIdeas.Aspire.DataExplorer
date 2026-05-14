@@ -1,0 +1,39 @@
+@* Hero section for the Sample home page *@
+<section class="hero">
+    <div class="hero__content">
+        <div class="hero__eyebrow">
+            <Badge Text=".NET Aspire" Variant="info" />
+            <Badge Text="Development Tool" Variant="warning" />
+        </div>
+        <h1 class="hero__headline">@Headline</h1>
+        <p class="hero__sub">@SubText</p>
+        <div class="hero__actions">
+            @Actions
+        </div>
+    </div>
+    <div class="hero__graphic" aria-hidden="true">
+        <div class="hero__orb hero__orb--1"></div>
+        <div class="hero__orb hero__orb--2"></div>
+        <div class="hero__terminal">
+            <div class="hero__terminal-bar">
+                <span></span><span></span><span></span>
+            </div>
+            <pre class="hero__terminal-code">SELECT TOP 5
+  Id, Title, IsCompleted
+FROM dbo.TodoItems
+WHERE IsCompleted = 0
+ORDER BY CreatedAt DESC;</pre>
+        </div>
+    </div>
+</section>
+
+@code {
+    [Parameter]
+    public string Headline { get; set; } = "Explore Your Aspire Databases";
+
+    [Parameter]
+    public string SubText { get; set; } = "A development-time companion for inspecting and querying SQL Server databases registered with .NET Aspire.";
+
+    [Parameter]
+    public RenderFragment? Actions { get; set; }
+}

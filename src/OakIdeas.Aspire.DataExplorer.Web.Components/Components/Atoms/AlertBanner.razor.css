@@ -1,0 +1,16 @@
+.dev-warning-banner {
+    background-color: #7c3aed;
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 0.35rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    z-index: 50;
+}
+
+.dev-warning-icon {
+    font-size: 0.9rem;
+}
