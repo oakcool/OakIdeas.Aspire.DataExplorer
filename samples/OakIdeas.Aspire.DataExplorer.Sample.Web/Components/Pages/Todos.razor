@@ -1,0 +1,72 @@
+@page "/todos"
+@rendermode InteractiveServer
+@inject TodoApiClient Api
+
+<PageTitle>Todo Items</PageTitle>
+
+<h1>Todo Items</h1>
+<p>Manage your todos here. Use the <strong>DataExplorer</strong> to inspect the database directly.</p>
+
+@if (_todos is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <form @onsubmit="AddTodo">
+        <div class="input-group mb-3">
+            <input class="form-control" placeholder="New todo..." @bind="_newTitle" />
+            <button class="btn btn-primary" type="submit">Add</button>
+        </div>
+    </form>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Done</th>
+                <th>Title</th>
+                <th>Created</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var todo in _todos)
+            {
+                <tr>
+                    <td><input type="checkbox" checked="@todo.IsCompleted" @onchange="() => ToggleTodo(todo)" /></td>
+                    <td style="text-decoration: @(todo.IsCompleted ? "line-through" : "none")">@todo.Title</td>
+                    <td>@todo.CreatedAt.ToString("g")</td>
+                    <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteTodo(todo.Id)">Delete</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<TodoItem>? _todos;
+    private string _newTitle = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+        => _todos = await Api.GetTodosAsync();
+
+    private async Task AddTodo()
+    {
+        if (string.IsNullOrWhiteSpace(_newTitle)) return;
+        await Api.CreateTodoAsync(_newTitle);
+        _newTitle = string.Empty;
+        _todos = await Api.GetTodosAsync();
+    }
+
+    private async Task ToggleTodo(TodoItem todo)
+    {
+        await Api.ToggleTodoAsync(todo);
+        _todos = await Api.GetTodosAsync();
+    }
+
+    private async Task DeleteTodo(int id)
+    {
+        await Api.DeleteTodoAsync(id);
+        _todos = await Api.GetTodosAsync();
+    }
+}
