@@ -9,17 +9,20 @@ public sealed class TodoApiClient(HttpClient httpClient)
 
     public async Task CreateTodoAsync(string title, CancellationToken cancellationToken = default)
     {
-        await httpClient.PostAsJsonAsync("/todoitems", new { Title = title, IsCompleted = false }, cancellationToken);
+        var response = await httpClient.PostAsJsonAsync("/todoitems", new { Title = title, IsCompleted = false }, cancellationToken);
+        response.EnsureSuccessStatusCode();
     }
 
     public async Task ToggleTodoAsync(TodoItem item, CancellationToken cancellationToken = default)
     {
-        await httpClient.PutAsJsonAsync($"/todoitems/{item.Id}",
+        var response = await httpClient.PutAsJsonAsync($"/todoitems/{item.Id}",
             new { item.Title, IsCompleted = !item.IsCompleted }, cancellationToken);
+        response.EnsureSuccessStatusCode();
     }
 
     public async Task DeleteTodoAsync(int id, CancellationToken cancellationToken = default)
     {
-        await httpClient.DeleteAsync($"/todoitems/{id}", cancellationToken);
+        var response = await httpClient.DeleteAsync($"/todoitems/{id}", cancellationToken);
+        response.EnsureSuccessStatusCode();
     }
 }
