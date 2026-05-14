@@ -22,7 +22,7 @@ dotnet restore
 
 dotnet build OakIdeas.Aspire.DataExplorer.sln
 
-dotnet run --project /home/runner/work/OakIdeas.Aspire.DataExplorer/OakIdeas.Aspire.DataExplorer/src/OakIdeas.Aspire.DataExplorer.AppHost
+dotnet run --project src/OakIdeas.Aspire.DataExplorer.AppHost
 ```
 
 The Aspire dashboard opens automatically in your browser.
@@ -39,6 +39,18 @@ To run both AppHosts side-by-side during development:
 - `tests/` test projects
 - `samples/` sample app
 - `docs/` architecture, decisions, setup, provider, usage guidance
+
+### Virtual solution folders
+
+| Folder | Projects |
+|---|---|
+| `01 - Packages` | Hosting, Web, Contracts |
+| `02 - Services` | _(reserved)_ |
+| `03 - Data` | Data, SqlServer |
+| `04 - Core` | Core |
+| `05 - Tools` | All test projects |
+| `06 - Orchestration` | AppHost |
+| `07 - Samples` | Sample.AppHost, Sample.Api, Sample.Web |
 
 ## Development-only guardrails
 
