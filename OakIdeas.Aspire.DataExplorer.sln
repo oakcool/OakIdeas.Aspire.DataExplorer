@@ -39,7 +39,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OakIdeas.Aspire.DataExplore
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OakIdeas.Aspire.DataExplorer.IntegrationTests", "tests\OakIdeas.Aspire.DataExplorer.IntegrationTests\OakIdeas.Aspire.DataExplorer.IntegrationTests.csproj", "{B30DBA04-6625-4E11-BAA6-D3C5A5CB2875}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OakIdeas.Aspire.DataExplorer.SampleApp", "samples\OakIdeas.Aspire.DataExplorer.SampleApp\OakIdeas.Aspire.DataExplorer.SampleApp.csproj", "{94F7BAB4-4183-4CA9-9940-D2F4BCDA4EF6}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OakIdeas.Aspire.DataExplorer.Sample.AppHost", "samples\OakIdeas.Aspire.DataExplorer.Sample.AppHost\OakIdeas.Aspire.DataExplorer.Sample.AppHost.csproj", "{94F7BAB4-4183-4CA9-9940-D2F4BCDA4EF6}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OakIdeas.Aspire.DataExplorer.Sample.Api", "samples\OakIdeas.Aspire.DataExplorer.Sample.Api\OakIdeas.Aspire.DataExplorer.Sample.Api.csproj", "{A1B2C3D4-E5F6-4890-ABCD-EF1234567891}"
 EndProject

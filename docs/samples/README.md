@@ -6,7 +6,7 @@ The `samples/` folder contains a self-contained Aspire application that demonstr
 
 | Project | Description |
 |---|---|
-| `OakIdeas.Aspire.DataExplorer.SampleApp` | Aspire AppHost — orchestrates all services |
+| `OakIdeas.Aspire.DataExplorer.Sample.AppHost` | Aspire AppHost — orchestrates all services |
 | `OakIdeas.Aspire.DataExplorer.Sample.Api` | Minimal API with EF Core SQL Server and migrations |
 | `OakIdeas.Aspire.DataExplorer.Sample.Web` | Blazor Server app consuming the API |
 
@@ -20,7 +20,7 @@ The `samples/` folder contains a self-contained Aspire application that demonstr
 ## Running the sample
 
 ```bash
-dotnet run --project samples/OakIdeas.Aspire.DataExplorer.SampleApp
+dotnet run --project samples/OakIdeas.Aspire.DataExplorer.Sample.AppHost
 ```
 
 The Aspire dashboard opens automatically at `http://localhost:15888`.

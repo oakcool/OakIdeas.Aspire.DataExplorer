@@ -30,7 +30,7 @@ The Aspire dashboard opens automatically in your browser.
 To run both AppHosts side-by-side during development:
 
 - Start `src/OakIdeas.Aspire.DataExplorer.AppHost` for DataExplorer development
-- Start `samples/OakIdeas.Aspire.DataExplorer.SampleApp` for the sample consuming DataExplorer
+- Start `samples/OakIdeas.Aspire.DataExplorer.Sample.AppHost` for the sample consuming DataExplorer
 - In Visual Studio, use the `DataExplorer + Sample` solution launch profile
 
 ## Solution layout

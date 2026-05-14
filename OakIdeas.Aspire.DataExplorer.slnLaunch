@@ -7,7 +7,7 @@
         "Action": "Start"
       },
       {
-        "Path": "samples/OakIdeas.Aspire.DataExplorer.SampleApp/OakIdeas.Aspire.DataExplorer.SampleApp.csproj",
+        "Path": "samples/OakIdeas.Aspire.DataExplorer.Sample.AppHost/OakIdeas.Aspire.DataExplorer.Sample.AppHost.csproj",
         "Action": "Start"
       }
     ]
