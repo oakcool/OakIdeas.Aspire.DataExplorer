@@ -11,6 +11,10 @@ if (builder.Environment.IsDevelopment())
 var sql = builder.AddSqlServer("sample-sql")
     .AddDatabase("sampledb");
 
+builder.AddProject<Projects.OakIdeas_Aspire_DataExplorer_Web>("data-explorer")
+    .WithReference(sql)
+    .WaitFor(sql);
+
 var api = builder.AddProject<Projects.OakIdeas_Aspire_DataExplorer_Sample_Api>("sample-api")
     .WithReference(sql)
     .WaitFor(sql);
