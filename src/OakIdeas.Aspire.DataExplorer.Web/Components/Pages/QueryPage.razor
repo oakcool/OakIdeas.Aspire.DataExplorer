@@ -4,7 +4,10 @@
 
 <div class="de-query-page">
     <div class="de-query-pane de-query-pane--editor">
-        <div class="de-query-pane__label">SQL Editor</div>
+        <div class="de-query-pane__label">
+            <HeroIcon Kind="HeroIconKind.CodeBracket" Size="15" Class="de-query-pane__label-icon" />
+            <span>SQL Editor</span>
+        </div>
         <QueryPanel ConnectionName="@(ConnectionName ?? string.Empty)"
                     @bind-Sql="_sql"
                     IsExecuting="_running"
@@ -14,7 +17,10 @@
     <div class="de-query-divider" aria-hidden="true"></div>
 
     <div class="de-query-pane de-query-pane--results">
-        <div class="de-query-pane__label">Results</div>
+        <div class="de-query-pane__label">
+            <HeroIcon Kind="HeroIconKind.TableCells" Size="15" Class="de-query-pane__label-icon" />
+            <span>Results</span>
+        </div>
         <ResultsTable Columns="@_columns"
                       Rows="@_rows"
                       IsLoading="_running"

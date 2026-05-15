@@ -1,0 +1,33 @@
+<svg class="@CssClass"
+     xmlns="http://www.w3.org/2000/svg"
+     fill="none"
+     viewBox="0 0 24 24"
+     stroke-width="@StrokeWidth"
+     stroke="currentColor"
+     aria-hidden="@AriaHidden"
+     focusable="false"
+     width="@Size"
+     height="@Size">
+    @((MarkupString)HeroIconMarkup.GetInnerSvg(Kind))
+</svg>
+
+@code {
+    [Parameter]
+    public HeroIconKind Kind { get; set; }
+
+    [Parameter]
+    public int Size { get; set; } = 20;
+
+    [Parameter]
+    public string StrokeWidth { get; set; } = "1.5";
+
+    [Parameter]
+    public string Class { get; set; } = string.Empty;
+
+    [Parameter]
+    public bool AriaHidden { get; set; } = true;
+
+    private string CssClass => string.IsNullOrWhiteSpace(Class)
+        ? "hero-icon"
+        : $"hero-icon {Class}";
+}

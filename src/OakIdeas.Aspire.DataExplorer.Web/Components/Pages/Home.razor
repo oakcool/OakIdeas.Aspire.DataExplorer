@@ -5,28 +5,48 @@
 <div class="de-dashboard">
     <div class="de-main">
         <div class="de-main__header">
-            <h2 class="de-main__title">Dashboard</h2>
+            <h2 class="de-main__title">
+                <HeroIcon Kind="HeroIconKind.Home" Size="18" Class="de-main__title-icon" />
+                <span>Dashboard</span>
+            </h2>
             <StatusBadge Text="Ready" Variant="connected" />
         </div>
 
         <div class="de-main__body">
+            <section class="de-brand-hero">
+                <div class="de-brand-hero__art" aria-hidden="true">
+                    <img src="/images/logo.png" alt="" />
+                </div>
+                <div class="de-brand-hero__copy">
+                    <div class="de-brand-hero__eyebrow">Development-only workspace</div>
+                    <h3>Explore live data with a fast, focused shell.</h3>
+                    <p>Browse connections, inspect schemas, and run SQL from a single interface built for Aspire-backed local development.</p>
+                </div>
+            </section>
+
             <div class="de-info-grid">
                 <div class="de-info-card">
-                    <span class="de-info-card__icon">🔌</span>
+                    <span class="de-info-card__icon" aria-hidden="true">
+                        <HeroIcon Kind="HeroIconKind.ServerStack" Size="24" />
+                    </span>
                     <div>
                         <div class="de-info-card__label">Provider</div>
                         <div class="de-info-card__value">SQL Server (MVP)</div>
                     </div>
                 </div>
                 <div class="de-info-card">
-                    <span class="de-info-card__icon">🗄</span>
+                    <span class="de-info-card__icon" aria-hidden="true">
+                        <HeroIcon Kind="HeroIconKind.Link" Size="24" />
+                    </span>
                     <div>
                         <div class="de-info-card__label">Connections</div>
                         <div class="de-info-card__value">1 discovered</div>
                     </div>
                 </div>
                 <div class="de-info-card">
-                    <span class="de-info-card__icon">✔</span>
+                    <span class="de-info-card__icon" aria-hidden="true">
+                        <HeroIcon Kind="HeroIconKind.CheckCircle" Size="24" />
+                    </span>
                     <div>
                         <div class="de-info-card__label">Status</div>
                         <div class="de-info-card__value">Initial setup complete</div>
@@ -35,7 +55,9 @@
             </div>
 
             <div class="de-tip">
-                <span class="de-tip__icon">💡</span>
+                <span class="de-tip__icon" aria-hidden="true">
+                    <HeroIcon Kind="HeroIconKind.LightBulb" Size="20" />
+                </span>
                 <p>Use the <strong>Object Explorer</strong> panel to browse connections, schemas and tables. Select a table to open it, or use <strong>Explorer</strong> and <strong>Query</strong> in the top bar.</p>
             </div>
         </div>

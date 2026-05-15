@@ -44,6 +44,10 @@
     color: inherit;
 }
 
+.tree-node--selected .tree-node__icon--primary {
+    margin-left: 0.18rem;
+}
+
 .tree-node__toggle {
     display: inline-flex;
     align-items: center;
@@ -60,13 +64,14 @@
 }
 
 .tree-node__icon {
-    font-size: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
 }
 
 .tree-node__icon--primary {
-    font-size: 1.28rem;
-    line-height: 1;
+    color: #93c5fd;
 }
 
 .tree-node__label {

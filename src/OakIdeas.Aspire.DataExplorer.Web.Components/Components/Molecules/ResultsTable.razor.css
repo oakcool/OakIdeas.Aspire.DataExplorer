@@ -21,11 +21,26 @@
     color: #58a6ff;
 }
 
+.results-table__footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0.4rem 0.75rem;
+    background-color: #11161e;
+    border-top: 1px solid #21262d;
+    min-height: 2rem;
+    flex-shrink: 0;
+    font-size: 0.78rem;
+}
+
 .results-table__empty {
     color: #6e7681;
 }
 
 .results-table__error {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
     color: #f85149;
 }
 
