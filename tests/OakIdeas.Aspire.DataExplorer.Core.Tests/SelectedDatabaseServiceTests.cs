@@ -125,14 +125,14 @@ public sealed class SelectedDatabaseServiceTests
     private sealed class StubAspireResourceDiscovery(IReadOnlyList<DiscoveredDatabaseResource> resources)
         : IAspireResourceDiscovery
     {
-        private readonly IReadOnlyList<DiscoveredDatabaseResource> resources = resources;
+        private readonly IReadOnlyList<DiscoveredDatabaseResource> _resources = resources;
 
         public Task<DiscoverResourcesResponse> DiscoverResourcesAsync(
             DiscoverResourcesRequest request,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return Task.FromResult(new DiscoverResourcesResponse(resources));
+            return Task.FromResult(new DiscoverResourcesResponse(_resources));
         }
     }
 }

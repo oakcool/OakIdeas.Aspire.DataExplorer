@@ -7,7 +7,7 @@ namespace OakIdeas.Aspire.DataExplorer.Core.Services;
 public sealed class SelectedDatabaseService(
     IAspireResourceDiscovery resourceDiscovery) : ISelectedDatabaseService
 {
-    private readonly IAspireResourceDiscovery resourceDiscovery = resourceDiscovery;
+    private readonly IAspireResourceDiscovery _resourceDiscovery = resourceDiscovery;
     private SelectedDatabaseContext? selectedDatabase;
 
     public event EventHandler<SelectedDatabaseContext?>? SelectionChanged;
@@ -28,7 +28,7 @@ public sealed class SelectedDatabaseService(
                 ErrorMessage: "Resource ID is required.");
         }
 
-        var discoveredResources = await resourceDiscovery.DiscoverResourcesAsync(
+        var discoveredResources = await _resourceDiscovery.DiscoverResourcesAsync(
             new DiscoverResourcesRequest(IncludeUnavailableResources: true),
             cancellationToken);
 
