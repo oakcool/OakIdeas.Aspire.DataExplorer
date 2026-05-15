@@ -10,6 +10,14 @@ OakIdeas.Aspire.DataExplorer is split into UI, orchestration, contracts, and pro
 - `Hosting` contains Aspire integration extensions.
 - `AppHost` orchestrates local development resources.
 
+## Selected database context service
+
+Database targeting is handled by `ISelectedDatabaseService` in `Core`:
+
+- Stores the in-memory selected `DiscoveredDatabaseResource` as `SelectedDatabaseContext` per scoped session.
+- Validates selections against `IAspireResourceDiscovery` before switching context.
+- Exposes async APIs (`SelectDatabaseAsync`, `GetSelectedDatabaseAsync`, `ClearSelectionAsync`, `IsSelectedAsync`) and a `SelectionChanged` notification event for reactive UI flows.
+
 ## Metadata root contracts
 
 Metadata discovery uses provider-agnostic contracts in `Contracts/Models/DatabaseMetadataContracts.cs`:

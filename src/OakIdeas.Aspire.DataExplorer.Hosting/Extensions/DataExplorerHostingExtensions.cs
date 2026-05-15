@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Configuration;
+using OakIdeas.Aspire.DataExplorer.Core.Extensions;
 using OakIdeas.Aspire.DataExplorer.Core.Guards;
 using OakIdeas.Aspire.DataExplorer.Core.Services;
 using OakIdeas.Aspire.DataExplorer.Hosting.Services;
@@ -21,6 +22,7 @@ public static class DataExplorerHostingExtensions
             .Bind(builder.Configuration.GetSection(DataExplorerOptions.SectionName));
         builder.Services.AddSingleton<DiscoveredDatabaseResourceProjector>();
         builder.Services.AddSingleton<IAspireResourceDiscovery, AspireResourceDiscovery>();
+        builder.Services.AddSelectedDatabaseService();
 
         return builder;
     }
