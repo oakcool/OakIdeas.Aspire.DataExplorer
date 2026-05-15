@@ -7,13 +7,12 @@
         }
         else if (!string.IsNullOrEmpty(ErrorMessage))
         {
-            <span class="results-table__error">⚠ @ErrorMessage</span>
+            <span class="results-table__error">
+                <HeroIcon Kind="HeroIconKind.ExclamationTriangle" Size="16" />
+                <span>@ErrorMessage</span>
+            </span>
         }
-        else if (Rows.Count > 0)
-        {
-            <span class="results-table__count">@Rows.Count row@(Rows.Count != 1 ? "s" : "") returned</span>
-        }
-        else
+        else if (Rows.Count == 0)
         {
             <span class="results-table__empty">No results</span>
         }
@@ -47,6 +46,10 @@
                     }
                 </tbody>
             </table>
+        </div>
+
+        <div class="results-table__footer">
+            <span class="results-table__count">@Rows.Count row@(Rows.Count != 1 ? "s" : "")</span>
         </div>
     }
 </div>

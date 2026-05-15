@@ -22,6 +22,9 @@
 }
 
 .de-main__title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
     font-size: 0.875rem;
     font-weight: 600;
     color: #e6edf3;
@@ -33,6 +36,84 @@
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+}
+
+.de-brand-hero {
+    display: grid;
+    grid-template-columns: 168px minmax(0, 1fr);
+    gap: 1.25rem;
+    align-items: center;
+    padding: 1.1rem;
+    background:
+        radial-gradient(circle at top right, rgba(88, 166, 255, 0.18), transparent 36%),
+        linear-gradient(135deg, rgba(22, 27, 34, 0.98), rgba(15, 23, 42, 0.96));
+    border: 1px solid rgba(56, 139, 253, 0.2);
+    border-radius: 14px;
+    box-shadow: 0 16px 32px rgba(1, 4, 9, 0.28);
+}
+
+.de-brand-hero__art {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 168px;
+    border-radius: 12px;
+    background: radial-gradient(circle at 30% 30%, rgba(168, 85, 247, 0.14), transparent 46%), #101826;
+    border: 1px solid rgba(96, 165, 250, 0.2);
+    overflow: hidden;
+}
+
+.de-brand-hero__art img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.de-brand-hero__copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.de-brand-hero__eyebrow {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    padding: 0.18rem 0.45rem;
+    border-radius: 999px;
+    background-color: rgba(56, 139, 253, 0.12);
+    border: 1px solid rgba(56, 139, 253, 0.22);
+    color: #60a5fa;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.de-brand-hero__copy h3 {
+    margin: 0;
+    color: #f0f6fc;
+    font-size: 1.25rem;
+    line-height: 1.2;
+}
+
+.de-brand-hero__copy p {
+    margin: 0;
+    color: #8b949e;
+    font-size: 0.92rem;
+    line-height: 1.65;
+    max-width: 48rem;
+}
+
+@media (max-width: 720px) {
+    .de-brand-hero {
+        grid-template-columns: 1fr;
+    }
+
+    .de-brand-hero__art {
+        min-height: 140px;
+    }
 }
 
 .de-info-grid {
@@ -52,7 +133,9 @@
 }
 
 .de-info-card__icon {
-    font-size: 1.4rem;
+    display: inline-flex;
+    align-items: center;
+    color: #60a5fa;
     flex-shrink: 0;
 }
 
@@ -85,7 +168,9 @@
 }
 
 .de-tip__icon {
-    font-size: 1.1rem;
+    display: inline-flex;
+    align-items: center;
+    color: #58a6ff;
     flex-shrink: 0;
     margin-top: 0.05rem;
 }

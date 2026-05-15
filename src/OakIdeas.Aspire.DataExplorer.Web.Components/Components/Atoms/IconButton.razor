@@ -3,7 +3,9 @@
         title="@Title"
         disabled="@Disabled"
         @onclick="OnClick">
-    <span class="icon-btn__icon" aria-hidden="true">@Icon</span>
+    <span class="icon-btn__icon" aria-hidden="true">
+        <HeroIcon Kind="Icon" Size="16" />
+    </span>
     @if (!string.IsNullOrEmpty(Label))
     {
         <span class="icon-btn__label">@Label</span>
@@ -12,7 +14,7 @@
 
 @code {
     [Parameter]
-    public string Icon { get; set; } = string.Empty;
+    public HeroIconKind Icon { get; set; } = HeroIconKind.ChevronRight;
 
     [Parameter]
     public string Label { get; set; } = string.Empty;

@@ -4,11 +4,18 @@
 
 <div class="de-table-page">
     <div class="de-main__header">
+        <span class="de-table-page__icon" aria-hidden="true">
+            <HeroIcon Kind="HeroIconKind.TableCells" Size="18" />
+        </span>
         <span class="de-table-breadcrumb">
             <span class="de-table-breadcrumb__part">@ConnectionName</span>
-            <span class="de-table-breadcrumb__sep">›</span>
+            <span class="de-table-breadcrumb__sep" aria-hidden="true">
+                <HeroIcon Kind="HeroIconKind.ChevronRight" Size="12" />
+            </span>
             <span class="de-table-breadcrumb__part">@Schema</span>
-            <span class="de-table-breadcrumb__sep">›</span>
+            <span class="de-table-breadcrumb__sep" aria-hidden="true">
+                <HeroIcon Kind="HeroIconKind.ChevronRight" Size="12" />
+            </span>
             <strong class="de-table-breadcrumb__table">@TableName</strong>
         </span>
     </div>

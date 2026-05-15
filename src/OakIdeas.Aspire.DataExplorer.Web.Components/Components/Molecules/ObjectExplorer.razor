@@ -4,7 +4,7 @@
         @if (IsMinimized)
         {
             <div class="object-explorer__actions object-explorer__actions--collapsed">
-                <IconButton Icon="⟩"
+                <IconButton Icon="HeroIconKind.ChevronRight"
                             Title=""
                             Variant="ghost"
                             OnClick="ToggleMinimized" />
@@ -12,10 +12,13 @@
         }
         else
         {
-            <span class="object-explorer__title">Object Explorer</span>
+            <span class="object-explorer__title">
+                <HeroIcon Kind="HeroIconKind.QueueList" Size="16" Class="object-explorer__title-icon" />
+                <span>Object Explorer</span>
+            </span>
             <div class="object-explorer__actions">
-                <IconButton Icon="↺" Title="Refresh" Variant="ghost" OnClick="Refresh" />
-                <IconButton Icon="⟨"
+                <IconButton Icon="HeroIconKind.ArrowPath" Title="Refresh" Variant="ghost" OnClick="Refresh" />
+                <IconButton Icon="HeroIconKind.ChevronLeft"
                             Title="Minimize Object Explorer"
                             Variant="ghost"
                             OnClick="ToggleMinimized" />
@@ -31,7 +34,7 @@
                 <button type="button"
                         class="object-explorer__collapsed-db"
                         @onclick="ToggleMinimized">
-                    <span aria-hidden="true">🗄</span>
+                    <HeroIcon Kind="HeroIconKind.CircleStack" Size="20" />
                 </button>
             }
             else if (Connections.Any())
@@ -39,7 +42,7 @@
                 <button type="button"
                         class="object-explorer__collapsed-db"
                         @onclick="ToggleMinimized">
-                    <span aria-hidden="true">🖧</span>
+                    <HeroIcon Kind="HeroIconKind.ServerStack" Size="20" />
                 </button>
             }
         </div>
@@ -47,11 +50,16 @@
     else
     {
         <div class="object-explorer__search">
-            <input class="object-explorer__search-input"
-                   type="search"
-                   placeholder="Filter objects…"
-                   @bind="_filter"
-                   @bind:event="oninput" />
+            <div class="object-explorer__search-box">
+                <span class="object-explorer__search-icon" aria-hidden="true">
+                    <HeroIcon Kind="HeroIconKind.MagnifyingGlass" Size="16" />
+                </span>
+                <input class="object-explorer__search-input"
+                       type="search"
+                       placeholder="Filter objects…"
+                       @bind="_filter"
+                       @bind:event="oninput" />
+            </div>
         </div>
 
         <div class="object-explorer__tree">
@@ -73,7 +81,7 @@
                 @foreach (var conn in FilteredConnections)
                 {
                     <TreeNode Label="@conn.Name"
-                              Icon="🖧"
+                              Icon="HeroIconKind.ServerStack"
                               HasChildren="true"
                               Depth="0"
                               IsExpanded="_expandedConnections.Contains(conn.Name)"
@@ -82,7 +90,7 @@
                         @foreach (var db in conn.Databases)
                         {
                             <TreeNode Label="@db.Name"
-                                      Icon="🗄"
+                                      Icon="HeroIconKind.CircleStack"
                                       HasChildren="@db.Schemas.Any()"
                                       Depth="1"
                                       IsExpanded="_expandedDatabases.Contains(db.Name)"
@@ -90,7 +98,7 @@
                                 @foreach (var schema in db.Schemas)
                                 {
                                     <TreeNode Label="@schema.Name"
-                                              Icon="📁"
+                                              Icon="HeroIconKind.Folder"
                                               HasChildren="@schema.Tables.Any()"
                                               Depth="2"
                                               IsExpanded="_expandedSchemas.Contains(schema.Name)"
@@ -98,7 +106,7 @@
                                         @if (schema.Tables.Any())
                                         {
                                             <TreeNode Label="Tables"
-                                                      Icon="📋"
+                                                      Icon="HeroIconKind.QueueList"
                                                       HasChildren="true"
                                                       Depth="3"
                                                       IsExpanded="_expandedTableGroups.Contains(schema.Name)"
@@ -106,7 +114,7 @@
                                                 @foreach (var table in schema.Tables)
                                                 {
                                                     <TreeNode Label="@table"
-                                                              Icon="▤"
+                                                              Icon="HeroIconKind.TableCells"
                                                               Depth="4"
                                                               IsSelected="_selectedTable == table"
                                                               OnSelect="@(() => SelectTable(conn.Name, schema.Name, table))" />

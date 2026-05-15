@@ -12,6 +12,12 @@
     white-space: nowrap;
 }
 
+.icon-btn__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .icon-btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;

@@ -1,15 +1,17 @@
 @* A single node in the object-explorer tree *@
 <div class="tree-node @(IsSelected ? "tree-node--selected" : "")"
-     style="padding-left: @(Depth * 16)px"
+    style="padding-left: @(Depth * 16 + LeftInsetPx)px"
      @onclick="HandleClick">
     <button class="tree-node__toggle"
             @onclick:stopPropagation="true"
             @onclick="ToggleExpand"
             style="visibility: @(HasChildren ? "visible" : "hidden")"
             aria-label="@(IsExpanded ? "Collapse" : "Expand")">
-        <span>@(IsExpanded ? "⌄" : "›")</span>
+        <HeroIcon Kind="@(IsExpanded ? HeroIconKind.ChevronDown : HeroIconKind.ChevronRight)" Size="14" />
     </button>
-    <span class="tree-node__icon @(IsPrimaryNodeIcon ? "tree-node__icon--primary" : string.Empty)" aria-hidden="true">@Icon</span>
+    <span class="tree-node__icon @(IsPrimaryNodeIcon ? "tree-node__icon--primary" : string.Empty)" aria-hidden="true">
+        <HeroIcon Kind="Icon" Size="@IconSize" />
+    </span>
     <span class="tree-node__label">@Label</span>
     @if (!string.IsNullOrEmpty(Badge))
     {
@@ -27,7 +29,7 @@
     public string Label { get; set; } = string.Empty;
 
     [Parameter]
-    public string Icon { get; set; } = "📄";
+    public HeroIconKind Icon { get; set; } = HeroIconKind.TableCells;
 
     [Parameter]
     public string Badge { get; set; } = string.Empty;
@@ -65,5 +67,9 @@
         await OnExpandToggle.InvokeAsync(IsExpanded);
     }
 
-    private bool IsPrimaryNodeIcon => Icon is "🖧" or "🗄";
+    private int IconSize => IsPrimaryNodeIcon ? 20 : 16;
+
+    private int LeftInsetPx => IsSelected && IsExpanded && IsPrimaryNodeIcon ? 10 : 0;
+
+    private bool IsPrimaryNodeIcon => Icon is HeroIconKind.ServerStack or HeroIconKind.CircleStack;
 }

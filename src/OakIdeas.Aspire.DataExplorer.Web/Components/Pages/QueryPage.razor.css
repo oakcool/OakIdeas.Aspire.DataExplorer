@@ -21,6 +21,9 @@
 }
 
 .de-query-pane__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
     font-size: 0.7rem;
     font-weight: 600;
     letter-spacing: 0.08em;
