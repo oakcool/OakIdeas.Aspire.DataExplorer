@@ -1,6 +1,6 @@
 namespace OakIdeas.Aspire.DataExplorer.Core.Models;
 
-public sealed record DiscoveredDatabaseResourceDescriptor(
+internal sealed record DiscoveredDatabaseResourceDescriptor(
     string? ResourceId,
     string? ResourceName,
     string? DatabaseName,

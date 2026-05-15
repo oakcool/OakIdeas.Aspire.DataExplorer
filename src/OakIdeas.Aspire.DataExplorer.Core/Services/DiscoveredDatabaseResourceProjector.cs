@@ -3,7 +3,7 @@ using OakIdeas.Aspire.DataExplorer.Core.Models;
 
 namespace OakIdeas.Aspire.DataExplorer.Core.Services;
 
-public sealed class DiscoveredDatabaseResourceProjector
+internal sealed class DiscoveredDatabaseResourceProjector
 {
     public DiscoverResourcesResponse Project(
         IEnumerable<DiscoveredDatabaseResourceDescriptor> descriptors,
@@ -62,17 +62,19 @@ public sealed class DiscoveredDatabaseResourceProjector
             return DatabaseProviderType.Unknown;
         }
 
-        return providerHint.Trim().ToLowerInvariant() switch
+        var value = providerHint.Trim();
+
+        return value switch
         {
-            var value when value.Contains("sqlserver", StringComparison.Ordinal)
-                || value.Contains("mssql", StringComparison.Ordinal)
+            _ when value.Contains("sqlserver", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("mssql", StringComparison.OrdinalIgnoreCase)
                 => DatabaseProviderType.SqlServer,
-            var value when value.Contains("postgresql", StringComparison.Ordinal)
-                || value.Contains("postgres", StringComparison.Ordinal)
+            _ when value.Contains("postgresql", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("postgres", StringComparison.OrdinalIgnoreCase)
                 => DatabaseProviderType.PostgreSql,
-            var value when value.Contains("sqlite", StringComparison.Ordinal)
+            _ when value.Contains("sqlite", StringComparison.OrdinalIgnoreCase)
                 => DatabaseProviderType.SQLite,
-            var value when value.Contains("mysql", StringComparison.Ordinal)
+            _ when value.Contains("mysql", StringComparison.OrdinalIgnoreCase)
                 => DatabaseProviderType.MySql,
             _ => DatabaseProviderType.Unknown,
         };

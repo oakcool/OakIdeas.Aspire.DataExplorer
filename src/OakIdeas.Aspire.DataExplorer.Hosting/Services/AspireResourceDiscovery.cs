@@ -10,7 +10,7 @@ using OakIdeas.Aspire.DataExplorer.Core.Services;
 
 namespace OakIdeas.Aspire.DataExplorer.Hosting.Services;
 
-public sealed class AspireResourceDiscovery : IAspireResourceDiscovery
+internal sealed class AspireResourceDiscovery : IAspireResourceDiscovery
 {
     private const string DevelopmentOnlyMessage = "Aspire resource discovery can only be used in Development environments.";
 
@@ -19,7 +19,7 @@ public sealed class AspireResourceDiscovery : IAspireResourceDiscovery
     private readonly IOptions<DataExplorerOptions> options;
     private readonly DiscoveredDatabaseResourceProjector projector;
 
-    public AspireResourceDiscovery(
+    internal AspireResourceDiscovery(
         DistributedApplicationModel distributedApplicationModel,
         IHostEnvironment hostEnvironment,
         IOptions<DataExplorerOptions> options,
@@ -36,13 +36,12 @@ public sealed class AspireResourceDiscovery : IAspireResourceDiscovery
         CancellationToken cancellationToken)
     {
         DevelopmentEnvironmentGuard.EnsureDevelopment(hostEnvironment.IsDevelopment(), DevelopmentOnlyMessage);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (!options.Value.EnableAspireResourceDiscovery)
         {
             return Task.FromResult(new DiscoverResourcesResponse([]));
         }
-
-        cancellationToken.ThrowIfCancellationRequested();
 
         var descriptors = distributedApplicationModel.Resources
             .OfType<SqlServerDatabaseResource>()
