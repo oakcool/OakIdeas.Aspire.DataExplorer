@@ -3,54 +3,18 @@
 <PageTitle>Explorer — Data Explorer</PageTitle>
 
 <div class="de-explorer-page">
-    <div class="de-sidebar">
-        <ObjectExplorer IsLoading="false"
-                        Connections="@_connections"
-                        OnTableSelect="@HandleTableSelect" />
-    </div>
-
     <div class="de-main">
         <div class="de-main__header">
             <h2 class="de-main__title">Schema Explorer</h2>
-            @if (_selected is not null)
-            {
-                <StatusBadge Text="@_selected" Variant="info" />
-            }
+            <StatusBadge Text="Select a table" Variant="info" />
         </div>
 
         <div class="de-explorer-body">
-            @if (_selected is null)
-            {
-                <div class="de-explorer-empty">
-                    <span class="de-explorer-empty__icon">📋</span>
-                    <p>Select a table in the Object Explorer to browse its schema.</p>
-                </div>
-            }
-            else
-            {
-                <div class="de-explorer-meta">
-                    <h3 class="de-explorer-meta__title">@_selected</h3>
-                    <p class="de-explorer-meta__sub">Paginated data grid and schema details will appear here as table metadata is implemented.</p>
-                </div>
-            }
+            <div class="de-explorer-empty">
+                <span class="de-explorer-empty__icon">📋</span>
+                <p>Select a table in the Object Explorer to browse its schema.</p>
+            </div>
         </div>
     </div>
 </div>
-
-@code {
-    private string? _selected;
-
-    private List<ObjectExplorer.ConnectionNode> _connections = [
-        new("sample", [
-            new("applicationdb", [
-                new("dbo", ["Users", "TodoItems", "Logs"])
-            ])
-        ])
-    ];
-
-    private void HandleTableSelect(ObjectExplorer.TableSelection sel)
-    {
-        _selected = $"{sel.ConnectionName}/{sel.SchemaName}/{sel.TableName}";
-    }
-}
 

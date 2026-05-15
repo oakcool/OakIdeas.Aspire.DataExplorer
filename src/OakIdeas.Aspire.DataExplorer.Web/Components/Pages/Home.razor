@@ -3,13 +3,6 @@
 <PageTitle>Dashboard — Data Explorer</PageTitle>
 
 <div class="de-dashboard">
-    <div class="de-sidebar">
-        <ObjectExplorer IsLoading="false"
-                        Connections="@_connections"
-                        OnTableSelect="@HandleTableSelect"
-                        OnRefresh="@HandleRefresh" />
-    </div>
-
     <div class="de-main">
         <div class="de-main__header">
             <h2 class="de-main__title">Dashboard</h2>
@@ -29,7 +22,7 @@
                     <span class="de-info-card__icon">🗄</span>
                     <div>
                         <div class="de-info-card__label">Connections</div>
-                        <div class="de-info-card__value">@_connections.Count discovered</div>
+                        <div class="de-info-card__value">1 discovered</div>
                     </div>
                 </div>
                 <div class="de-info-card">
@@ -43,28 +36,8 @@
 
             <div class="de-tip">
                 <span class="de-tip__icon">💡</span>
-                <p>Use the <strong>Object Explorer</strong> on the left to browse connections, schemas and tables. Select a table to open it, or use <strong>Explorer</strong> and <strong>Query</strong> in the top bar.</p>
+                <p>Use the <strong>Object Explorer</strong> panel to browse connections, schemas and tables. Select a table to open it, or use <strong>Explorer</strong> and <strong>Query</strong> in the top bar.</p>
             </div>
         </div>
     </div>
 </div>
-
-@code {
-    private List<ObjectExplorer.ConnectionNode> _connections = [
-        new("sample", [
-            new("applicationdb", [
-                new("dbo", ["Users", "TodoItems", "Logs"])
-            ])
-        ])
-    ];
-
-    private void HandleTableSelect(ObjectExplorer.TableSelection sel)
-    {
-        // Navigation to table page would go here
-    }
-
-    private void HandleRefresh()
-    {
-        // Refresh connections would go here
-    }
-}
