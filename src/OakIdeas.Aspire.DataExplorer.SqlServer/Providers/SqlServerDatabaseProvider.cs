@@ -8,14 +8,6 @@ namespace OakIdeas.Aspire.DataExplorer.SqlServer.Providers;
 
 public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscoveryProvider
 {
-    private static readonly HashSet<string> SystemSchemas = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "dbo",
-        "guest",
-        "INFORMATION_SCHEMA",
-        "sys",
-    };
-
     private const string DiscoverSchemasSql = """
                                               SELECT schema_id, name
                                               FROM sys.schemas
@@ -78,8 +70,7 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
             await using var connection = new SqlConnection(resource.ConnectionString);
             await connection.OpenAsync(cancellationToken);
 
-            await using var command = new SqlCommand(DiscoverSchemasSql, connection);
-            command.Parameters.Add("@IncludeSystemSchemas", SqlDbType.Bit).Value = request.IncludeSystemSchemas;
+            await using var command = CreateDiscoverSchemasCommand(connection, request.IncludeSystemSchemas);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
             var discovered = new List<SchemaObject>();
@@ -87,16 +78,10 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
             {
                 var schemaId = reader.GetInt32(0);
                 var schemaName = reader.GetString(1);
-
-                if (!request.IncludeSystemSchemas && IsSystemSchema(schemaName))
-                {
-                    continue;
-                }
-
                 discovered.Add(CreateSchemaObject(schemaId, schemaName));
             }
 
-            return BuildDiscoverSchemasResponse(discovered, request.IncludeSystemSchemas);
+            return new DiscoverSchemasResponse(discovered);
         }
         catch (SqlException ex) when (HasInsufficientSchemaAccess(ex))
         {
@@ -115,9 +100,6 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
                 RowCount: 0,
                 Duration: TimeSpan.Zero));
 
-    internal static bool IsSystemSchema(string schemaName)
-        => SystemSchemas.Contains(schemaName);
-
     internal static SchemaObject CreateSchemaObject(int schemaId, string schemaName)
         => new(
             objectId: $"schema.{schemaName}",
@@ -127,19 +109,13 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
                 ["schemaId"] = schemaId,
             });
 
-    internal static DiscoverSchemasResponse BuildDiscoverSchemasResponse(
-        IReadOnlyList<SchemaObject> schemas,
-        bool includeSystemSchemas)
+    internal static SqlCommand CreateDiscoverSchemasCommand(SqlConnection connection, bool includeSystemSchemas)
     {
-        var filtered = includeSystemSchemas
-            ? schemas
-            : schemas.Where(schema => !IsSystemSchema(schema.ObjectName)).ToList();
+        ArgumentNullException.ThrowIfNull(connection);
 
-        var ordered = filtered
-            .OrderBy(schema => schema.ObjectName, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        return new DiscoverSchemasResponse(ordered);
+        var command = new SqlCommand(DiscoverSchemasSql, connection);
+        command.Parameters.Add("@IncludeSystemSchemas", SqlDbType.Bit).Value = includeSystemSchemas;
+        return command;
     }
 
     private static bool HasInsufficientSchemaAccess(SqlException exception)

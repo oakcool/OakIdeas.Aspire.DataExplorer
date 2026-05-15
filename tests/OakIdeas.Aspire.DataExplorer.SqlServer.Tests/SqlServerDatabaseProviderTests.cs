@@ -1,4 +1,5 @@
 ﻿using FluentAssertions;
+using Microsoft.Data.SqlClient;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Models;
 using OakIdeas.Aspire.DataExplorer.SqlServer.Providers;
@@ -64,19 +65,6 @@ public sealed class SqlServerDatabaseProviderTests
         result.RowCount.Should().Be(0);
     }
 
-    [Theory]
-    [InlineData("dbo", true)]
-    [InlineData("guest", true)]
-    [InlineData("INFORMATION_SCHEMA", true)]
-    [InlineData("sys", true)]
-    [InlineData("app", false)]
-    public void IsSystemSchema_RecognizesExpectedSchemas(string schemaName, bool expected)
-    {
-        var result = SqlServerDatabaseProvider.IsSystemSchema(schemaName);
-
-        result.Should().Be(expected);
-    }
-
     [Fact]
     public void CreateSchemaObject_IncludesSchemaIdMetadata()
     {
@@ -89,50 +77,32 @@ public sealed class SqlServerDatabaseProviderTests
     }
 
     [Fact]
-    public void BuildDiscoverSchemasResponse_DefaultExcludesSystemSchemas_AndSortsAlphabetically()
+    public void CreateDiscoverSchemasCommand_UsesSchemaCatalogQueryAndParameter()
     {
-        var schemas = new[]
-        {
-            SqlServerDatabaseProvider.CreateSchemaObject(1, "dbo"),
-            SqlServerDatabaseProvider.CreateSchemaObject(2, "sales"),
-            SqlServerDatabaseProvider.CreateSchemaObject(3, "audit"),
-        };
+        using var connection = new SqlConnection();
 
-        var response = SqlServerDatabaseProvider.BuildDiscoverSchemasResponse(
-            schemas,
+        using var command = SqlServerDatabaseProvider.CreateDiscoverSchemasCommand(
+            connection,
             includeSystemSchemas: false);
 
-        response.Schemas.Select(schema => schema.ObjectName)
+        command.CommandText.Should().Contain("FROM sys.schemas");
+        command.CommandText.Should().Contain("ORDER BY name");
+        command.Parameters.Cast<SqlParameter>()
             .Should()
-            .Equal("audit", "sales");
+            .ContainSingle(parameter => parameter.ParameterName == "@IncludeSystemSchemas");
+        command.Parameters["@IncludeSystemSchemas"].Value.Should().Be(false);
     }
 
     [Fact]
-    public void BuildDiscoverSchemasResponse_WhenIncludeSystemSchemasTrue_IncludesDboAndCustomSchemas()
+    public void CreateDiscoverSchemasCommand_WhenIncludingSystemSchemas_SetsParameterToTrue()
     {
-        var schemas = new[]
-        {
-            SqlServerDatabaseProvider.CreateSchemaObject(1, "dbo"),
-            SqlServerDatabaseProvider.CreateSchemaObject(2, "sales"),
-        };
+        using var connection = new SqlConnection();
 
-        var response = SqlServerDatabaseProvider.BuildDiscoverSchemasResponse(
-            schemas,
+        using var command = SqlServerDatabaseProvider.CreateDiscoverSchemasCommand(
+            connection,
             includeSystemSchemas: true);
 
-        response.Schemas.Select(schema => schema.ObjectName)
-            .Should()
-            .Equal("dbo", "sales");
-    }
-
-    [Fact]
-    public void BuildDiscoverSchemasResponse_WhenNoSchemas_ReturnsEmptyList()
-    {
-        var response = SqlServerDatabaseProvider.BuildDiscoverSchemasResponse(
-            Array.Empty<SchemaObject>(),
-            includeSystemSchemas: false);
-
-        response.Schemas.Should().BeEmpty();
+        command.Parameters["@IncludeSystemSchemas"].Value.Should().Be(true);
     }
 
     private static DatabaseResource CreateResource(string providerName)
