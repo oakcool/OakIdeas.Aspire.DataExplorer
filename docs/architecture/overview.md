@@ -10,6 +10,16 @@ OakIdeas.Aspire.DataExplorer is split into UI, orchestration, contracts, and pro
 - `Hosting` contains Aspire integration extensions.
 - `AppHost` orchestrates local development resources.
 
+## Metadata root contracts
+
+Metadata discovery uses provider-agnostic contracts in `Contracts/Models/DatabaseMetadataContracts.cs`:
+
+- `DatabaseMetadataRoot` captures database-level metadata (`DatabaseName`, `ProviderType`, `ResourceId`, collection timestamp, and grouped object maps).
+- `DatabaseObject` is the normalized base type (`ObjectId`, `ObjectName`, `FullyQualifiedName`, `ObjectType`, `Description`, `ProviderMetadata`, and `Relationships`).
+- Derived object types (`SchemaObject`, `TableObject`, `ViewObject`, `ProcedureObject`, `FunctionObject`, `TriggerObject`) keep a consistent schema-qualified naming model.
+
+`ProviderMetadata` is intentionally a flexible key/value bag (`IReadOnlyDictionary<string, object?>`) so provider projects can add provider-specific values (for example SQL Server object identifiers) without changing shared contracts.
+
 ## Solution virtual folder layout
 
 | Folder | Projects |
