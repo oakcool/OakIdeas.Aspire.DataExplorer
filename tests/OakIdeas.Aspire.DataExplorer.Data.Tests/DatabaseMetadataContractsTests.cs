@@ -46,7 +46,7 @@ public sealed class DatabaseMetadataContractsTests
         root.DatabaseName.Should().Be("appdb");
         root.Objects.Should().ContainKey(DatabaseObjectType.Schema);
         root.Objects.Should().ContainKey(DatabaseObjectType.Table);
-        root.Objects[DatabaseObjectType.Table]["users"].Should().BeSameAs(users);
+        root.Objects[DatabaseObjectType.Table]["Users"].Should().BeSameAs(users);
     }
 
     [Fact]
