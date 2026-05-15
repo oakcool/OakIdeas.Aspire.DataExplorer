@@ -41,6 +41,14 @@ public interface ISchemaDiscoveryProvider
         CancellationToken cancellationToken);
 }
 
+public interface IForeignKeyDiscoveryProvider
+{
+    Task<DiscoverForeignKeysResponse> DiscoverForeignKeysAsync(
+        DatabaseResource resource,
+        DiscoverForeignKeysRequest request,
+        CancellationToken cancellationToken);
+}
+
 public interface ITableDataService
 {
     Task<TablePageResult> GetRowsAsync(
