@@ -1,14 +1,6 @@
 .de-dashboard {
-    display: flex;
     height: 100%;
     overflow: hidden;
-}
-
-.de-sidebar {
-    width: 260px;
-    flex-shrink: 0;
-    overflow: hidden;
-    border-right: 1px solid #21262d;
 }
 
 .de-main {

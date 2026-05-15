@@ -7,9 +7,9 @@
             @onclick="ToggleExpand"
             style="visibility: @(HasChildren ? "visible" : "hidden")"
             aria-label="@(IsExpanded ? "Collapse" : "Expand")">
-        <span>@(IsExpanded ? "▾" : "▸")</span>
+        <span>@(IsExpanded ? "⌄" : "›")</span>
     </button>
-    <span class="tree-node__icon" aria-hidden="true">@Icon</span>
+    <span class="tree-node__icon @(IsPrimaryNodeIcon ? "tree-node__icon--primary" : string.Empty)" aria-hidden="true">@Icon</span>
     <span class="tree-node__label">@Label</span>
     @if (!string.IsNullOrEmpty(Badge))
     {
@@ -64,4 +64,6 @@
         IsExpanded = !IsExpanded;
         await OnExpandToggle.InvokeAsync(IsExpanded);
     }
+
+    private bool IsPrimaryNodeIcon => Icon is "🖧" or "🗄";
 }
