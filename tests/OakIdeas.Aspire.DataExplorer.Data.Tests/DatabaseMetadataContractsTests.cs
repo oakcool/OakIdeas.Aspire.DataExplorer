@@ -1,0 +1,99 @@
+using System.Text.Json;
+using FluentAssertions;
+using OakIdeas.Aspire.DataExplorer.Contracts.Models;
+
+namespace OakIdeas.Aspire.DataExplorer.Data.Tests;
+
+public sealed class DatabaseMetadataContractsTests
+{
+    [Fact]
+    public void TableObject_WhenCreated_FormatsFullyQualifiedName()
+    {
+        var table = new TableObject(
+            objectId: "12345",
+            schemaName: "dbo",
+            objectName: "Users");
+
+        table.ObjectType.Should().Be(DatabaseObjectType.Table);
+        table.ObjectName.Should().Be("Users");
+        table.SchemaName.Should().Be("dbo");
+        table.FullyQualifiedName.Should().Be("dbo.Users");
+    }
+
+    [Fact]
+    public void DatabaseMetadataRoot_WhenCreated_StoresObjectsByTypeAndName()
+    {
+        var users = new TableObject("table.users", "dbo", "Users");
+        var schema = new SchemaObject("schema.dbo", "dbo");
+
+        var root = new DatabaseMetadataRoot(
+            databaseName: "appdb",
+            providerType: DatabaseProviderType.SqlServer,
+            resourceId: "sql-app",
+            metadataCollectionTime: new DateTimeOffset(2026, 5, 15, 12, 0, 0, TimeSpan.Zero),
+            objects: new Dictionary<DatabaseObjectType, IReadOnlyDictionary<string, DatabaseObject>>
+            {
+                [DatabaseObjectType.Schema] = new Dictionary<string, DatabaseObject>
+                {
+                    [schema.ObjectName] = schema,
+                },
+                [DatabaseObjectType.Table] = new Dictionary<string, DatabaseObject>
+                {
+                    [users.ObjectName] = users,
+                },
+            });
+
+        root.DatabaseName.Should().Be("appdb");
+        root.Objects.Should().ContainKey(DatabaseObjectType.Schema);
+        root.Objects.Should().ContainKey(DatabaseObjectType.Table);
+        root.Objects[DatabaseObjectType.Table]["users"].Should().BeSameAs(users);
+    }
+
+    [Fact]
+    public void TableObject_WhenRequiredValuesMissing_ThrowsArgumentException()
+    {
+        var action = () => new TableObject(
+            objectId: "table.users",
+            schemaName: "dbo",
+            objectName: " ");
+
+        action.Should().Throw<ArgumentException>()
+            .WithParameterName("objectName");
+    }
+
+    [Fact]
+    public void DatabaseMetadataRoot_WhenSerialized_RoundTripsPolymorphicObjectsAndMetadata()
+    {
+        var table = new TableObject(
+            objectId: "table.users",
+            schemaName: "dbo",
+            objectName: "Users",
+            providerMetadata: new Dictionary<string, object?>
+            {
+                ["sqlServerObjectId"] = 42,
+                ["isTemporal"] = true,
+            },
+            relationships:
+            [
+                new DatabaseObjectRelationship("FK_UserRoles_Users", "ForeignKey", "table.userroles"),
+            ]);
+
+        var root = new DatabaseMetadataRoot(
+            databaseName: "appdb",
+            providerType: DatabaseProviderType.SqlServer,
+            resourceId: "sql-app",
+            metadataCollectionTime: new DateTimeOffset(2026, 5, 15, 12, 0, 0, TimeSpan.Zero),
+            objects: new Dictionary<DatabaseObjectType, IReadOnlyDictionary<string, DatabaseObject>>
+            {
+                [DatabaseObjectType.Table] = new Dictionary<string, DatabaseObject> { ["Users"] = table },
+            });
+
+        var json = JsonSerializer.Serialize(root);
+        var deserialized = JsonSerializer.Deserialize<DatabaseMetadataRoot>(json);
+
+        deserialized.Should().NotBeNull();
+        deserialized!.Objects[DatabaseObjectType.Table]["Users"].Should().BeOfType<TableObject>();
+        deserialized.Objects[DatabaseObjectType.Table]["Users"].ProviderMetadata.Should().ContainKey("sqlServerObjectId");
+        deserialized.Objects[DatabaseObjectType.Table]["Users"].Relationships.Should().ContainSingle();
+    }
+}
