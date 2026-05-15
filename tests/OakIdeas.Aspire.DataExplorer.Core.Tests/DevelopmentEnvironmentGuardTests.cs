@@ -30,6 +30,8 @@ public sealed class DevelopmentEnvironmentGuardTests
 
         options.EnableWriteOperations.Should().BeTrue();
         options.EnableAdHocQueries.Should().BeTrue();
+        options.EnableAspireResourceDiscovery.Should().BeTrue();
+        options.IncludeUnavailableResources.Should().BeTrue();
         options.RequireLocalConnections.Should().BeTrue();
         options.DefaultPageSize.Should().Be(100);
         options.MaxPageSize.Should().Be(1000);
