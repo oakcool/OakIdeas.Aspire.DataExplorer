@@ -96,4 +96,22 @@ public sealed class DatabaseMetadataContractsTests
         deserialized.Objects[DatabaseObjectType.Table]["Users"].ProviderMetadata.Should().ContainKey("sqlServerObjectId");
         deserialized.Objects[DatabaseObjectType.Table]["Users"].Relationships.Should().ContainSingle();
     }
+
+    [Fact]
+    public void DiscoverSchemasContracts_DefaultsAndPayload_ArePreserved()
+    {
+        var request = new DiscoverSchemasRequest();
+        var response = new DiscoverSchemasResponse(
+            [
+                new SchemaObject(
+                    objectId: "schema.sales",
+                    objectName: "sales",
+                    providerMetadata: new Dictionary<string, object?> { ["schemaId"] = 4 }),
+            ]);
+
+        request.IncludeSystemSchemas.Should().BeFalse();
+        response.Schemas.Should().ContainSingle();
+        response.Schemas[0].ObjectName.Should().Be("sales");
+        response.Schemas[0].ProviderMetadata["schemaId"].Should().Be(4);
+    }
 }

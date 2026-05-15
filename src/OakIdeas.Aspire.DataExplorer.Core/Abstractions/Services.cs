@@ -33,6 +33,14 @@ public interface IDatabaseProvider : IMetadataProvider
     bool CanHandle(DatabaseResource resource);
 }
 
+public interface ISchemaDiscoveryProvider
+{
+    Task<DiscoverSchemasResponse> DiscoverSchemasAsync(
+        DatabaseResource resource,
+        DiscoverSchemasRequest request,
+        CancellationToken cancellationToken);
+}
+
 public interface ITableDataService
 {
     Task<TablePageResult> GetRowsAsync(

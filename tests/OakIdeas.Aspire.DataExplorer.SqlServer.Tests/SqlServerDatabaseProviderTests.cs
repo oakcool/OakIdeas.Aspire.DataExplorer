@@ -1,4 +1,5 @@
 ﻿using FluentAssertions;
+using Microsoft.Data.SqlClient;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Models;
 using OakIdeas.Aspire.DataExplorer.SqlServer.Providers;
@@ -62,6 +63,46 @@ public sealed class SqlServerDatabaseProviderTests
         result.Columns.Should().BeEmpty();
         result.Rows.Should().BeEmpty();
         result.RowCount.Should().Be(0);
+    }
+
+    [Fact]
+    public void CreateSchemaObject_IncludesSchemaIdMetadata()
+    {
+        var schema = SqlServerDatabaseProvider.CreateSchemaObject(schemaId: 7, schemaName: "sales");
+
+        schema.ObjectId.Should().Be("schema.sales");
+        schema.ObjectName.Should().Be("sales");
+        schema.ProviderMetadata.Should().ContainKey("schemaId");
+        schema.ProviderMetadata["schemaId"].Should().Be(7);
+    }
+
+    [Fact]
+    public void CreateDiscoverSchemasCommand_UsesSchemaCatalogQueryAndParameter()
+    {
+        using var connection = new SqlConnection();
+
+        using var command = SqlServerDatabaseProvider.CreateDiscoverSchemasCommand(
+            connection,
+            includeSystemSchemas: false);
+
+        command.CommandText.Should().Contain("FROM sys.schemas");
+        command.CommandText.Should().Contain("ORDER BY name");
+        command.Parameters.Cast<SqlParameter>()
+            .Should()
+            .ContainSingle(parameter => parameter.ParameterName == "@IncludeSystemSchemas");
+        command.Parameters["@IncludeSystemSchemas"].Value.Should().Be(false);
+    }
+
+    [Fact]
+    public void CreateDiscoverSchemasCommand_WhenIncludingSystemSchemas_SetsParameterToTrue()
+    {
+        using var connection = new SqlConnection();
+
+        using var command = SqlServerDatabaseProvider.CreateDiscoverSchemasCommand(
+            connection,
+            includeSystemSchemas: true);
+
+        command.Parameters["@IncludeSystemSchemas"].Value.Should().Be(true);
     }
 
     private static DatabaseResource CreateResource(string providerName)

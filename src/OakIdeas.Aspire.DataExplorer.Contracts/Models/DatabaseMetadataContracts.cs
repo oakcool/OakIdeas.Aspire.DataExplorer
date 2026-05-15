@@ -312,3 +312,9 @@ public sealed record DiscoverDatabaseMetadataRequest(
 
 public sealed record DiscoverDatabaseMetadataResponse(
     DatabaseMetadataRoot Metadata);
+
+public sealed record DiscoverSchemasRequest(
+    bool IncludeSystemSchemas = false);
+
+public sealed record DiscoverSchemasResponse(
+    IReadOnlyList<SchemaObject> Schemas);

@@ -1,11 +1,24 @@
+using System.Data;
+using Microsoft.Data.SqlClient;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Models;
 
 namespace OakIdeas.Aspire.DataExplorer.SqlServer.Providers;
 
-public sealed class SqlServerDatabaseProvider : IDatabaseProvider
+public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscoveryProvider
 {
+    private const string DiscoverSchemasSql = """
+                                              SELECT schema_id, name
+                                              FROM sys.schemas
+                                              WHERE schema_id > 0
+                                                AND (
+                                                    @IncludeSystemSchemas = 1
+                                                    OR name NOT IN (N'dbo', N'guest', N'INFORMATION_SCHEMA', N'sys')
+                                                )
+                                              ORDER BY name;
+                                              """;
+
     public string ProviderName => "sqlserver";
 
     public DatabaseProviderType ProviderType => DatabaseProviderType.SqlServer;
@@ -30,10 +43,51 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider
             || resource.Provider.Contains("mssql", StringComparison.OrdinalIgnoreCase)
             || resource.Provider.Contains("sqlclient", StringComparison.OrdinalIgnoreCase);
 
-    public Task<IReadOnlyList<SchemaMetadata>> GetSchemasAsync(
+    public async Task<IReadOnlyList<SchemaMetadata>> GetSchemasAsync(
         DatabaseResource resource,
         CancellationToken cancellationToken)
-        => Task.FromResult<IReadOnlyList<SchemaMetadata>>(Array.Empty<SchemaMetadata>());
+    {
+        var response = await DiscoverSchemasAsync(resource, new DiscoverSchemasRequest(), cancellationToken);
+
+        return response.Schemas
+            .Select(schema => new SchemaMetadata(
+                schema.ObjectName,
+                Tables: Array.Empty<TableMetadata>(),
+                Views: Array.Empty<ViewMetadata>()))
+            .ToList();
+    }
+
+    public async Task<DiscoverSchemasResponse> DiscoverSchemasAsync(
+        DatabaseResource resource,
+        DiscoverSchemasRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentNullException.ThrowIfNull(request);
+
+        try
+        {
+            await using var connection = new SqlConnection(resource.ConnectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            await using var command = CreateDiscoverSchemasCommand(connection, request.IncludeSystemSchemas);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+            var discovered = new List<SchemaObject>();
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                var schemaId = reader.GetInt32(0);
+                var schemaName = reader.GetString(1);
+                discovered.Add(CreateSchemaObject(schemaId, schemaName));
+            }
+
+            return new DiscoverSchemasResponse(discovered);
+        }
+        catch (SqlException ex) when (HasInsufficientSchemaAccess(ex))
+        {
+            return new DiscoverSchemasResponse(Array.Empty<SchemaObject>());
+        }
+    }
 
     public Task<QueryResult> ExecuteQueryAsync(
         DatabaseResource resource,
@@ -45,4 +99,25 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider
                 Rows: Array.Empty<IReadOnlyDictionary<string, object?>>(),
                 RowCount: 0,
                 Duration: TimeSpan.Zero));
+
+    internal static SchemaObject CreateSchemaObject(int schemaId, string schemaName)
+        => new(
+            objectId: $"schema.{schemaName}",
+            objectName: schemaName,
+            providerMetadata: new Dictionary<string, object?>
+            {
+                ["schemaId"] = schemaId,
+            });
+
+    internal static SqlCommand CreateDiscoverSchemasCommand(SqlConnection connection, bool includeSystemSchemas)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+
+        var command = new SqlCommand(DiscoverSchemasSql, connection);
+        command.Parameters.Add("@IncludeSystemSchemas", SqlDbType.Bit).Value = includeSystemSchemas;
+        return command;
+    }
+
+    private static bool HasInsufficientSchemaAccess(SqlException exception)
+        => exception.Number is 229 or 916;
 }
