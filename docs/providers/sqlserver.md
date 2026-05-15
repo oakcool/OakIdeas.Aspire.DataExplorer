@@ -7,6 +7,28 @@ The SQL Server provider project contains SQL Server-specific discovery and query
 - `ProviderType = DatabaseProviderType.SqlServer`
 - SQL Server capability flags through `ProviderCapabilities`
 
+## Schema discovery
+
+`SqlServerDatabaseProvider` also implements `ISchemaDiscoveryProvider` and returns `DiscoverSchemasResponse` with `SchemaObject` entries.
+
+- Source catalog view: `sys.schemas`
+- Default behavior: excludes system schemas (`dbo`, `guest`, `INFORMATION_SCHEMA`, `sys`)
+- Optional behavior: include system schemas via `DiscoverSchemasRequest.IncludeSystemSchemas = true`
+- Provider metadata: each schema includes `schemaId` from `sys.schemas.schema_id`
+
+SQL used for discovery:
+
+```sql
+SELECT schema_id, name
+FROM sys.schemas
+WHERE schema_id > 0
+  AND (
+      @IncludeSystemSchemas = 1
+      OR name NOT IN (N'dbo', N'guest', N'INFORMATION_SCHEMA', N'sys')
+  )
+ORDER BY name;
+```
+
 Registration uses `MetadataProviderFactoryOptions` with DI:
 
 ```csharp
