@@ -2,9 +2,15 @@ namespace OakIdeas.Aspire.DataExplorer.Core.Configuration;
 
 public sealed class DataExplorerOptions
 {
+    public const string SectionName = "OakIdeas:Aspire:DataExplorer";
+
     public bool EnableWriteOperations { get; set; } = true;
 
     public bool EnableAdHocQueries { get; set; } = true;
+
+    public bool EnableAspireResourceDiscovery { get; set; } = true;
+
+    public bool IncludeUnavailableResources { get; set; } = true;
 
     public bool RequireLocalConnections { get; set; } = true;
 

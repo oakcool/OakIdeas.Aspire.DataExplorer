@@ -1,5 +1,32 @@
 namespace OakIdeas.Aspire.DataExplorer.Contracts.Models;
 
+public enum DatabaseProviderType
+{
+    Unknown = 0,
+    SqlServer = 1,
+    PostgreSql = 2,
+    SQLite = 3,
+    MySql = 4,
+}
+
+public sealed record ConnectionMetadata(
+    IReadOnlyDictionary<string, string?> Properties);
+
+public sealed record DiscoveredDatabaseResource(
+    string ResourceId,
+    string ResourceName,
+    string DatabaseName,
+    DatabaseProviderType ProviderType,
+    ConnectionMetadata ConnectionMetadata,
+    bool IsAvailable,
+    DateTimeOffset DiscoveredAt);
+
+public sealed record DiscoverResourcesRequest(
+    bool? IncludeUnavailableResources = null);
+
+public sealed record DiscoverResourcesResponse(
+    IReadOnlyList<DiscoveredDatabaseResource> Resources);
+
 public sealed record DatabaseResourceResponse(
     string Name,
     string Provider,

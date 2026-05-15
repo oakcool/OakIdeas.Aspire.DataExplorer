@@ -42,8 +42,9 @@ public interface ITableDataService
         CancellationToken cancellationToken);
 }
 
-public interface IConnectionDiscoveryService
+public interface IAspireResourceDiscovery
 {
-    Task<IReadOnlyList<DatabaseResource>> GetDatabaseResourcesAsync(
+    Task<DiscoverResourcesResponse> DiscoverResourcesAsync(
+        DiscoverResourcesRequest request,
         CancellationToken cancellationToken);
 }
