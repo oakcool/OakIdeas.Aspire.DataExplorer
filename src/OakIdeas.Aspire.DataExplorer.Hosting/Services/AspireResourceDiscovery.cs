@@ -38,6 +38,8 @@ internal sealed class AspireResourceDiscovery : IAspireResourceDiscovery
         DevelopmentEnvironmentGuard.EnsureDevelopment(hostEnvironment.IsDevelopment(), DevelopmentOnlyMessage);
         cancellationToken.ThrowIfCancellationRequested();
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (!options.Value.EnableAspireResourceDiscovery)
         {
             return Task.FromResult(new DiscoverResourcesResponse([]));
