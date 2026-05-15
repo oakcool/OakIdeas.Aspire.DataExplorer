@@ -62,3 +62,19 @@ public interface IAspireResourceDiscovery
         DiscoverResourcesRequest request,
         CancellationToken cancellationToken);
 }
+
+public interface ISelectedDatabaseService
+{
+    event EventHandler<SelectedDatabaseContext?>? SelectionChanged;
+
+    Task<SelectDatabaseResponse> SelectDatabaseAsync(
+        string resourceId,
+        CancellationToken cancellationToken);
+
+    Task<SelectedDatabaseContext?> GetSelectedDatabaseAsync(
+        CancellationToken cancellationToken);
+
+    Task ClearSelectionAsync(CancellationToken cancellationToken);
+
+    Task<bool> IsSelectedAsync(CancellationToken cancellationToken);
+}
