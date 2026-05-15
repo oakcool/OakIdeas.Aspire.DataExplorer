@@ -1,4 +1,9 @@
 using OakIdeas.Aspire.DataExplorer.Core.Guards;
+using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
+using OakIdeas.Aspire.DataExplorer.Core.Configuration;
+using OakIdeas.Aspire.DataExplorer.Core.Services;
+using OakIdeas.Aspire.DataExplorer.Contracts.Models;
+using OakIdeas.Aspire.DataExplorer.SqlServer.Providers;
 using OakIdeas.Aspire.DataExplorer.Web.Components;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,6 +14,10 @@ DevelopmentEnvironmentGuard.EnsureDevelopment(
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+builder.Services.AddSingleton<SqlServerDatabaseProvider>();
+builder.Services.AddSingleton<IProviderFactory, MetadataProviderFactory>();
+builder.Services.AddOptions<MetadataProviderFactoryOptions>()
+    .Configure(options => options.Register(DatabaseProviderType.SqlServer, typeof(SqlServerDatabaseProvider)));
 
 var app = builder.Build();
 

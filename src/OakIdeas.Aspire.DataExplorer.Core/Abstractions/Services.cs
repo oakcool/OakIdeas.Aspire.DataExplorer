@@ -3,11 +3,11 @@ using OakIdeas.Aspire.DataExplorer.Core.Models;
 
 namespace OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 
-public interface IDatabaseProvider
+public interface IMetadataProvider
 {
-    string ProviderName { get; }
+    DatabaseProviderType ProviderType { get; }
 
-    bool CanHandle(DatabaseResource resource);
+    ProviderCapabilities Capabilities { get; }
 
     Task<IReadOnlyList<SchemaMetadata>> GetSchemasAsync(
         DatabaseResource resource,
@@ -17,6 +17,20 @@ public interface IDatabaseProvider
         DatabaseResource resource,
         ExecuteQueryRequest request,
         CancellationToken cancellationToken);
+}
+
+public interface IProviderFactory
+{
+    IMetadataProvider Create(DatabaseProviderType providerType);
+
+    bool TryCreate(DatabaseProviderType providerType, out IMetadataProvider? provider);
+}
+
+public interface IDatabaseProvider : IMetadataProvider
+{
+    string ProviderName { get; }
+
+    bool CanHandle(DatabaseResource resource);
 }
 
 public interface ITableDataService

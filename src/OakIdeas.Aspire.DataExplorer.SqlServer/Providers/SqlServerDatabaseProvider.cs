@@ -8,6 +8,23 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider
 {
     public string ProviderName => "sqlserver";
 
+    public DatabaseProviderType ProviderType => DatabaseProviderType.SqlServer;
+
+    public ProviderCapabilities Capabilities { get; } = new()
+    {
+        SupportsSchemas = true,
+        SupportsTables = true,
+        SupportsViews = true,
+        SupportsStoredProcedures = true,
+        SupportsFunctions = true,
+        SupportsTriggers = true,
+        SupportsIndexes = true,
+        SupportsConstraints = true,
+        SupportsKeys = true,
+        SupportsDefinitionRetrieval = true,
+        SupportsLiveStats = false,
+    };
+
     public bool CanHandle(DatabaseResource resource)
         => resource.Provider.Contains("sqlserver", StringComparison.OrdinalIgnoreCase)
             || resource.Provider.Contains("mssql", StringComparison.OrdinalIgnoreCase)

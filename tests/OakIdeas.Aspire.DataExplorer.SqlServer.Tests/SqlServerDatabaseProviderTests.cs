@@ -7,6 +7,28 @@ namespace OakIdeas.Aspire.DataExplorer.SqlServer.Tests;
 
 public sealed class SqlServerDatabaseProviderTests
 {
+    [Fact]
+    public void ProviderMetadata_UsesSqlServerTypeAndCapabilities()
+    {
+        var sut = new SqlServerDatabaseProvider();
+
+        sut.ProviderType.Should().Be(DatabaseProviderType.SqlServer);
+        sut.Capabilities.Should().BeEquivalentTo(new
+        {
+            SupportsSchemas = true,
+            SupportsTables = true,
+            SupportsViews = true,
+            SupportsStoredProcedures = true,
+            SupportsFunctions = true,
+            SupportsTriggers = true,
+            SupportsIndexes = true,
+            SupportsConstraints = true,
+            SupportsKeys = true,
+            SupportsDefinitionRetrieval = true,
+            SupportsLiveStats = false,
+        });
+    }
+
     [Theory]
     [InlineData("sqlserver")]
     [InlineData("mssql")]
