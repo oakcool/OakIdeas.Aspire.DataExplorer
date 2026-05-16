@@ -357,6 +357,108 @@ public sealed class SqlServerDatabaseProviderTests
         result.Select(column => column.Name).Should().Equal("OrderId", "CreatedAtUtc", "TotalAmount");
     }
 
+    [Fact]
+    public void CreateViewObject_IncludesObjectIdAndDefinitionAvailability()
+    {
+        var view = SqlServerDatabaseProvider.CreateViewObject(
+            objectId: 3001,
+            schemaName: "reporting",
+            viewName: "SalesSummary",
+            hasDefinition: true);
+
+        view.ObjectId.Should().Be("3001");
+        view.SchemaName.Should().Be("reporting");
+        view.ObjectName.Should().Be("SalesSummary");
+        view.FullyQualifiedName.Should().Be("reporting.SalesSummary");
+        view.ObjectType.Should().Be(DatabaseObjectType.View);
+        view.HasDefinitionAvailable.Should().BeTrue();
+        view.ProviderMetadata["objectId"].Should().Be(3001);
+    }
+
+    [Fact]
+    public void CreateViewObject_WhenDefinitionUnavailable_SetsFlagToFalse()
+    {
+        var view = SqlServerDatabaseProvider.CreateViewObject(
+            objectId: 3002,
+            schemaName: "sys",
+            viewName: "SomeSystemView",
+            hasDefinition: false);
+
+        view.HasDefinitionAvailable.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CreateDiscoverViewsCommand_UsesViewCatalogQueryAndParameters()
+    {
+        using var connection = new SqlConnection();
+        var request = new DiscoverViewsRequest();
+
+        using var command = SqlServerDatabaseProvider.CreateDiscoverViewsCommand(connection, request);
+
+        command.CommandText.Should().Contain("FROM sys.views AS v");
+        command.CommandText.Should().Contain("OBJECT_DEFINITION");
+        command.Parameters.Cast<SqlParameter>()
+            .Should()
+            .Contain(p => p.ParameterName == "@IncludeSystemViews")
+            .And.Contain(p => p.ParameterName == "@SchemaName");
+        command.Parameters["@IncludeSystemViews"].Value.Should().Be(false);
+        command.Parameters["@SchemaName"].Value.Should().Be(DBNull.Value);
+    }
+
+    [Fact]
+    public void CreateDiscoverViewsCommand_WhenIncludingSystemViews_SetsParameterToTrue()
+    {
+        using var connection = new SqlConnection();
+        var request = new DiscoverViewsRequest(IncludeSystemViews: true);
+
+        using var command = SqlServerDatabaseProvider.CreateDiscoverViewsCommand(connection, request);
+
+        command.Parameters["@IncludeSystemViews"].Value.Should().Be(true);
+    }
+
+    [Fact]
+    public void CreateDiscoverViewsCommand_WhenSchemaFilterProvided_TrimsAndSetsParameter()
+    {
+        using var connection = new SqlConnection();
+        var request = new DiscoverViewsRequest(SchemaName: " analytics ");
+
+        using var command = SqlServerDatabaseProvider.CreateDiscoverViewsCommand(connection, request);
+
+        command.Parameters["@SchemaName"].Value.Should().Be("analytics");
+    }
+
+    [Fact]
+    public void NormalizeViews_ProjectsViewObjectsWithCorrectMetadata()
+    {
+        SqlServerDatabaseProvider.ViewDiscoveryRow[] rows =
+        [
+            new SqlServerDatabaseProvider.ViewDiscoveryRow(
+                ObjectId: 401,
+                SchemaName: "sales",
+                ViewName: "OrderSummary",
+                HasDefinition: true),
+            new SqlServerDatabaseProvider.ViewDiscoveryRow(
+                ObjectId: 402,
+                SchemaName: "analytics",
+                ViewName: "MonthlyRevenue",
+                HasDefinition: false),
+        ];
+
+        var result = SqlServerDatabaseProvider.NormalizeViews(rows);
+
+        result.Should().HaveCount(2);
+        result[0].ObjectId.Should().Be("401");
+        result[0].SchemaName.Should().Be("sales");
+        result[0].ObjectName.Should().Be("OrderSummary");
+        result[0].HasDefinitionAvailable.Should().BeTrue();
+        result[0].ProviderMetadata["objectId"].Should().Be(401);
+
+        result[1].ObjectId.Should().Be("402");
+        result[1].SchemaName.Should().Be("analytics");
+        result[1].ObjectName.Should().Be("MonthlyRevenue");
+        result[1].HasDefinitionAvailable.Should().BeFalse();
+    }
+
     private static DatabaseResource CreateResource(string providerName)
         => new("db", providerName, "Server=localhost;Database=db;", IsLocal: true, IsWritable: false);
 }

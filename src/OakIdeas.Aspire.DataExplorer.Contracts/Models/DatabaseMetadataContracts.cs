@@ -165,6 +165,7 @@ public sealed record ViewObject : SchemaBoundDatabaseObject
         string objectId,
         string schemaName,
         string objectName,
+        bool hasDefinitionAvailable = false,
         string? description = null,
         IReadOnlyDictionary<string, object?>? providerMetadata = null,
         IReadOnlyList<DatabaseObjectRelationship>? relationships = null)
@@ -177,7 +178,10 @@ public sealed record ViewObject : SchemaBoundDatabaseObject
             providerMetadata,
             relationships)
     {
+        HasDefinitionAvailable = hasDefinitionAvailable;
     }
+
+    public bool HasDefinitionAvailable { get; }
 }
 
 public sealed record ProcedureObject : SchemaBoundDatabaseObject
@@ -371,3 +375,10 @@ public sealed record DiscoverForeignKeysRequest(
 
 public sealed record DiscoverForeignKeysResponse(
     IReadOnlyList<ForeignKeyConstraint> ForeignKeys);
+
+public sealed record DiscoverViewsRequest(
+    string? SchemaName = null,
+    bool IncludeSystemViews = false);
+
+public sealed record DiscoverViewsResponse(
+    IReadOnlyList<ViewObject> Views);
