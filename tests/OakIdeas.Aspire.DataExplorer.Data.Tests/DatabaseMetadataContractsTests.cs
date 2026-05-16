@@ -144,4 +144,40 @@ public sealed class DatabaseMetadataContractsTests
         response.ForeignKeys[0].OnDeleteBehavior.Should().Be(ReferentialActionBehavior.Cascade);
         response.ForeignKeys[0].KeyColumns.Should().ContainSingle();
     }
+
+    [Fact]
+    public void DiscoverColumnsContracts_DefaultsAndPayload_ArePreserved()
+    {
+        var request = new DiscoverColumnsRequest(
+            FullyQualifiedName: "sales.Orders",
+            ObjectType: DatabaseObjectType.Table);
+        var response = new DiscoverColumnsResponse(
+            [
+                new ColumnMetadata(
+                    Name: "OrderId",
+                    Ordinal: 1,
+                    DataType: "int",
+                    MaxLength: 4,
+                    Precision: 10,
+                    Scale: 0,
+                    IsNullable: false,
+                    IsIdentity: true,
+                    IsComputed: false,
+                    DefaultValue: null,
+                    Description: "Primary key",
+                    ProviderMetadata: new Dictionary<string, object?>
+                    {
+                        ["objectId"] = 1001,
+                        ["columnId"] = 1,
+                    }),
+            ]);
+
+        request.ObjectId.Should().BeNull();
+        request.FullyQualifiedName.Should().Be("sales.Orders");
+        request.ObjectType.Should().Be(DatabaseObjectType.Table);
+        response.Columns.Should().ContainSingle();
+        response.Columns[0].Name.Should().Be("OrderId");
+        response.Columns[0].IsIdentity.Should().BeTrue();
+        response.Columns[0].ProviderMetadata["objectId"].Should().Be(1001);
+    }
 }

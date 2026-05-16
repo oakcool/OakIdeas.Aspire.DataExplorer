@@ -77,6 +77,69 @@ Referential action mapping:
 | `3` | `SetDefault` |
 | `4` | `NoAction` |
 
+## Column discovery
+
+`SqlServerDatabaseProvider` also implements `IColumnDiscoveryProvider` and returns `DiscoverColumnsResponse` with normalized `ColumnMetadata` entries.
+
+- Source catalog views: `sys.columns`, `sys.types`, `sys.identity_columns`, `sys.computed_columns`, `sys.default_constraints`, and `sys.extended_properties`
+- Supports discovery by SQL Server `object_id` (`DiscoverColumnsRequest.ObjectId`) or fully-qualified name (`DiscoverColumnsRequest.FullyQualifiedName`) for `Table` or `View`
+- Preserves ordinal ordering using `sys.columns.column_id`
+- Captures nullability, identity/computed flags, defaults, and optional `MS_Description` text
+
+SQL used for discovery:
+
+```sql
+SELECT
+    c.object_id,
+    c.column_id,
+    c.name AS column_name,
+    t.name AS data_type,
+    c.max_length,
+    c.precision,
+    c.scale,
+    c.is_nullable,
+    CAST(ISNULL(ic.is_identity, 0) AS bit) AS is_identity,
+    CAST(ISNULL(cc.is_computed, 0) AS bit) AS is_computed,
+    dc.definition AS default_value,
+    CAST(ep.value AS nvarchar(4000)) AS description
+FROM sys.columns AS c
+INNER JOIN sys.objects AS o ON c.object_id = o.object_id
+INNER JOIN sys.schemas AS s ON o.schema_id = s.schema_id
+INNER JOIN sys.types AS t ON c.user_type_id = t.user_type_id
+LEFT JOIN sys.identity_columns AS ic ON c.object_id = ic.object_id AND c.column_id = ic.column_id
+LEFT JOIN sys.computed_columns AS cc ON c.object_id = cc.object_id AND c.column_id = cc.column_id
+LEFT JOIN sys.default_constraints AS dc ON c.default_object_id = dc.object_id
+LEFT JOIN sys.extended_properties AS ep ON ep.major_id = c.object_id AND ep.minor_id = c.column_id AND ep.class = 1 AND ep.name = N'MS_Description'
+WHERE (
+        @ObjectId IS NOT NULL AND c.object_id = @ObjectId
+    )
+    OR (
+        @ObjectId IS NULL
+        AND s.name = @SchemaName
+        AND o.name = @ObjectName
+        AND o.type = @ObjectType
+    )
+ORDER BY c.column_id;
+```
+
+Common type mapping examples:
+
+| SQL Server type | `ColumnMetadata.DataType` | Example metadata |
+|---|---|---|
+| `int` | `int` | `MaxLength=4`, `Precision=10`, `Scale=0` |
+| `nvarchar(200)` | `nvarchar` | `MaxLength=400`, `Precision=null`, `Scale=null` |
+| `decimal(18,2)` | `decimal` | `MaxLength=9`, `Precision=18`, `Scale=2` |
+| `datetime2(7)` | `datetime2` | `MaxLength=8`, `Precision=27`, `Scale=7` |
+| `uniqueidentifier` | `uniqueidentifier` | `MaxLength=16`, `DefaultValue=(newid())` |
+
+Column metadata shape:
+
+- `Name`, `Ordinal`, `DataType`
+- `MaxLength`, `Precision`, `Scale`
+- `IsNullable`, `IsIdentity`, `IsComputed`
+- `DefaultValue`, `Description`
+- `ProviderMetadata` (`objectId`, `columnId`)
+
 Registration uses `MetadataProviderFactoryOptions` with DI:
 
 ```csharp
