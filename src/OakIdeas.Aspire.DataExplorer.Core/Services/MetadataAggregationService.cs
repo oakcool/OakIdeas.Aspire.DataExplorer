@@ -3,6 +3,7 @@ using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Configuration;
 using OakIdeas.Aspire.DataExplorer.Core.Models;
+using ContractColumnMetadata = OakIdeas.Aspire.DataExplorer.Contracts.Models.ColumnMetadata;
 
 namespace OakIdeas.Aspire.DataExplorer.Core.Services;
 
@@ -131,7 +132,8 @@ public sealed class MetadataAggregationService(
                 failures,
                 operationToken)).ToArray();
 
-            await Task.WhenAll(tableDiscoveryTasks.Concat(viewDiscoveryTasks));
+            await Task.WhenAll(tableDiscoveryTasks);
+            await Task.WhenAll(viewDiscoveryTasks);
 
             var tableDetails = tableDiscoveryTasks.Select(task => task.Result).ToArray();
             var viewDetails = viewDiscoveryTasks.Select(task => task.Result).ToArray();
@@ -180,8 +182,11 @@ public sealed class MetadataAggregationService(
                 constraints.Length);
 
             var columnsByObject = tableDetails
-                .Concat(viewDetails)
                 .ToDictionary(entry => entry.Key, entry => entry.Columns, StringComparer.OrdinalIgnoreCase);
+            foreach (var viewEntry in viewDetails)
+            {
+                columnsByObject[viewEntry.Key] = viewEntry.Columns;
+            }
 
             var primaryKeysByTable = tableDetails
                 .ToDictionary(entry => entry.Key, entry => entry.PrimaryKeys, StringComparer.OrdinalIgnoreCase);
@@ -574,7 +579,7 @@ public sealed class MetadataAggregationService(
 
     private sealed record TableDiscoveryDetails(
         string Key,
-        IReadOnlyList<ColumnMetadata> Columns,
+        IReadOnlyList<ContractColumnMetadata> Columns,
         IReadOnlyList<PrimaryKeyConstraint> PrimaryKeys,
         IReadOnlyList<ForeignKeyConstraint> ForeignKeys,
         IReadOnlyList<IndexMetadata> Indexes,
@@ -582,5 +587,5 @@ public sealed class MetadataAggregationService(
 
     private sealed record ViewDiscoveryDetails(
         string Key,
-        IReadOnlyList<ColumnMetadata> Columns);
+        IReadOnlyList<ContractColumnMetadata> Columns);
 }

@@ -5,6 +5,7 @@ using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Configuration;
 using OakIdeas.Aspire.DataExplorer.Core.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Services;
+using ContractColumnMetadata = OakIdeas.Aspire.DataExplorer.Contracts.Models.ColumnMetadata;
 
 namespace OakIdeas.Aspire.DataExplorer.Core.Tests;
 
@@ -205,7 +206,7 @@ public sealed class MetadataAggregationServiceTests
 
             return Task.FromResult(new DiscoverColumnsResponse(
             [
-                new ColumnMetadata(
+                new ContractColumnMetadata(
                     Name: "Id",
                     Ordinal: 1,
                     DataType: "int",

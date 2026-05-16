@@ -5,6 +5,7 @@ using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Configuration;
 using OakIdeas.Aspire.DataExplorer.Core.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Services;
+using ContractColumnMetadata = OakIdeas.Aspire.DataExplorer.Contracts.Models.ColumnMetadata;
 
 namespace OakIdeas.Aspire.DataExplorer.IntegrationTests;
 
@@ -117,7 +118,7 @@ public sealed class MetadataAggregationIntegrationTests
         public Task<DiscoverColumnsResponse> DiscoverColumnsAsync(DatabaseResource resource, DiscoverColumnsRequest request, CancellationToken cancellationToken)
             => Task.FromResult(new DiscoverColumnsResponse(
             [
-                new ColumnMetadata("Id", 1, "int", null, null, null, false, true, false, null, null, new Dictionary<string, object?>()),
+                new ContractColumnMetadata("Id", 1, "int", null, null, null, false, true, false, null, null, new Dictionary<string, object?>()),
             ]));
 
         public Task<DiscoverPrimaryKeysResponse> DiscoverPrimaryKeysAsync(DatabaseResource resource, DiscoverPrimaryKeysRequest request, CancellationToken cancellationToken)
