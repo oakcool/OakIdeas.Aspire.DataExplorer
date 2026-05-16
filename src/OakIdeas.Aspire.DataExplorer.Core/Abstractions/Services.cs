@@ -57,6 +57,14 @@ public interface IColumnDiscoveryProvider
         CancellationToken cancellationToken);
 }
 
+public interface IViewDiscoveryProvider
+{
+    Task<DiscoverViewsResponse> DiscoverViewsAsync(
+        DatabaseResource resource,
+        DiscoverViewsRequest request,
+        CancellationToken cancellationToken);
+}
+
 public interface ITableDataService
 {
     Task<TablePageResult> GetRowsAsync(

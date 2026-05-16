@@ -77,6 +77,38 @@ Referential action mapping:
 | `3` | `SetDefault` |
 | `4` | `NoAction` |
 
+## View discovery
+
+`SqlServerDatabaseProvider` also implements `IViewDiscoveryProvider` and returns `DiscoverViewsResponse` with `ViewObject` entries.
+
+- Source catalog view: `sys.views`
+- Default behavior: excludes system views (`is_ms_shipped = 1`)
+- Optional behavior: include system views via `DiscoverViewsRequest.IncludeSystemViews = true`
+- Optional behavior: filter to a single schema via `DiscoverViewsRequest.SchemaName`
+- `ViewObject.HasDefinitionAvailable` is `true` when `OBJECT_DEFINITION()` returns a non-null result
+- Provider metadata: each view includes `objectId` from `sys.views.object_id`
+
+SQL used for discovery:
+
+```sql
+SELECT
+    v.object_id,
+    SCHEMA_NAME(v.schema_id) AS schema_name,
+    v.name AS view_name,
+    CASE WHEN OBJECT_DEFINITION(v.object_id) IS NOT NULL THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS has_definition
+FROM sys.views AS v
+WHERE (@IncludeSystemViews = 1 OR v.is_ms_shipped = 0)
+  AND (@SchemaName IS NULL OR SCHEMA_NAME(v.schema_id) = @SchemaName)
+ORDER BY schema_name, view_name;
+```
+
+View metadata shape:
+
+- `ObjectId` (string, SQL Server `object_id` as string)
+- `SchemaName`, `ObjectName`, `FullyQualifiedName`
+- `HasDefinitionAvailable` — `true` when the view SQL definition can be retrieved
+- `ProviderMetadata` (`objectId`)
+
 ## Column discovery
 
 `SqlServerDatabaseProvider` also implements `IColumnDiscoveryProvider` and returns `DiscoverColumnsResponse` with normalized `ColumnMetadata` entries.

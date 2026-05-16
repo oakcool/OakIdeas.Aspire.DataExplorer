@@ -9,7 +9,7 @@ using ForeignKeyConstraintModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.
 
 namespace OakIdeas.Aspire.DataExplorer.SqlServer.Providers;
 
-public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscoveryProvider, IForeignKeyDiscoveryProvider, IColumnDiscoveryProvider
+public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscoveryProvider, IForeignKeyDiscoveryProvider, IColumnDiscoveryProvider, IViewDiscoveryProvider
 {
     private const string DiscoverSchemasSql = """
         SELECT schema_id, name
@@ -20,6 +20,18 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
               OR name NOT IN (N'dbo', N'guest', N'INFORMATION_SCHEMA', N'sys')
           )
         ORDER BY name;
+        """;
+
+    private const string DiscoverViewsSql = """
+        SELECT
+            v.object_id,
+            SCHEMA_NAME(v.schema_id) AS schema_name,
+            v.name AS view_name,
+            CASE WHEN OBJECT_DEFINITION(v.object_id) IS NOT NULL THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS has_definition
+        FROM sys.views AS v
+        WHERE (@IncludeSystemViews = 1 OR v.is_ms_shipped = 0)
+          AND (@SchemaName IS NULL OR SCHEMA_NAME(v.schema_id) = @SchemaName)
+        ORDER BY schema_name, view_name;
         """;
 
     private const string DiscoverForeignKeysSql = """
@@ -248,6 +260,40 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         }
     }
 
+    public async Task<DiscoverViewsResponse> DiscoverViewsAsync(
+        DatabaseResource resource,
+        DiscoverViewsRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentNullException.ThrowIfNull(request);
+
+        try
+        {
+            await using var connection = new SqlConnection(resource.ConnectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            await using var command = CreateDiscoverViewsCommand(connection, request);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+            var rows = new List<ViewDiscoveryRow>();
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                rows.Add(new ViewDiscoveryRow(
+                    ObjectId: reader.GetInt32(0),
+                    SchemaName: reader.GetString(1),
+                    ViewName: reader.GetString(2),
+                    HasDefinition: reader.GetBoolean(3)));
+            }
+
+            return new DiscoverViewsResponse(NormalizeViews(rows));
+        }
+        catch (SqlException ex) when (HasInsufficientSchemaAccess(ex))
+        {
+            return new DiscoverViewsResponse(Array.Empty<ViewObject>());
+        }
+    }
+
     internal static SchemaObject CreateSchemaObject(int schemaId, string schemaName)
         => new(
             objectId: $"schema.{schemaName}",
@@ -255,6 +301,17 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
             providerMetadata: new Dictionary<string, object?>
             {
                 ["schemaId"] = schemaId,
+            });
+
+    internal static ViewObject CreateViewObject(int objectId, string schemaName, string viewName, bool hasDefinition)
+        => new(
+            objectId: objectId.ToString(CultureInfo.InvariantCulture),
+            schemaName: schemaName,
+            objectName: viewName,
+            hasDefinitionAvailable: hasDefinition,
+            providerMetadata: new Dictionary<string, object?>
+            {
+                ["objectId"] = objectId,
             });
 
     internal static SqlCommand CreateDiscoverSchemasCommand(SqlConnection connection, bool includeSystemSchemas)
@@ -315,6 +372,27 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         command.Parameters.Add("@ObjectType", SqlDbType.NChar, 2).Value = MapObjectType(request.ObjectType);
         return command;
     }
+
+    internal static SqlCommand CreateDiscoverViewsCommand(SqlConnection connection, DiscoverViewsRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentNullException.ThrowIfNull(request);
+
+        string? schemaName = string.IsNullOrWhiteSpace(request.SchemaName)
+            ? null
+            : request.SchemaName.Trim();
+
+        var command = new SqlCommand(DiscoverViewsSql, connection);
+        command.Parameters.Add("@IncludeSystemViews", SqlDbType.Bit).Value = request.IncludeSystemViews;
+        command.Parameters.Add("@SchemaName", SqlDbType.NVarChar, 128).Value =
+            (object?)schemaName ?? DBNull.Value;
+        return command;
+    }
+
+    internal static IReadOnlyList<ViewObject> NormalizeViews(IReadOnlyList<ViewDiscoveryRow> rows)
+        => rows
+            .Select(row => CreateViewObject(row.ObjectId, row.SchemaName, row.ViewName, row.HasDefinition))
+            .ToList();
 
     internal static IReadOnlyList<ColumnMetadataModel> NormalizeColumns(
         IReadOnlyList<ColumnDiscoveryRow> rows)
@@ -435,4 +513,10 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         int DeleteReferentialAction,
         int UpdateReferentialAction,
         bool IsDisabled);
+
+    internal readonly record struct ViewDiscoveryRow(
+        int ObjectId,
+        string SchemaName,
+        string ViewName,
+        bool HasDefinition);
 }

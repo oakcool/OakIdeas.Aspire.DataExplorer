@@ -180,4 +180,28 @@ public sealed class DatabaseMetadataContractsTests
         response.Columns[0].IsIdentity.Should().BeTrue();
         response.Columns[0].ProviderMetadata["objectId"].Should().Be(1001);
     }
+
+    [Fact]
+    public void DiscoverViewsContracts_DefaultsAndPayload_ArePreserved()
+    {
+        var request = new DiscoverViewsRequest();
+        var response = new DiscoverViewsResponse(
+            [
+                new ViewObject(
+                    objectId: "5001",
+                    schemaName: "analytics",
+                    objectName: "MonthlyRevenue",
+                    hasDefinitionAvailable: true,
+                    providerMetadata: new Dictionary<string, object?> { ["objectId"] = 5001 }),
+            ]);
+
+        request.SchemaName.Should().BeNull();
+        request.IncludeSystemViews.Should().BeFalse();
+        response.Views.Should().ContainSingle();
+        response.Views[0].SchemaName.Should().Be("analytics");
+        response.Views[0].ObjectName.Should().Be("MonthlyRevenue");
+        response.Views[0].FullyQualifiedName.Should().Be("analytics.MonthlyRevenue");
+        response.Views[0].HasDefinitionAvailable.Should().BeTrue();
+        response.Views[0].ProviderMetadata["objectId"].Should().Be(5001);
+    }
 }
