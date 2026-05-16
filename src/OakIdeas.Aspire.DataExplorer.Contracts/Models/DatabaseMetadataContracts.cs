@@ -11,6 +11,7 @@ public enum DatabaseObjectType
     Procedure = 4,
     Function = 5,
     Trigger = 6,
+    Index = 7,
 }
 
 public sealed record DatabaseObjectRelationship(
@@ -523,3 +524,12 @@ public sealed record DiscoverConstraintsRequest(
 
 public sealed record DiscoverConstraintsResponse(
     IReadOnlyList<ConstraintMetadata> Constraints);
+
+public sealed record ObjectDefinitionRequest(
+    string ObjectId,
+    DatabaseObjectType ObjectType);
+
+public sealed record ObjectDefinitionResponse(
+    string? Definition,
+    bool IsAvailable,
+    string? UnavailableReason = null);

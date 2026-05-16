@@ -1128,4 +1128,209 @@ public sealed class SqlServerDatabaseProviderTests
         result[2].Definition.Should().BeNull();
         result[2].ObjectId.Should().Be("803");
     }
+
+    [Fact]
+    public void CreateGetDefinitionCommand_UsesObjectDefinitionQueryAndParameter()
+    {
+        using var connection = new SqlConnection();
+
+        using var command = SqlServerDatabaseProvider.CreateGetDefinitionCommand(connection, objectId: 42);
+
+        command.CommandText.Should().Contain("OBJECT_DEFINITION");
+        command.CommandText.Should().Contain("@ObjectId");
+        command.Parameters.Cast<SqlParameter>()
+            .Should()
+            .ContainSingle(parameter => parameter.ParameterName == "@ObjectId");
+        command.Parameters["@ObjectId"].Value.Should().Be(42);
+    }
+
+    [Fact]
+    public void CreateGetIndexDefinitionCommand_UsesIndexCatalogQueryAndParameters()
+    {
+        using var connection = new SqlConnection();
+
+        using var command = SqlServerDatabaseProvider.CreateGetIndexDefinitionCommand(
+            connection, objectId: 100, indexId: 2);
+
+        command.CommandText.Should().Contain("FROM sys.indexes AS i");
+        command.CommandText.Should().Contain("@ObjectId");
+        command.CommandText.Should().Contain("@IndexId");
+        command.Parameters["@ObjectId"].Value.Should().Be(100);
+        command.Parameters["@IndexId"].Value.Should().Be(2);
+    }
+
+    [Theory]
+    [InlineData("100:2", 100, 2, true)]
+    [InlineData("999:1", 999, 1, true)]
+    [InlineData("invalid", 0, 0, false)]
+    [InlineData("100", 0, 0, false)]
+    [InlineData("100:abc", 0, 0, false)]
+    [InlineData("", 0, 0, false)]
+    public void TryParseIndexObjectId_ParsesValidAndInvalidFormats(
+        string objectId,
+        int expectedTableObjectId,
+        int expectedIndexId,
+        bool expectedResult)
+    {
+        var result = SqlServerDatabaseProvider.TryParseIndexObjectId(
+            objectId, out var tableObjectId, out var indexId);
+
+        result.Should().Be(expectedResult);
+        if (expectedResult)
+        {
+            tableObjectId.Should().Be(expectedTableObjectId);
+            indexId.Should().Be(expectedIndexId);
+        }
+    }
+
+    [Fact]
+    public void BuildIndexDefinition_SimpleNonUniqueNonClusteredIndex_BuildsCorrectDefinition()
+    {
+        SqlServerDatabaseProvider.IndexDefinitionRow[] rows =
+        [
+            new SqlServerDatabaseProvider.IndexDefinitionRow(
+                IndexName: "IX_Orders_CustomerId",
+                SchemaName: "sales",
+                TableName: "Orders",
+                IsUnique: false,
+                IsClustered: false,
+                IsPrimaryKey: false,
+                ColumnName: "CustomerId",
+                IsIncludedColumn: false,
+                KeyOrdinal: 1,
+                IndexColumnId: 1,
+                FilterDefinition: null),
+        ];
+
+        var result = SqlServerDatabaseProvider.BuildIndexDefinition(rows);
+
+        result.Should().Be("INDEX [IX_Orders_CustomerId] NONCLUSTERED ON [sales].[Orders] ([CustomerId])");
+    }
+
+    [Fact]
+    public void BuildIndexDefinition_UniqueClusteredIndex_BuildsCorrectDefinition()
+    {
+        SqlServerDatabaseProvider.IndexDefinitionRow[] rows =
+        [
+            new SqlServerDatabaseProvider.IndexDefinitionRow(
+                IndexName: "PK_Orders",
+                SchemaName: "sales",
+                TableName: "Orders",
+                IsUnique: true,
+                IsClustered: true,
+                IsPrimaryKey: true,
+                ColumnName: "OrderId",
+                IsIncludedColumn: false,
+                KeyOrdinal: 1,
+                IndexColumnId: 1,
+                FilterDefinition: null),
+        ];
+
+        var result = SqlServerDatabaseProvider.BuildIndexDefinition(rows);
+
+        result.Should().Be("PRIMARY KEY CLUSTERED ON [sales].[Orders] ([OrderId])");
+    }
+
+    [Fact]
+    public void BuildIndexDefinition_IndexWithIncludedColumnsAndFilter_BuildsCorrectDefinition()
+    {
+        SqlServerDatabaseProvider.IndexDefinitionRow[] rows =
+        [
+            new SqlServerDatabaseProvider.IndexDefinitionRow(
+                IndexName: "IX_Orders_Status_Active",
+                SchemaName: "dbo",
+                TableName: "Orders",
+                IsUnique: false,
+                IsClustered: false,
+                IsPrimaryKey: false,
+                ColumnName: "Status",
+                IsIncludedColumn: false,
+                KeyOrdinal: 1,
+                IndexColumnId: 1,
+                FilterDefinition: "([Status] = 'Active')"),
+            new SqlServerDatabaseProvider.IndexDefinitionRow(
+                IndexName: "IX_Orders_Status_Active",
+                SchemaName: "dbo",
+                TableName: "Orders",
+                IsUnique: false,
+                IsClustered: false,
+                IsPrimaryKey: false,
+                ColumnName: "OrderDate",
+                IsIncludedColumn: true,
+                KeyOrdinal: 0,
+                IndexColumnId: 2,
+                FilterDefinition: "([Status] = 'Active')"),
+        ];
+
+        var result = SqlServerDatabaseProvider.BuildIndexDefinition(rows);
+
+        result.Should().Be(
+            "INDEX [IX_Orders_Status_Active] NONCLUSTERED ON [dbo].[Orders] ([Status]) INCLUDE ([OrderDate]) WHERE ([Status] = 'Active')");
+    }
+
+    [Fact]
+    public void BuildIndexDefinition_UniqueNonClusteredIndex_BuildsCorrectDefinition()
+    {
+        SqlServerDatabaseProvider.IndexDefinitionRow[] rows =
+        [
+            new SqlServerDatabaseProvider.IndexDefinitionRow(
+                IndexName: "UQ_Customers_Email",
+                SchemaName: "dbo",
+                TableName: "Customers",
+                IsUnique: true,
+                IsClustered: false,
+                IsPrimaryKey: false,
+                ColumnName: "Email",
+                IsIncludedColumn: false,
+                KeyOrdinal: 1,
+                IndexColumnId: 1,
+                FilterDefinition: null),
+        ];
+
+        var result = SqlServerDatabaseProvider.BuildIndexDefinition(rows);
+
+        result.Should().Be("UNIQUE INDEX [UQ_Customers_Email] NONCLUSTERED ON [dbo].[Customers] ([Email])");
+    }
+
+    [Fact]
+    public async Task GetDefinitionAsync_UnsupportedObjectType_ReturnsNotAvailable()
+    {
+        var sut = new SqlServerDatabaseProvider();
+        var resource = CreateResource("sqlserver");
+        var request = new ObjectDefinitionRequest("42", DatabaseObjectType.Table);
+
+        var result = await sut.GetDefinitionAsync(resource, request, CancellationToken.None);
+
+        result.IsAvailable.Should().BeFalse();
+        result.Definition.Should().BeNull();
+        result.UnavailableReason.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task GetDefinitionAsync_InvalidObjectId_ReturnsNotAvailable()
+    {
+        var sut = new SqlServerDatabaseProvider();
+        var resource = CreateResource("sqlserver");
+        var request = new ObjectDefinitionRequest("not-a-valid-id", DatabaseObjectType.View);
+
+        var result = await sut.GetDefinitionAsync(resource, request, CancellationToken.None);
+
+        result.IsAvailable.Should().BeFalse();
+        result.Definition.Should().BeNull();
+        result.UnavailableReason.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task GetDefinitionAsync_InvalidIndexObjectId_ReturnsNotAvailable()
+    {
+        var sut = new SqlServerDatabaseProvider();
+        var resource = CreateResource("sqlserver");
+        var request = new ObjectDefinitionRequest("not-an-index-id", DatabaseObjectType.Index);
+
+        var result = await sut.GetDefinitionAsync(resource, request, CancellationToken.None);
+
+        result.IsAvailable.Should().BeFalse();
+        result.Definition.Should().BeNull();
+        result.UnavailableReason.Should().NotBeNullOrEmpty();
+    }
 }

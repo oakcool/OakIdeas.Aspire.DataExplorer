@@ -15,7 +15,7 @@ using TriggerMetadataModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.Trigg
 
 namespace OakIdeas.Aspire.DataExplorer.SqlServer.Providers;
 
-public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscoveryProvider, IForeignKeyDiscoveryProvider, IColumnDiscoveryProvider, IIndexDiscoveryProvider, IPrimaryKeyDiscoveryProvider, ITableDiscoveryProvider, IViewDiscoveryProvider, IStoredProcedureDiscoveryProvider, IFunctionDiscoveryProvider, ITriggerDiscoveryProvider, IConstraintDiscoveryProvider
+public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscoveryProvider, IForeignKeyDiscoveryProvider, IColumnDiscoveryProvider, IIndexDiscoveryProvider, IPrimaryKeyDiscoveryProvider, ITableDiscoveryProvider, IViewDiscoveryProvider, IStoredProcedureDiscoveryProvider, IFunctionDiscoveryProvider, ITriggerDiscoveryProvider, IConstraintDiscoveryProvider, IObjectDefinitionProvider
 {
     private const string DiscoverSchemasSql = """
         SELECT schema_id, name
@@ -282,8 +282,38 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         ORDER BY schema_name, table_name, constraint_type, constraint_name;
         """;
 
-    public string ProviderName => "sqlserver";
+    private const string GetObjectDefinitionSql = """
+        SELECT OBJECT_DEFINITION(@ObjectId) AS definition;
+        """;
 
+    private const string GetIndexDefinitionSql = """
+        SELECT
+            i.name AS index_name,
+            s.name AS schema_name,
+            t.name AS table_name,
+            i.is_unique,
+            CAST(CASE WHEN i.type IN (1, 5) THEN 1 ELSE 0 END AS bit) AS is_clustered,
+            i.is_primary_key,
+            c.name AS column_name,
+            ic.is_included_column,
+            ic.key_ordinal,
+            ic.index_column_id,
+            i.filter_definition
+        FROM sys.indexes AS i
+        INNER JOIN sys.tables AS t ON i.object_id = t.object_id
+        INNER JOIN sys.schemas AS s ON t.schema_id = s.schema_id
+        INNER JOIN sys.index_columns AS ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+        INNER JOIN sys.columns AS c ON t.object_id = c.object_id AND ic.column_id = c.column_id
+        WHERE i.object_id = @ObjectId
+          AND i.index_id = @IndexId
+          AND (ic.key_ordinal > 0 OR ic.is_included_column = 1)
+        ORDER BY ic.is_included_column, CASE
+            WHEN ic.is_included_column = 1 THEN ic.index_column_id
+            ELSE ic.key_ordinal
+        END;
+        """;
+
+    public string ProviderName => "sqlserver";
     public DatabaseProviderType ProviderType => DatabaseProviderType.SqlServer;
 
     public ProviderCapabilities Capabilities { get; } = new()
@@ -749,6 +779,125 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         }
     }
 
+    public async Task<ObjectDefinitionResponse> GetDefinitionAsync(
+        DatabaseResource resource,
+        ObjectDefinitionRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (request.ObjectType == DatabaseObjectType.Index)
+        {
+            return await GetIndexDefinitionAsync(resource, request, cancellationToken);
+        }
+
+        if (request.ObjectType is not (DatabaseObjectType.View or DatabaseObjectType.Procedure
+            or DatabaseObjectType.Function or DatabaseObjectType.Trigger))
+        {
+            return new ObjectDefinitionResponse(
+                Definition: null,
+                IsAvailable: false,
+                UnavailableReason: "Definition retrieval is not supported for this object type.");
+        }
+
+        if (!int.TryParse(request.ObjectId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var objectId))
+        {
+            return new ObjectDefinitionResponse(
+                Definition: null,
+                IsAvailable: false,
+                UnavailableReason: "Invalid object identifier.");
+        }
+
+        try
+        {
+            await using var connection = new SqlConnection(resource.ConnectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            await using var command = CreateGetDefinitionCommand(connection, objectId);
+            var result = await command.ExecuteScalarAsync(cancellationToken);
+
+            if (result is null or DBNull)
+            {
+                return new ObjectDefinitionResponse(
+                    Definition: null,
+                    IsAvailable: false,
+                    UnavailableReason: "Definition is not available for this object.");
+            }
+
+            var definition = (string)result;
+            return new ObjectDefinitionResponse(
+                Definition: definition,
+                IsAvailable: true);
+        }
+        catch (SqlException ex) when (HasInsufficientSchemaAccess(ex))
+        {
+            return new ObjectDefinitionResponse(
+                Definition: null,
+                IsAvailable: false,
+                UnavailableReason: "Insufficient permissions to retrieve the object definition.");
+        }
+    }
+
+    private async Task<ObjectDefinitionResponse> GetIndexDefinitionAsync(
+        DatabaseResource resource,
+        ObjectDefinitionRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!TryParseIndexObjectId(request.ObjectId, out var tableObjectId, out var indexId))
+        {
+            return new ObjectDefinitionResponse(
+                Definition: null,
+                IsAvailable: false,
+                UnavailableReason: "Invalid index object identifier.");
+        }
+
+        try
+        {
+            await using var connection = new SqlConnection(resource.ConnectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            await using var command = CreateGetIndexDefinitionCommand(connection, tableObjectId, indexId);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+            var rows = new List<IndexDefinitionRow>();
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                rows.Add(new IndexDefinitionRow(
+                    IndexName: reader.GetString(0),
+                    SchemaName: reader.GetString(1),
+                    TableName: reader.GetString(2),
+                    IsUnique: reader.GetBoolean(3),
+                    IsClustered: reader.GetBoolean(4),
+                    IsPrimaryKey: reader.GetBoolean(5),
+                    ColumnName: reader.GetString(6),
+                    IsIncludedColumn: reader.GetBoolean(7),
+                    KeyOrdinal: reader.GetInt32(8),
+                    IndexColumnId: reader.GetInt32(9),
+                    FilterDefinition: reader.IsDBNull(10) ? null : reader.GetString(10)));
+            }
+
+            if (rows.Count == 0)
+            {
+                return new ObjectDefinitionResponse(
+                    Definition: null,
+                    IsAvailable: false,
+                    UnavailableReason: "Definition is not available for this object.");
+            }
+
+            return new ObjectDefinitionResponse(
+                Definition: BuildIndexDefinition(rows),
+                IsAvailable: true);
+        }
+        catch (SqlException ex) when (HasInsufficientSchemaAccess(ex))
+        {
+            return new ObjectDefinitionResponse(
+                Definition: null,
+                IsAvailable: false,
+                UnavailableReason: "Insufficient permissions to retrieve the object definition.");
+        }
+    }
+
     internal static TableObject CreateTableObject(int objectId, string schemaName, string tableName, long rowCount)
         => new(
             objectId: objectId.ToString(CultureInfo.InvariantCulture),
@@ -980,6 +1129,104 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         command.Parameters.Add("@TableName", SqlDbType.NVarChar, 128).Value =
             (object?)tableName ?? DBNull.Value;
         return command;
+    }
+
+    internal static SqlCommand CreateGetDefinitionCommand(SqlConnection connection, int objectId)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+
+        var command = new SqlCommand(GetObjectDefinitionSql, connection);
+        command.Parameters.Add("@ObjectId", SqlDbType.Int).Value = objectId;
+        return command;
+    }
+
+    internal static SqlCommand CreateGetIndexDefinitionCommand(SqlConnection connection, int objectId, int indexId)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+
+        var command = new SqlCommand(GetIndexDefinitionSql, connection);
+        command.Parameters.Add("@ObjectId", SqlDbType.Int).Value = objectId;
+        command.Parameters.Add("@IndexId", SqlDbType.Int).Value = indexId;
+        return command;
+    }
+
+    internal static string BuildIndexDefinition(IReadOnlyList<IndexDefinitionRow> rows)
+    {
+        var first = rows[0];
+        var keyColumns = rows
+            .Where(row => !row.IsIncludedColumn)
+            .OrderBy(row => row.KeyOrdinal)
+            .ThenBy(row => row.IndexColumnId)
+            .Select(row => $"[{row.ColumnName}]")
+            .ToList();
+        var includedColumns = rows
+            .Where(row => row.IsIncludedColumn)
+            .OrderBy(row => row.IndexColumnId)
+            .Select(row => $"[{row.ColumnName}]")
+            .ToList();
+
+        var sb = new System.Text.StringBuilder();
+
+        if (first.IsPrimaryKey)
+        {
+            sb.Append("PRIMARY KEY ");
+        }
+        else
+        {
+            if (first.IsUnique)
+            {
+                sb.Append("UNIQUE ");
+            }
+
+            sb.Append("INDEX ");
+            sb.Append('[');
+            sb.Append(first.IndexName);
+            sb.Append("] ");
+        }
+
+        sb.Append(first.IsClustered ? "CLUSTERED " : "NONCLUSTERED ");
+        sb.Append("ON [");
+        sb.Append(first.SchemaName);
+        sb.Append("].[");
+        sb.Append(first.TableName);
+        sb.Append("] (");
+        sb.Append(string.Join(", ", keyColumns));
+        sb.Append(')');
+
+        if (includedColumns.Count > 0)
+        {
+            sb.Append(" INCLUDE (");
+            sb.Append(string.Join(", ", includedColumns));
+            sb.Append(')');
+        }
+
+        if (!string.IsNullOrWhiteSpace(first.FilterDefinition))
+        {
+            sb.Append(" WHERE ");
+            sb.Append(first.FilterDefinition);
+        }
+
+        return sb.ToString();
+    }
+
+    internal static bool TryParseIndexObjectId(string objectId, out int tableObjectId, out int indexId)
+    {
+        tableObjectId = 0;
+        indexId = 0;
+
+        if (string.IsNullOrWhiteSpace(objectId))
+        {
+            return false;
+        }
+
+        var parts = objectId.Split(':');
+        if (parts.Length != 2)
+        {
+            return false;
+        }
+
+        return int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out tableObjectId)
+            && int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out indexId);
     }
 
     internal static IReadOnlyList<ViewObject> NormalizeViews(IReadOnlyList<ViewDiscoveryRow> rows)
@@ -1391,4 +1638,17 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         string? ReturnType,
         bool HasDefinitionAvailable,
         DateTime? CreatedAt);
+
+    internal readonly record struct IndexDefinitionRow(
+        string IndexName,
+        string SchemaName,
+        string TableName,
+        bool IsUnique,
+        bool IsClustered,
+        bool IsPrimaryKey,
+        string ColumnName,
+        bool IsIncludedColumn,
+        int KeyOrdinal,
+        int IndexColumnId,
+        string? FilterDefinition);
 }

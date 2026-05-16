@@ -121,6 +121,14 @@ public interface IConstraintDiscoveryProvider
         CancellationToken cancellationToken);
 }
 
+public interface IObjectDefinitionProvider
+{
+    Task<ObjectDefinitionResponse> GetDefinitionAsync(
+        DatabaseResource resource,
+        ObjectDefinitionRequest request,
+        CancellationToken cancellationToken);
+}
+
 public interface ITableDataService
 {
     Task<TablePageResult> GetRowsAsync(
