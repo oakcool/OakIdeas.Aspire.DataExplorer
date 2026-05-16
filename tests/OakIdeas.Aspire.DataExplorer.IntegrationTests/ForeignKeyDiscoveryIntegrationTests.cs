@@ -4,7 +4,7 @@ using OakIdeas.Aspire.DataExplorer.SqlServer.Providers;
 
 namespace OakIdeas.Aspire.DataExplorer.IntegrationTests;
 
-public sealed class ForeignKeyDiscoveryIntegrationTests
+public sealed class ForeignKeyDiscoveryProjectionTests
 {
     [Fact]
     public void NormalizeForeignKeyConstraints_SimpleForeignKey_IsProjected()
