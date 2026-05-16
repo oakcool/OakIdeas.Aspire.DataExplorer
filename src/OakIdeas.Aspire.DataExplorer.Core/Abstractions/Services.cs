@@ -65,6 +65,14 @@ public interface IIndexDiscoveryProvider
         CancellationToken cancellationToken);
 }
 
+public interface IPrimaryKeyDiscoveryProvider
+{
+    Task<DiscoverPrimaryKeysResponse> DiscoverPrimaryKeysAsync(
+        DatabaseResource resource,
+        DiscoverPrimaryKeysRequest request,
+        CancellationToken cancellationToken);
+}
+
 public interface ITableDiscoveryProvider
 {
     Task<DiscoverTablesResponse> DiscoverTablesAsync(
