@@ -410,6 +410,41 @@ public sealed record DiscoverForeignKeysRequest(
 public sealed record DiscoverForeignKeysResponse(
     IReadOnlyList<ForeignKeyConstraint> ForeignKeys);
 
+public enum TriggerParentObjectType
+{
+    Table = 1,
+    Database = 2,
+}
+
+[Flags]
+public enum TriggerType
+{
+    None = 0,
+    Insert = 1,
+    Update = 2,
+    Delete = 4,
+    InsteadOf = 8,
+    After = 16,
+}
+
+public sealed record TriggerMetadata(
+    string TriggerName,
+    string SchemaName,
+    string ParentObjectName,
+    TriggerParentObjectType ParentObjectType,
+    TriggerType TriggerType,
+    bool IsEnabled,
+    bool HasDefinitionAvailable,
+    string ObjectId,
+    DateTimeOffset? CreatedAt);
+
+public sealed record DiscoverTriggersRequest(
+    string? SchemaName = null,
+    string? ParentObjectName = null);
+
+public sealed record DiscoverTriggersResponse(
+    IReadOnlyList<TriggerMetadata> Triggers);
+
 public sealed record DiscoverTablesRequest(
     string? SchemaName = null,
     bool IncludeSystemTables = false);

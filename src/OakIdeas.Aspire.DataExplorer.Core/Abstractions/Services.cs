@@ -89,6 +89,14 @@ public interface IViewDiscoveryProvider
         CancellationToken cancellationToken);
 }
 
+public interface ITriggerDiscoveryProvider
+{
+    Task<DiscoverTriggersResponse> DiscoverTriggersAsync(
+        DatabaseResource resource,
+        DiscoverTriggersRequest request,
+        CancellationToken cancellationToken);
+}
+
 public interface ITableDataService
 {
     Task<TablePageResult> GetRowsAsync(

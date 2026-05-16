@@ -8,10 +8,11 @@ using ColumnMetadataModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.Column
 using ForeignKeyConstraintModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.ForeignKeyConstraint;
 using IndexMetadataModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.IndexMetadata;
 using PrimaryKeyConstraintModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.PrimaryKeyConstraint;
+using TriggerMetadataModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.TriggerMetadata;
 
 namespace OakIdeas.Aspire.DataExplorer.SqlServer.Providers;
 
-public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscoveryProvider, IForeignKeyDiscoveryProvider, IColumnDiscoveryProvider, IIndexDiscoveryProvider, IPrimaryKeyDiscoveryProvider, ITableDiscoveryProvider, IViewDiscoveryProvider
+public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscoveryProvider, IForeignKeyDiscoveryProvider, IColumnDiscoveryProvider, IIndexDiscoveryProvider, IPrimaryKeyDiscoveryProvider, ITableDiscoveryProvider, IViewDiscoveryProvider, ITriggerDiscoveryProvider
 {
     private const string DiscoverSchemasSql = """
         SELECT schema_id, name
@@ -49,6 +50,27 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         WHERE (@IncludeSystemViews = 1 OR v.is_ms_shipped = 0)
           AND (@SchemaName IS NULL OR SCHEMA_NAME(v.schema_id) = @SchemaName)
         ORDER BY schema_name, view_name;
+        """;
+
+    private const string DiscoverTriggersSql = """
+        SELECT
+            t.object_id,
+            t.name AS trigger_name,
+            SCHEMA_NAME(t.schema_id) AS schema_name,
+            COALESCE(parent.name, DB_NAME()) AS parent_object_name,
+            t.parent_class,
+            t.is_disabled,
+            t.is_instead_of_trigger,
+            CASE WHEN OBJECT_DEFINITION(t.object_id) IS NOT NULL THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS has_definition,
+            trigger_object.create_date,
+            te.type_desc AS trigger_event_type
+        FROM sys.triggers AS t
+        LEFT JOIN sys.objects AS parent ON t.parent_id = parent.object_id
+        LEFT JOIN sys.objects AS trigger_object ON t.object_id = trigger_object.object_id
+        LEFT JOIN sys.trigger_events AS te ON t.object_id = te.object_id
+        WHERE (@SchemaName IS NULL OR SCHEMA_NAME(t.schema_id) = @SchemaName)
+          AND (@ParentObjectName IS NULL OR COALESCE(parent.name, DB_NAME()) = @ParentObjectName)
+        ORDER BY schema_name, parent_object_name, trigger_name, trigger_event_type;
         """;
 
     private const string DiscoverForeignKeysSql = """
@@ -478,6 +500,46 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         }
     }
 
+    public async Task<DiscoverTriggersResponse> DiscoverTriggersAsync(
+        DatabaseResource resource,
+        DiscoverTriggersRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentNullException.ThrowIfNull(request);
+
+        try
+        {
+            await using var connection = new SqlConnection(resource.ConnectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            await using var command = CreateDiscoverTriggersCommand(connection, request);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+            var rows = new List<TriggerDiscoveryRow>();
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                rows.Add(new TriggerDiscoveryRow(
+                    ObjectId: reader.GetInt32(0),
+                    TriggerName: reader.GetString(1),
+                    SchemaName: reader.GetString(2),
+                    ParentObjectName: reader.GetString(3),
+                    ParentClass: reader.GetInt32(4),
+                    IsDisabled: reader.GetBoolean(5),
+                    IsInsteadOfTrigger: reader.GetBoolean(6),
+                    HasDefinitionAvailable: reader.GetBoolean(7),
+                    CreatedAt: reader.IsDBNull(8) ? null : reader.GetDateTime(8),
+                    TriggerEventType: reader.IsDBNull(9) ? null : reader.GetString(9)));
+            }
+
+            return new DiscoverTriggersResponse(NormalizeTriggers(rows));
+        }
+        catch (SqlException ex) when (HasInsufficientSchemaAccess(ex))
+        {
+            return new DiscoverTriggersResponse(Array.Empty<TriggerMetadataModel>());
+        }
+    }
+
     internal static TableObject CreateTableObject(int objectId, string schemaName, string tableName, long rowCount)
         => new(
             objectId: objectId.ToString(CultureInfo.InvariantCulture),
@@ -605,6 +667,26 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         return command;
     }
 
+    internal static SqlCommand CreateDiscoverTriggersCommand(SqlConnection connection, DiscoverTriggersRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentNullException.ThrowIfNull(request);
+
+        string? schemaName = string.IsNullOrWhiteSpace(request.SchemaName)
+            ? null
+            : request.SchemaName.Trim();
+        string? parentObjectName = string.IsNullOrWhiteSpace(request.ParentObjectName)
+            ? null
+            : request.ParentObjectName.Trim();
+
+        var command = new SqlCommand(DiscoverTriggersSql, connection);
+        command.Parameters.Add("@SchemaName", SqlDbType.NVarChar, 128).Value =
+            (object?)schemaName ?? DBNull.Value;
+        command.Parameters.Add("@ParentObjectName", SqlDbType.NVarChar, 128).Value =
+            (object?)parentObjectName ?? DBNull.Value;
+        return command;
+    }
+
     internal static SqlCommand CreateDiscoverIndexesCommand(SqlConnection connection, DiscoverIndexesRequest request)
     {
         ArgumentNullException.ThrowIfNull(connection);
@@ -648,6 +730,50 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
     internal static IReadOnlyList<ViewObject> NormalizeViews(IReadOnlyList<ViewDiscoveryRow> rows)
         => rows
             .Select(row => CreateViewObject(row.ObjectId, row.SchemaName, row.ViewName, row.HasDefinition))
+            .ToList();
+
+    internal static IReadOnlyList<TriggerMetadataModel> NormalizeTriggers(IReadOnlyList<TriggerDiscoveryRow> rows)
+        => rows
+            .GroupBy(row => row.ObjectId)
+            .Select(group =>
+            {
+                var first = group.First();
+                var triggerType = first.IsInsteadOfTrigger ? TriggerType.InsteadOf : TriggerType.After;
+
+                var eventTypes = group
+                    .Select(row => row.TriggerEventType)
+                    .Where(eventType => !string.IsNullOrWhiteSpace(eventType))
+                    .Select(eventType => eventType!)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                if (eventTypes.Contains("INSERT"))
+                {
+                    triggerType |= TriggerType.Insert;
+                }
+
+                if (eventTypes.Contains("UPDATE"))
+                {
+                    triggerType |= TriggerType.Update;
+                }
+
+                if (eventTypes.Contains("DELETE"))
+                {
+                    triggerType |= TriggerType.Delete;
+                }
+
+                return new TriggerMetadataModel(
+                    TriggerName: first.TriggerName,
+                    SchemaName: first.SchemaName,
+                    ParentObjectName: first.ParentObjectName,
+                    ParentObjectType: MapTriggerParentObjectType(first.ParentClass),
+                    TriggerType: triggerType,
+                    IsEnabled: !first.IsDisabled,
+                    HasDefinitionAvailable: first.HasDefinitionAvailable,
+                    ObjectId: first.ObjectId.ToString(CultureInfo.InvariantCulture),
+                    CreatedAt: first.CreatedAt is null
+                        ? null
+                        : new DateTimeOffset(DateTime.SpecifyKind(first.CreatedAt.Value, DateTimeKind.Utc)));
+            })
             .ToList();
 
     internal static IReadOnlyList<ColumnMetadataModel> NormalizeColumns(
@@ -766,6 +892,11 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
             _ => ReferentialActionBehavior.NoAction,
         };
 
+    internal static TriggerParentObjectType MapTriggerParentObjectType(int parentClass)
+        => parentClass == 0
+            ? TriggerParentObjectType.Database
+            : TriggerParentObjectType.Table;
+
     private static (string SchemaName, string ObjectName) ParseSchemaAndObjectName(string? fullyQualifiedName)
     {
         if (string.IsNullOrWhiteSpace(fullyQualifiedName))
@@ -863,4 +994,16 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         string SchemaName,
         string ViewName,
         bool HasDefinition);
+
+    internal readonly record struct TriggerDiscoveryRow(
+        int ObjectId,
+        string TriggerName,
+        string SchemaName,
+        string ParentObjectName,
+        int ParentClass,
+        bool IsDisabled,
+        bool IsInsteadOfTrigger,
+        bool HasDefinitionAvailable,
+        DateTime? CreatedAt,
+        string? TriggerEventType);
 }
