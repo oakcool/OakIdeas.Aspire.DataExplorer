@@ -651,6 +651,101 @@ public sealed class SqlServerDatabaseProviderTests
     }
 
     [Fact]
+    public void CreateDiscoverStoredProceduresCommand_UsesProcedureCatalogQueryAndParameters()
+    {
+        using var connection = new SqlConnection();
+        var request = new DiscoverStoredProceduresRequest();
+
+        using var command = SqlServerDatabaseProvider.CreateDiscoverStoredProceduresCommand(connection, request);
+
+        command.CommandText.Should().Contain("FROM sys.procedures AS p");
+        command.CommandText.Should().Contain("LEFT JOIN sys.parameters AS prm");
+        command.Parameters.Cast<SqlParameter>()
+            .Should()
+            .Contain(parameter => parameter.ParameterName == "@IncludeSystemProcedures")
+            .And.Contain(parameter => parameter.ParameterName == "@SchemaName");
+        command.Parameters["@IncludeSystemProcedures"].Value.Should().Be(false);
+        command.Parameters["@SchemaName"].Value.Should().Be(DBNull.Value);
+    }
+
+    [Fact]
+    public void CreateDiscoverStoredProceduresCommand_WhenIncludingSystemProcedures_SetsParameterToTrue()
+    {
+        using var connection = new SqlConnection();
+        var request = new DiscoverStoredProceduresRequest(IncludeSystemProcedures: true);
+
+        using var command = SqlServerDatabaseProvider.CreateDiscoverStoredProceduresCommand(connection, request);
+
+        command.Parameters["@IncludeSystemProcedures"].Value.Should().Be(true);
+    }
+
+    [Fact]
+    public void CreateDiscoverStoredProceduresCommand_WhenSchemaFilterProvided_TrimsAndSetsParameter()
+    {
+        using var connection = new SqlConnection();
+        var request = new DiscoverStoredProceduresRequest(SchemaName: " sales ");
+
+        using var command = SqlServerDatabaseProvider.CreateDiscoverStoredProceduresCommand(connection, request);
+
+        command.Parameters["@SchemaName"].Value.Should().Be("sales");
+    }
+
+    [Fact]
+    public void NormalizeStoredProcedures_ProjectsProceduresWithDefinitionAndParameters()
+    {
+        SqlServerDatabaseProvider.StoredProcedureDiscoveryRow[] rows =
+        [
+            new SqlServerDatabaseProvider.StoredProcedureDiscoveryRow(
+                ObjectId: 701,
+                SchemaName: "sales",
+                ProcedureName: "usp_GetOrders",
+                HasDefinitionAvailable: true,
+                CreatedAt: new DateTime(2026, 5, 16, 0, 0, 0),
+                ParameterId: 1,
+                ParameterName: "@CustomerId",
+                ParameterDataType: "int"),
+            new SqlServerDatabaseProvider.StoredProcedureDiscoveryRow(
+                ObjectId: 701,
+                SchemaName: "sales",
+                ProcedureName: "usp_GetOrders",
+                HasDefinitionAvailable: true,
+                CreatedAt: new DateTime(2026, 5, 16, 0, 0, 0),
+                ParameterId: 2,
+                ParameterName: "@Status",
+                ParameterDataType: "nvarchar"),
+            new SqlServerDatabaseProvider.StoredProcedureDiscoveryRow(
+                ObjectId: 702,
+                SchemaName: "analytics",
+                ProcedureName: "usp_MonthlyRevenue",
+                HasDefinitionAvailable: false,
+                CreatedAt: null,
+                ParameterId: null,
+                ParameterName: null,
+                ParameterDataType: null),
+        ];
+
+        var result = SqlServerDatabaseProvider.NormalizeStoredProcedures(rows);
+        var grouped = SqlServerDatabaseProvider.GroupStoredProceduresBySchema(result);
+
+        result.Should().HaveCount(2);
+        result[0].SchemaName.Should().Be("sales");
+        result[0].ProcedureName.Should().Be("usp_GetOrders");
+        result[0].ObjectId.Should().Be("701");
+        result[0].HasDefinitionAvailable.Should().BeTrue();
+        result[0].Parameters.Should().HaveCount(2);
+        result[0].Parameters![0].Should().Be(new StoredProcedureParameterMetadata("@CustomerId", "int"));
+        result[0].Parameters![1].Should().Be(new StoredProcedureParameterMetadata("@Status", "nvarchar"));
+
+        result[1].SchemaName.Should().Be("analytics");
+        result[1].HasDefinitionAvailable.Should().BeFalse();
+        result[1].Parameters.Should().BeNull();
+
+        grouped.Keys.Should().Equal("analytics", "sales");
+        grouped["sales"].Should().ContainSingle().Which.ProcedureName.Should().Be("usp_GetOrders");
+        grouped["analytics"].Should().ContainSingle().Which.ProcedureName.Should().Be("usp_MonthlyRevenue");
+    }
+
+    [Fact]
     public void CreateDiscoverTriggersCommand_UsesTriggerCatalogQueryAndParameters()
     {
         using var connection = new SqlConnection();

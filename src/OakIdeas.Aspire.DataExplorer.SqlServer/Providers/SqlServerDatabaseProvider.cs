@@ -9,11 +9,12 @@ using ConstraintMetadataModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.Co
 using ForeignKeyConstraintModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.ForeignKeyConstraint;
 using IndexMetadataModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.IndexMetadata;
 using PrimaryKeyConstraintModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.PrimaryKeyConstraint;
+using StoredProcedureMetadataModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.StoredProcedureMetadata;
 using TriggerMetadataModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.TriggerMetadata;
 
 namespace OakIdeas.Aspire.DataExplorer.SqlServer.Providers;
 
-public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscoveryProvider, IForeignKeyDiscoveryProvider, IColumnDiscoveryProvider, IIndexDiscoveryProvider, IPrimaryKeyDiscoveryProvider, ITableDiscoveryProvider, IViewDiscoveryProvider, ITriggerDiscoveryProvider, IConstraintDiscoveryProvider
+public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscoveryProvider, IForeignKeyDiscoveryProvider, IColumnDiscoveryProvider, IIndexDiscoveryProvider, IPrimaryKeyDiscoveryProvider, ITableDiscoveryProvider, IViewDiscoveryProvider, IStoredProcedureDiscoveryProvider, ITriggerDiscoveryProvider, IConstraintDiscoveryProvider
 {
     private const string DiscoverSchemasSql = """
         SELECT schema_id, name
@@ -51,6 +52,24 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         WHERE (@IncludeSystemViews = 1 OR v.is_ms_shipped = 0)
           AND (@SchemaName IS NULL OR SCHEMA_NAME(v.schema_id) = @SchemaName)
         ORDER BY schema_name, view_name;
+        """;
+
+    private const string DiscoverStoredProceduresSql = """
+        SELECT
+            p.object_id,
+            SCHEMA_NAME(p.schema_id) AS schema_name,
+            p.name AS procedure_name,
+            CASE WHEN OBJECT_DEFINITION(p.object_id) IS NOT NULL THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS has_definition,
+            p.create_date,
+            prm.parameter_id,
+            prm.name AS parameter_name,
+            typ.name AS parameter_type
+        FROM sys.procedures AS p
+        LEFT JOIN sys.parameters AS prm ON p.object_id = prm.object_id
+        LEFT JOIN sys.types AS typ ON prm.user_type_id = typ.user_type_id
+        WHERE (@IncludeSystemProcedures = 1 OR p.is_ms_shipped = 0)
+          AND (@SchemaName IS NULL OR SCHEMA_NAME(p.schema_id) = @SchemaName)
+        ORDER BY schema_name, procedure_name, prm.parameter_id;
         """;
 
     private const string DiscoverTriggersSql = """
@@ -597,6 +616,44 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         }
     }
 
+    public async Task<DiscoverStoredProceduresResponse> DiscoverStoredProceduresAsync(
+        DatabaseResource resource,
+        DiscoverStoredProceduresRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentNullException.ThrowIfNull(request);
+
+        try
+        {
+            await using var connection = new SqlConnection(resource.ConnectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            await using var command = CreateDiscoverStoredProceduresCommand(connection, request);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+            var rows = new List<StoredProcedureDiscoveryRow>();
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                rows.Add(new StoredProcedureDiscoveryRow(
+                    ObjectId: reader.GetInt32(0),
+                    SchemaName: reader.GetString(1),
+                    ProcedureName: reader.GetString(2),
+                    HasDefinitionAvailable: reader.GetBoolean(3),
+                    CreatedAt: reader.IsDBNull(4) ? null : reader.GetDateTime(4),
+                    ParameterId: reader.IsDBNull(5) ? null : reader.GetInt32(5),
+                    ParameterName: reader.IsDBNull(6) ? null : reader.GetString(6),
+                    ParameterDataType: reader.IsDBNull(7) ? null : reader.GetString(7)));
+            }
+
+            return new DiscoverStoredProceduresResponse(GroupStoredProceduresBySchema(NormalizeStoredProcedures(rows)));
+        }
+        catch (SqlException ex) when (HasInsufficientSchemaAccess(ex))
+        {
+            return new DiscoverStoredProceduresResponse(new Dictionary<string, IReadOnlyList<StoredProcedureMetadataModel>>(StringComparer.OrdinalIgnoreCase));
+        }
+    }
+
     public async Task<DiscoverConstraintsResponse> DiscoverConstraintsAsync(
         DatabaseResource resource,
         DiscoverConstraintsRequest request,
@@ -762,6 +819,22 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         return command;
     }
 
+    internal static SqlCommand CreateDiscoverStoredProceduresCommand(SqlConnection connection, DiscoverStoredProceduresRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentNullException.ThrowIfNull(request);
+
+        string? schemaName = string.IsNullOrWhiteSpace(request.SchemaName)
+            ? null
+            : request.SchemaName.Trim();
+
+        var command = new SqlCommand(DiscoverStoredProceduresSql, connection);
+        command.Parameters.Add("@IncludeSystemProcedures", SqlDbType.Bit).Value = request.IncludeSystemProcedures;
+        command.Parameters.Add("@SchemaName", SqlDbType.NVarChar, 128).Value =
+            (object?)schemaName ?? DBNull.Value;
+        return command;
+    }
+
     internal static SqlCommand CreateDiscoverTriggersCommand(SqlConnection connection, DiscoverTriggersRequest request)
     {
         ArgumentNullException.ThrowIfNull(connection);
@@ -890,6 +963,44 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
                         : new DateTimeOffset(DateTime.SpecifyKind(first.CreatedAt.Value, DateTimeKind.Utc)));
             })
             .ToList();
+
+    internal static IReadOnlyList<StoredProcedureMetadataModel> NormalizeStoredProcedures(IReadOnlyList<StoredProcedureDiscoveryRow> rows)
+        => rows
+            .GroupBy(row => row.ObjectId)
+            .Select(group =>
+            {
+                var first = group.First();
+                var parameters = group
+                    .Where(row => row.ParameterId.HasValue && !string.IsNullOrWhiteSpace(row.ParameterName))
+                    .OrderBy(row => row.ParameterId)
+                    .Select(row => new StoredProcedureParameterMetadata(
+                        Name: row.ParameterName!,
+                        DataType: string.IsNullOrWhiteSpace(row.ParameterDataType) ? "sql_variant" : row.ParameterDataType!))
+                    .ToList();
+
+                return new StoredProcedureMetadataModel(
+                    SchemaName: first.SchemaName,
+                    ProcedureName: first.ProcedureName,
+                    ObjectId: first.ObjectId.ToString(CultureInfo.InvariantCulture),
+                    HasDefinitionAvailable: first.HasDefinitionAvailable,
+                    Parameters: parameters.Count == 0 ? null : parameters,
+                    CreatedAt: first.CreatedAt is null
+                        ? null
+                        : new DateTimeOffset(DateTime.SpecifyKind(first.CreatedAt.Value, DateTimeKind.Utc)));
+            })
+            .ToList();
+
+    internal static IReadOnlyDictionary<string, IReadOnlyList<StoredProcedureMetadataModel>> GroupStoredProceduresBySchema(
+        IReadOnlyList<StoredProcedureMetadataModel> procedures)
+        => procedures
+            .GroupBy(procedure => procedure.SchemaName, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<StoredProcedureMetadataModel>)group
+                    .OrderBy(procedure => procedure.ProcedureName, StringComparer.OrdinalIgnoreCase)
+                    .ToList(),
+                StringComparer.OrdinalIgnoreCase);
 
     internal static IReadOnlyList<ColumnMetadataModel> NormalizeColumns(
         IReadOnlyList<ColumnDiscoveryRow> rows)
@@ -1154,4 +1265,14 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         string? Definition,
         bool IsDisabled,
         string ConstraintTypeCode);
+
+    internal readonly record struct StoredProcedureDiscoveryRow(
+        int ObjectId,
+        string SchemaName,
+        string ProcedureName,
+        bool HasDefinitionAvailable,
+        DateTime? CreatedAt,
+        int? ParameterId,
+        string? ParameterName,
+        string? ParameterDataType);
 }

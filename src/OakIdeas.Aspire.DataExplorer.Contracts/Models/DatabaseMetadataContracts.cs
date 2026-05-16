@@ -459,6 +459,25 @@ public sealed record DiscoverViewsRequest(
 public sealed record DiscoverViewsResponse(
     IReadOnlyList<ViewObject> Views);
 
+public sealed record StoredProcedureParameterMetadata(
+    string Name,
+    string DataType);
+
+public sealed record StoredProcedureMetadata(
+    string SchemaName,
+    string ProcedureName,
+    string ObjectId,
+    bool HasDefinitionAvailable,
+    IReadOnlyList<StoredProcedureParameterMetadata>? Parameters,
+    DateTimeOffset? CreatedAt);
+
+public sealed record DiscoverStoredProceduresRequest(
+    string? SchemaName = null,
+    bool IncludeSystemProcedures = false);
+
+public sealed record DiscoverStoredProceduresResponse(
+    IReadOnlyDictionary<string, IReadOnlyList<StoredProcedureMetadata>> ProceduresBySchema);
+
 public enum ConstraintType
 {
     Default = 1,

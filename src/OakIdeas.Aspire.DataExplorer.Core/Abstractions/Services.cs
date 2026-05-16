@@ -89,6 +89,14 @@ public interface IViewDiscoveryProvider
         CancellationToken cancellationToken);
 }
 
+public interface IStoredProcedureDiscoveryProvider
+{
+    Task<DiscoverStoredProceduresResponse> DiscoverStoredProceduresAsync(
+        DatabaseResource resource,
+        DiscoverStoredProceduresRequest request,
+        CancellationToken cancellationToken);
+}
+
 public interface ITriggerDiscoveryProvider
 {
     Task<DiscoverTriggersResponse> DiscoverTriggersAsync(
