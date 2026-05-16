@@ -206,6 +206,73 @@ Column metadata shape:
 - `DefaultValue`, `Description`
 - `ProviderMetadata` (`objectId`, `columnId`)
 
+## Index discovery
+
+`SqlServerDatabaseProvider` also implements `IIndexDiscoveryProvider` and returns `DiscoverIndexesResponse` with normalized `IndexMetadata` entries.
+
+- Source catalog views: `sys.indexes`, `sys.index_columns`, `sys.tables`, `sys.schemas`, and `sys.columns`
+- Default behavior: excludes heaps by requiring `sys.indexes.index_id > 0`
+- Excludes hypothetical indexes (`is_hypothetical = 0`)
+- Supports full-database discovery or optional table filtering via `DiscoverIndexesRequest.SchemaName` and `TableName`
+- Preserves key column order using `sys.index_columns.key_ordinal`
+- Captures included columns separately using `sys.index_columns.is_included_column`
+- Captures filtered index predicates from `sys.indexes.filter_definition`
+- Uses a provider-specific composite identifier in `IndexMetadata.ObjectId` formatted as `{object_id}:{index_id}`
+
+SQL used for discovery:
+
+```sql
+SELECT
+    i.object_id,
+    i.index_id,
+    i.name AS index_name,
+    s.name AS schema_name,
+    t.name AS table_name,
+    i.is_primary_key,
+    i.is_unique,
+    CAST(CASE WHEN i.type IN (1, 5) THEN 1 ELSE 0 END AS bit) AS is_clustered,
+    c.name AS column_name,
+    ic.is_included_column,
+    ic.key_ordinal,
+    ic.index_column_id,
+    i.filter_definition
+FROM sys.indexes AS i
+INNER JOIN sys.tables AS t ON i.object_id = t.object_id
+INNER JOIN sys.schemas AS s ON t.schema_id = s.schema_id
+INNER JOIN sys.index_columns AS ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+INNER JOIN sys.columns AS c ON t.object_id = c.object_id AND ic.column_id = c.column_id
+WHERE i.index_id > 0
+  AND i.is_hypothetical = 0
+  AND (@SchemaName IS NULL OR s.name = @SchemaName)
+  AND (@TableName IS NULL OR t.name = @TableName)
+  AND (ic.key_ordinal > 0 OR ic.is_included_column = 1)
+ORDER BY s.name, t.name, i.name, ic.is_included_column, CASE
+    WHEN ic.is_included_column = 1 THEN ic.index_column_id
+    ELSE ic.key_ordinal
+END;
+```
+
+Index type notes:
+
+| SQL Server metadata | Meaning in `IndexMetadata` |
+|---|---|
+| `is_primary_key = 1` | `IsPrimaryKey = true` |
+| `is_unique = 1` | `IsUnique = true` |
+| `type IN (1, 5)` | `IsClustered = true` |
+| `is_included_column = 1` | Column appears in `IncludedColumns` instead of `Columns` |
+| `filter_definition IS NOT NULL` | Filtered index predicate is exposed through `FilterDefinition` |
+
+Index metadata shape:
+
+- `IndexName`
+- `TableName` (schema-qualified)
+- `SchemaName`
+- `IsPrimaryKey`, `IsUnique`, `IsClustered`
+- `Columns` (key column names in ordinal order)
+- `IncludedColumns`
+- `FilterDefinition`
+- `ObjectId` (`{object_id}:{index_id}`)
+
 Registration uses `MetadataProviderFactoryOptions` with DI:
 
 ```csharp
