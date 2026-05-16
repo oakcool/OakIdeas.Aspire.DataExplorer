@@ -257,4 +257,35 @@ public sealed class DatabaseMetadataContractsTests
         response.Views[0].HasDefinitionAvailable.Should().BeTrue();
         response.Views[0].ProviderMetadata["objectId"].Should().Be(5001);
     }
+
+    [Fact]
+    public void DiscoverTriggersContracts_DefaultsAndPayload_ArePreserved()
+    {
+        var request = new DiscoverTriggersRequest();
+        var response = new DiscoverTriggersResponse(
+            [
+                new TriggerMetadata(
+                    TriggerName: "TRG_Orders_Audit",
+                    SchemaName: "sales",
+                    ParentObjectName: "Orders",
+                    ParentObjectType: TriggerParentObjectType.Table,
+                    TriggerType: TriggerType.After | TriggerType.Insert | TriggerType.Update,
+                    IsEnabled: true,
+                    HasDefinitionAvailable: true,
+                    ObjectId: "6101",
+                    CreatedAt: new DateTimeOffset(2026, 5, 16, 0, 0, 0, TimeSpan.Zero)),
+            ]);
+
+        request.SchemaName.Should().BeNull();
+        request.ParentObjectName.Should().BeNull();
+        response.Triggers.Should().ContainSingle();
+        response.Triggers[0].TriggerName.Should().Be("TRG_Orders_Audit");
+        response.Triggers[0].SchemaName.Should().Be("sales");
+        response.Triggers[0].ParentObjectName.Should().Be("Orders");
+        response.Triggers[0].ParentObjectType.Should().Be(TriggerParentObjectType.Table);
+        response.Triggers[0].TriggerType.Should().Be(TriggerType.After | TriggerType.Insert | TriggerType.Update);
+        response.Triggers[0].IsEnabled.Should().BeTrue();
+        response.Triggers[0].HasDefinitionAvailable.Should().BeTrue();
+        response.Triggers[0].ObjectId.Should().Be("6101");
+    }
 }

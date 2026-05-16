@@ -651,6 +651,94 @@ public sealed class SqlServerDatabaseProviderTests
     }
 
     [Fact]
+    public void CreateDiscoverTriggersCommand_UsesTriggerCatalogQueryAndParameters()
+    {
+        using var connection = new SqlConnection();
+        var request = new DiscoverTriggersRequest();
+
+        using var command = SqlServerDatabaseProvider.CreateDiscoverTriggersCommand(connection, request);
+
+        command.CommandText.Should().Contain("FROM sys.triggers AS t");
+        command.CommandText.Should().Contain("LEFT JOIN sys.trigger_events AS te");
+        command.Parameters.Cast<SqlParameter>()
+            .Should()
+            .Contain(parameter => parameter.ParameterName == "@SchemaName")
+            .And.Contain(parameter => parameter.ParameterName == "@ParentObjectName");
+        command.Parameters["@SchemaName"].Value.Should().Be(DBNull.Value);
+        command.Parameters["@ParentObjectName"].Value.Should().Be(DBNull.Value);
+    }
+
+    [Fact]
+    public void CreateDiscoverTriggersCommand_WhenFiltersProvided_TrimsAndSetsParameters()
+    {
+        using var connection = new SqlConnection();
+        var request = new DiscoverTriggersRequest(SchemaName: " sales ", ParentObjectName: " Orders ");
+
+        using var command = SqlServerDatabaseProvider.CreateDiscoverTriggersCommand(connection, request);
+
+        command.Parameters["@SchemaName"].Value.Should().Be("sales");
+        command.Parameters["@ParentObjectName"].Value.Should().Be("Orders");
+    }
+
+    [Fact]
+    public void NormalizeTriggers_ProjectsDmlAndDatabaseTriggersWithFlags()
+    {
+        SqlServerDatabaseProvider.TriggerDiscoveryRow[] rows =
+        [
+            new SqlServerDatabaseProvider.TriggerDiscoveryRow(
+                ObjectId: 610,
+                TriggerName: "TRG_Orders_Audit",
+                SchemaName: "sales",
+                ParentObjectName: "Orders",
+                ParentClass: 1,
+                IsDisabled: false,
+                IsInsteadOfTrigger: false,
+                HasDefinitionAvailable: true,
+                CreatedAt: new DateTime(2026, 5, 16, 0, 0, 0),
+                TriggerEventType: "UPDATE"),
+            new SqlServerDatabaseProvider.TriggerDiscoveryRow(
+                ObjectId: 610,
+                TriggerName: "TRG_Orders_Audit",
+                SchemaName: "sales",
+                ParentObjectName: "Orders",
+                ParentClass: 1,
+                IsDisabled: false,
+                IsInsteadOfTrigger: false,
+                HasDefinitionAvailable: true,
+                CreatedAt: new DateTime(2026, 5, 16, 0, 0, 0),
+                TriggerEventType: "INSERT"),
+            new SqlServerDatabaseProvider.TriggerDiscoveryRow(
+                ObjectId: 611,
+                TriggerName: "TRG_Database_Audit",
+                SchemaName: "dbo",
+                ParentObjectName: "db",
+                ParentClass: 0,
+                IsDisabled: true,
+                IsInsteadOfTrigger: false,
+                HasDefinitionAvailable: false,
+                CreatedAt: null,
+                TriggerEventType: "CREATE_TABLE"),
+        ];
+
+        var result = SqlServerDatabaseProvider.NormalizeTriggers(rows);
+
+        result.Should().HaveCount(2);
+
+        result[0].TriggerName.Should().Be("TRG_Orders_Audit");
+        result[0].ParentObjectType.Should().Be(TriggerParentObjectType.Table);
+        result[0].TriggerType.Should().Be(TriggerType.After | TriggerType.Insert | TriggerType.Update);
+        result[0].IsEnabled.Should().BeTrue();
+        result[0].HasDefinitionAvailable.Should().BeTrue();
+        result[0].ObjectId.Should().Be("610");
+
+        result[1].TriggerName.Should().Be("TRG_Database_Audit");
+        result[1].ParentObjectType.Should().Be(TriggerParentObjectType.Database);
+        result[1].TriggerType.Should().Be(TriggerType.After);
+        result[1].IsEnabled.Should().BeFalse();
+        result[1].HasDefinitionAvailable.Should().BeFalse();
+    }
+
+    [Fact]
     public void CreateTableObject_IncludesObjectIdAndRowCountMetadata()
     {
         var table = SqlServerDatabaseProvider.CreateTableObject(

@@ -143,6 +143,42 @@ View metadata shape:
 - `HasDefinitionAvailable` — `true` when the view SQL definition can be retrieved
 - `ProviderMetadata` (`objectId`)
 
+## Trigger discovery
+
+`SqlServerDatabaseProvider` also implements `ITriggerDiscoveryProvider` and returns `DiscoverTriggersResponse` with normalized `TriggerMetadata` entries.
+
+- Source catalog views: `sys.triggers`, `sys.trigger_events`, and `sys.objects`
+- Supports optional filtering by `DiscoverTriggersRequest.SchemaName` and `ParentObjectName`
+- Identifies table-level and database-level triggers through `sys.triggers.parent_class`
+- Captures enabled/disabled state from `sys.triggers.is_disabled`
+- Captures INSTEAD OF vs. AFTER trigger behavior from `sys.triggers.is_instead_of_trigger`
+- Captures DML event types (`INSERT`, `UPDATE`, `DELETE`) from `sys.trigger_events.type_desc` and combines them into `TriggerType` flags
+- Uses `OBJECT_DEFINITION()` to set `HasDefinitionAvailable`
+- Captures trigger creation time from `sys.objects.create_date` when available
+
+SQL used for discovery:
+
+```sql
+SELECT
+    t.object_id,
+    t.name AS trigger_name,
+    SCHEMA_NAME(t.schema_id) AS schema_name,
+    COALESCE(parent.name, DB_NAME()) AS parent_object_name,
+    t.parent_class,
+    t.is_disabled,
+    t.is_instead_of_trigger,
+    CASE WHEN OBJECT_DEFINITION(t.object_id) IS NOT NULL THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS has_definition,
+    trigger_object.create_date,
+    te.type_desc AS trigger_event_type
+FROM sys.triggers AS t
+LEFT JOIN sys.objects AS parent ON t.parent_id = parent.object_id
+LEFT JOIN sys.objects AS trigger_object ON t.object_id = trigger_object.object_id
+LEFT JOIN sys.trigger_events AS te ON t.object_id = te.object_id
+WHERE (@SchemaName IS NULL OR SCHEMA_NAME(t.schema_id) = @SchemaName)
+  AND (@ParentObjectName IS NULL OR COALESCE(parent.name, DB_NAME()) = @ParentObjectName)
+ORDER BY schema_name, parent_object_name, trigger_name, trigger_event_type;
+```
+
 ## Column discovery
 
 `SqlServerDatabaseProvider` also implements `IColumnDiscoveryProvider` and returns `DiscoverColumnsResponse` with normalized `ColumnMetadata` entries.
