@@ -114,4 +114,34 @@ public sealed class DatabaseMetadataContractsTests
         response.Schemas[0].ObjectName.Should().Be("sales");
         response.Schemas[0].ProviderMetadata["schemaId"].Should().Be(4);
     }
+
+    [Fact]
+    public void DiscoverForeignKeysContracts_DefaultsAndPayload_ArePreserved()
+    {
+        var request = new DiscoverForeignKeysRequest();
+        var response = new DiscoverForeignKeysResponse(
+            [
+                new ForeignKeyConstraint(
+                    ConstraintName: "FK_OrderItems_Orders",
+                    ParentTableName: "sales.OrderItems",
+                    ParentSchemaName: "sales",
+                    ReferencedTableName: "sales.Orders",
+                    ReferencedSchemaName: "sales",
+                    KeyColumns:
+                    [
+                        new ForeignKeyColumnMapping("OrderId", "Id"),
+                    ],
+                    OnDeleteBehavior: ReferentialActionBehavior.Cascade,
+                    OnUpdateBehavior: ReferentialActionBehavior.NoAction,
+                    IsDisabled: false,
+                    ObjectId: "123"),
+            ]);
+
+        request.ParentSchemaName.Should().BeNull();
+        request.ParentTableName.Should().BeNull();
+        response.ForeignKeys.Should().ContainSingle();
+        response.ForeignKeys[0].ConstraintName.Should().Be("FK_OrderItems_Orders");
+        response.ForeignKeys[0].OnDeleteBehavior.Should().Be(ReferentialActionBehavior.Cascade);
+        response.ForeignKeys[0].KeyColumns.Should().ContainSingle();
+    }
 }

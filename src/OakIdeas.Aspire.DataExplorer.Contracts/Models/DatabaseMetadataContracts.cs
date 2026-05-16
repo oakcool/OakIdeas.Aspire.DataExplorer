@@ -318,3 +318,34 @@ public sealed record DiscoverSchemasRequest(
 
 public sealed record DiscoverSchemasResponse(
     IReadOnlyList<SchemaObject> Schemas);
+
+public enum ReferentialActionBehavior
+{
+    NoAction = 0,
+    Cascade = 1,
+    SetNull = 2,
+    SetDefault = 3,
+}
+
+public sealed record ForeignKeyColumnMapping(
+    string ParentColumnName,
+    string ReferencedColumnName);
+
+public sealed record ForeignKeyConstraint(
+    string ConstraintName,
+    string ParentTableName,
+    string ParentSchemaName,
+    string ReferencedTableName,
+    string ReferencedSchemaName,
+    IReadOnlyList<ForeignKeyColumnMapping> KeyColumns,
+    ReferentialActionBehavior OnDeleteBehavior,
+    ReferentialActionBehavior OnUpdateBehavior,
+    bool IsDisabled,
+    string ObjectId);
+
+public sealed record DiscoverForeignKeysRequest(
+    string? ParentSchemaName = null,
+    string? ParentTableName = null);
+
+public sealed record DiscoverForeignKeysResponse(
+    IReadOnlyList<ForeignKeyConstraint> ForeignKeys);

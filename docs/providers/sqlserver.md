@@ -29,6 +29,54 @@ WHERE schema_id > 0
 ORDER BY name;
 ```
 
+## Foreign key discovery
+
+`SqlServerDatabaseProvider` also implements `IForeignKeyDiscoveryProvider` and returns `DiscoverForeignKeysResponse` with normalized `ForeignKeyConstraint` entries.
+
+- Source catalog views: `sys.foreign_keys`, `sys.foreign_key_columns`, `sys.tables`, `sys.schemas`, and `sys.columns`
+- Supports full-database discovery or optional parent table filtering via `DiscoverForeignKeysRequest.ParentSchemaName` and `ParentTableName`
+- Preserves composite key column order using `sys.foreign_key_columns.constraint_column_id`
+- Includes disabled state from `sys.foreign_keys.is_disabled`
+
+SQL used for discovery:
+
+```sql
+SELECT
+    fk.object_id,
+    fk.name AS constraint_name,
+    ps.name AS parent_schema,
+    pt.name AS parent_table,
+    rs.name AS referenced_schema,
+    rt.name AS referenced_table,
+    pc.name AS parent_column,
+    rc.name AS referenced_column,
+    fkc.constraint_column_id,
+    fk.delete_referential_action,
+    fk.update_referential_action,
+    fk.is_disabled
+FROM sys.foreign_keys AS fk
+INNER JOIN sys.tables AS pt ON fk.parent_object_id = pt.object_id
+INNER JOIN sys.schemas AS ps ON pt.schema_id = ps.schema_id
+INNER JOIN sys.tables AS rt ON fk.referenced_object_id = rt.object_id
+INNER JOIN sys.schemas AS rs ON rt.schema_id = rs.schema_id
+INNER JOIN sys.foreign_key_columns AS fkc ON fk.object_id = fkc.constraint_object_id
+INNER JOIN sys.columns AS pc ON fkc.parent_object_id = pc.object_id AND fkc.parent_column_id = pc.column_id
+INNER JOIN sys.columns AS rc ON fkc.referenced_object_id = rc.object_id AND fkc.referenced_column_id = rc.column_id
+WHERE (@ParentSchemaName IS NULL OR ps.name = @ParentSchemaName)
+  AND (@ParentTableName IS NULL OR pt.name = @ParentTableName)
+ORDER BY fk.object_id, fkc.constraint_column_id;
+```
+
+Referential action mapping:
+
+| SQL Server action code | `ReferentialActionBehavior` |
+|---|---|
+| `0` | `NoAction` |
+| `1` | `Cascade` |
+| `2` | `SetNull` |
+| `3` | `SetDefault` |
+| `4` | `NoAction` |
+
 Registration uses `MetadataProviderFactoryOptions` with DI:
 
 ```csharp
