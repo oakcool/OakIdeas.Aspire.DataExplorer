@@ -315,8 +315,42 @@ public sealed record DiscoverDatabaseMetadataRequest(
     string ResourceId,
     string DatabaseName);
 
+public enum MetadataCollectionStatus
+{
+    Success = 1,
+    PartialSuccess = 2,
+    Failed = 3,
+}
+
+public sealed record MetadataCollectionFailure(
+    string Operation,
+    string? Target,
+    string Message);
+
+public sealed record DatabaseMetadata(
+    string DatabaseName,
+    DatabaseProviderType ProviderType,
+    string ResourceId,
+    IReadOnlyList<SchemaObject> Schemas,
+    IReadOnlyList<TableObject> Tables,
+    IReadOnlyList<ViewObject> Views,
+    IReadOnlyDictionary<string, IReadOnlyList<StoredProcedureMetadata>> ProceduresBySchema,
+    IReadOnlyDictionary<string, IReadOnlyDictionary<FunctionType, IReadOnlyList<FunctionMetadata>>> FunctionsBySchema,
+    IReadOnlyList<TriggerMetadata> Triggers,
+    IReadOnlyList<ConstraintMetadata> Constraints,
+    IReadOnlyDictionary<string, IReadOnlyList<ColumnMetadata>> ColumnsByObject,
+    IReadOnlyDictionary<string, IReadOnlyList<PrimaryKeyConstraint>> PrimaryKeysByTable,
+    IReadOnlyDictionary<string, IReadOnlyList<ForeignKeyConstraint>> ForeignKeysByTable,
+    IReadOnlyDictionary<string, IReadOnlyList<IndexMetadata>> IndexesByTable,
+    DateTimeOffset MetadataCollectionTime,
+    MetadataCollectionStatus CollectionStatus,
+    IReadOnlyList<MetadataCollectionFailure> FailureDetails);
+
 public sealed record DiscoverDatabaseMetadataResponse(
-    DatabaseMetadataRoot Metadata);
+    DatabaseMetadataRoot Metadata,
+    DatabaseMetadata? AggregatedMetadata = null,
+    MetadataCollectionStatus CollectionStatus = MetadataCollectionStatus.Success,
+    IReadOnlyList<MetadataCollectionFailure>? FailureDetails = null);
 
 public sealed record DiscoverSchemasRequest(
     bool IncludeSystemSchemas = false);

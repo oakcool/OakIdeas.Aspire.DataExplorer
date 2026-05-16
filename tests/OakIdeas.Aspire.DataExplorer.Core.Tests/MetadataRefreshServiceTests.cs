@@ -219,8 +219,8 @@ public sealed class MetadataRefreshServiceTests
     {
         private readonly DatabaseMetadataRoot _metadata = metadata;
 
-        public Task<DiscoverDatabaseMetadataResponse> DiscoverDatabaseMetadataAsync(
-            DiscoverDatabaseMetadataRequest request,
+        public Task<DiscoverDatabaseMetadataResponse> GetDatabaseMetadataAsync(
+            SelectedDatabaseContext selectedDbContext,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -232,8 +232,8 @@ public sealed class MetadataRefreshServiceTests
     {
         private readonly string _errorMessage = errorMessage;
 
-        public Task<DiscoverDatabaseMetadataResponse> DiscoverDatabaseMetadataAsync(
-            DiscoverDatabaseMetadataRequest request,
+        public Task<DiscoverDatabaseMetadataResponse> GetDatabaseMetadataAsync(
+            SelectedDatabaseContext selectedDbContext,
             CancellationToken cancellationToken)
         {
             throw new InvalidOperationException(_errorMessage);
@@ -246,17 +246,17 @@ public sealed class MetadataRefreshServiceTests
 
         public TaskCompletionSource AggregationStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public async Task<DiscoverDatabaseMetadataResponse> DiscoverDatabaseMetadataAsync(
-            DiscoverDatabaseMetadataRequest request,
+        public async Task<DiscoverDatabaseMetadataResponse> GetDatabaseMetadataAsync(
+            SelectedDatabaseContext selectedDbContext,
             CancellationToken cancellationToken)
         {
             AggregationStarted.TrySetResult();
             await _releaseSignal.WaitAsync(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             return new DiscoverDatabaseMetadataResponse(new DatabaseMetadataRoot(
-                databaseName: request.DatabaseName,
+                databaseName: selectedDbContext.Resource.DatabaseName,
                 providerType: DatabaseProviderType.SqlServer,
-                resourceId: request.ResourceId,
+                resourceId: selectedDbContext.Resource.ResourceId,
                 metadataCollectionTime: DateTimeOffset.UtcNow));
         }
     }

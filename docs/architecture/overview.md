@@ -28,6 +28,16 @@ Metadata discovery uses provider-agnostic contracts in `Contracts/Models/Databas
 
 `ProviderMetadata` is intentionally a flexible key/value bag (`IReadOnlyDictionary<string, object?>`) so provider projects can add provider-specific values (for example SQL Server object identifiers) without changing shared contracts.
 
+## Metadata aggregation service
+
+`IMetadataAggregationService` in `Core` composes provider discovery operations into a single snapshot for the selected database:
+
+- Schemas are discovered first.
+- Tables/views, programmable objects, and table-level details are collected with async parallel fan-out.
+- Aggregation tracks `MetadataCollectionStatus` (`Success`, `PartialSuccess`, `Failed`) and per-operation failure details.
+- `InMemoryMetadataCache` stores `DatabaseMetadataRoot` by `(resourceId, databaseName)` with configurable TTL via `MetadataAggregationOptions.CacheTtlMinutes`.
+- Cache invalidation is exposed through `IMetadataCache.InvalidateAsync` for refresh and future invalidation workflows.
+
 ## Solution virtual folder layout
 
 | Folder | Projects |
