@@ -143,6 +143,38 @@ View metadata shape:
 - `HasDefinitionAvailable` — `true` when the view SQL definition can be retrieved
 - `ProviderMetadata` (`objectId`)
 
+## Stored procedure discovery
+
+`SqlServerDatabaseProvider` also implements `IStoredProcedureDiscoveryProvider` and returns `DiscoverStoredProceduresResponse` grouped by schema with `StoredProcedureMetadata` entries.
+
+- Source catalog views: `sys.procedures`, `sys.parameters`, and `sys.types`
+- Default behavior: excludes system procedures (`is_ms_shipped = 1`)
+- Optional behavior: include system procedures via `DiscoverStoredProceduresRequest.IncludeSystemProcedures = true`
+- Optional behavior: filter to a single schema via `DiscoverStoredProceduresRequest.SchemaName`
+- `StoredProcedureMetadata.HasDefinitionAvailable` is `true` when `OBJECT_DEFINITION()` returns a non-null result
+- Attempts parameter discovery from `sys.parameters`; if parameter metadata is unavailable, discovery still succeeds and `Parameters` may be `null` for that procedure
+- Includes `CreatedAt` from `sys.procedures.create_date` when available
+
+SQL used for discovery:
+
+```sql
+SELECT
+    p.object_id,
+    SCHEMA_NAME(p.schema_id) AS schema_name,
+    p.name AS procedure_name,
+    CASE WHEN OBJECT_DEFINITION(p.object_id) IS NOT NULL THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS has_definition,
+    p.create_date,
+    prm.parameter_id,
+    prm.name AS parameter_name,
+    typ.name AS parameter_type
+FROM sys.procedures AS p
+LEFT JOIN sys.parameters AS prm ON p.object_id = prm.object_id
+LEFT JOIN sys.types AS typ ON prm.user_type_id = typ.user_type_id
+WHERE (@IncludeSystemProcedures = 1 OR p.is_ms_shipped = 0)
+  AND (@SchemaName IS NULL OR SCHEMA_NAME(p.schema_id) = @SchemaName)
+ORDER BY schema_name, procedure_name, prm.parameter_id;
+```
+
 ## Trigger discovery
 
 `SqlServerDatabaseProvider` also implements `ITriggerDiscoveryProvider` and returns `DiscoverTriggersResponse` with normalized `TriggerMetadata` entries.

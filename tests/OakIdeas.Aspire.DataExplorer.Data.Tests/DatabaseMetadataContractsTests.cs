@@ -290,6 +290,39 @@ public sealed class DatabaseMetadataContractsTests
     }
 
     [Fact]
+    public void DiscoverStoredProceduresContracts_DefaultsAndPayload_ArePreserved()
+    {
+        var request = new DiscoverStoredProceduresRequest();
+        var response = new DiscoverStoredProceduresResponse(
+            new Dictionary<string, IReadOnlyList<StoredProcedureMetadata>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["sales"] =
+                [
+                    new StoredProcedureMetadata(
+                        SchemaName: "sales",
+                        ProcedureName: "usp_GetOrders",
+                        ObjectId: "7101",
+                        HasDefinitionAvailable: true,
+                        Parameters:
+                        [
+                            new StoredProcedureParameterMetadata("@CustomerId", "int"),
+                            new StoredProcedureParameterMetadata("@Status", "nvarchar"),
+                        ],
+                        CreatedAt: new DateTimeOffset(2026, 5, 16, 0, 0, 0, TimeSpan.Zero)),
+                ],
+            });
+
+        request.SchemaName.Should().BeNull();
+        request.IncludeSystemProcedures.Should().BeFalse();
+        response.ProceduresBySchema.Should().ContainKey("sales");
+        response.ProceduresBySchema["sales"].Should().ContainSingle();
+        response.ProceduresBySchema["sales"][0].ProcedureName.Should().Be("usp_GetOrders");
+        response.ProceduresBySchema["sales"][0].ObjectId.Should().Be("7101");
+        response.ProceduresBySchema["sales"][0].HasDefinitionAvailable.Should().BeTrue();
+        response.ProceduresBySchema["sales"][0].Parameters.Should().HaveCount(2);
+    }
+
+    [Fact]
     public void DiscoverConstraintsContracts_DefaultsAndPayload_ArePreserved()
     {
         var request = new DiscoverConstraintsRequest();
