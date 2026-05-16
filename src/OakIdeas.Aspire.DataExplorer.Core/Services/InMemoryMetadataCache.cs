@@ -2,6 +2,7 @@ using Microsoft.Extensions.Options;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Configuration;
+using System.Collections.Concurrent;
 
 namespace OakIdeas.Aspire.DataExplorer.Core.Services;
 
@@ -9,8 +10,7 @@ public sealed class InMemoryMetadataCache(
     IOptions<MetadataAggregationOptions> options) : IMetadataCache
 {
     private readonly TimeSpan _ttl = TimeSpan.FromMinutes(Math.Max(1, options.Value.CacheTtlMinutes));
-    private readonly Dictionary<(string ResourceId, string DatabaseName), CacheEntry> _entries = new();
-    private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly ConcurrentDictionary<(string ResourceId, string DatabaseName), CacheEntry> _entries = new();
 
     public async Task<DatabaseMetadataRoot?> GetAsync(
         string resourceId,
@@ -20,26 +20,18 @@ public sealed class InMemoryMetadataCache(
         cancellationToken.ThrowIfCancellationRequested();
         var key = CreateKey(resourceId, databaseName);
 
-        await _lock.WaitAsync(cancellationToken);
-        try
+        if (!_entries.TryGetValue(key, out var entry))
         {
-            if (!_entries.TryGetValue(key, out var entry))
-            {
-                return null;
-            }
-
-            if (entry.ExpiresAt <= DateTimeOffset.UtcNow)
-            {
-                _entries.Remove(key);
-                return null;
-            }
-
-            return entry.Metadata;
+            return null;
         }
-        finally
+
+        if (entry.ExpiresAt <= DateTimeOffset.UtcNow)
         {
-            _lock.Release();
+            _entries.TryRemove(key, out _);
+            return null;
         }
+
+        return entry.Metadata;
     }
 
     public async Task SetAsync(
@@ -52,15 +44,7 @@ public sealed class InMemoryMetadataCache(
         ArgumentNullException.ThrowIfNull(metadata);
         var key = CreateKey(resourceId, databaseName);
 
-        await _lock.WaitAsync(cancellationToken);
-        try
-        {
-            _entries[key] = new CacheEntry(metadata, DateTimeOffset.UtcNow.Add(_ttl));
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        _entries[key] = new CacheEntry(metadata, DateTimeOffset.UtcNow.Add(_ttl));
     }
 
     public async Task InvalidateAsync(
@@ -71,15 +55,7 @@ public sealed class InMemoryMetadataCache(
         cancellationToken.ThrowIfCancellationRequested();
         var key = CreateKey(resourceId, databaseName);
 
-        await _lock.WaitAsync(cancellationToken);
-        try
-        {
-            _entries.Remove(key);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        _entries.TryRemove(key, out _);
     }
 
     private static (string ResourceId, string DatabaseName) CreateKey(string resourceId, string databaseName)
