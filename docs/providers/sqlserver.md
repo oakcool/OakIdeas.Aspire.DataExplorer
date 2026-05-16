@@ -77,6 +77,40 @@ Referential action mapping:
 | `3` | `SetDefault` |
 | `4` | `NoAction` |
 
+## Table discovery
+
+`SqlServerDatabaseProvider` also implements `ITableDiscoveryProvider` and returns `DiscoverTablesResponse` with `TableObject` entries.
+
+- Source catalog views: `sys.tables`, `sys.dm_db_partition_stats`
+- Default behavior: excludes system tables (`is_ms_shipped = 1`)
+- Optional behavior: include system tables via `DiscoverTablesRequest.IncludeSystemTables = true`
+- Optional behavior: filter to a single schema via `DiscoverTablesRequest.SchemaName`
+- Row counts are approximate estimates from `sys.dm_db_partition_stats` (heap or clustered index pages only, `index_id IN (0, 1)`)
+- Provider metadata: each table includes `objectId` from `sys.tables.object_id` and `rowCount` (approximate)
+
+SQL used for discovery:
+
+```sql
+SELECT
+    t.object_id,
+    SCHEMA_NAME(t.schema_id) AS schema_name,
+    t.name AS table_name,
+    ISNULL(SUM(ps.row_count), 0) AS row_count
+FROM sys.tables AS t
+LEFT JOIN sys.dm_db_partition_stats AS ps ON t.object_id = ps.object_id
+    AND ps.index_id IN (0, 1)
+WHERE (@IncludeSystemTables = 1 OR t.is_ms_shipped = 0)
+  AND (@SchemaName IS NULL OR SCHEMA_NAME(t.schema_id) = @SchemaName)
+GROUP BY t.object_id, SCHEMA_NAME(t.schema_id), t.name
+ORDER BY schema_name, table_name;
+```
+
+Table metadata shape:
+
+- `ObjectId` (string, SQL Server `object_id` as string)
+- `SchemaName`, `ObjectName`, `FullyQualifiedName`
+- `ProviderMetadata` (`objectId`, `rowCount`)
+
 ## View discovery
 
 `SqlServerDatabaseProvider` also implements `IViewDiscoveryProvider` and returns `DiscoverViewsResponse` with `ViewObject` entries.
