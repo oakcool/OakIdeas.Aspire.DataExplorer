@@ -219,49 +219,6 @@ Column metadata shape:
 - Captures filtered index predicates from `sys.indexes.filter_definition`
 - Uses a provider-specific composite identifier in `IndexMetadata.ObjectId` formatted as `{object_id}:{index_id}`
 
-## Primary key discovery
-
-`SqlServerDatabaseProvider` also implements `IPrimaryKeyDiscoveryProvider` and returns `DiscoverPrimaryKeysResponse` with normalized `PrimaryKeyConstraint` entries.
-
-- Source catalog views: `sys.key_constraints`, `sys.indexes`, `sys.index_columns`, `sys.tables`, `sys.schemas`, and `sys.columns`
-- Supports full-database discovery or optional table filtering via `DiscoverPrimaryKeysRequest.SchemaName` and `TableName`
-- Preserves primary key column order using `sys.index_columns.key_ordinal`
-- Captures whether the backing primary key index is clustered
-- Uses the SQL Server constraint `object_id` as the provider-specific `PrimaryKeyConstraint.ObjectId`
-
-SQL used for discovery:
-
-```sql
-SELECT
-    kc.object_id,
-    kc.name AS constraint_name,
-    s.name AS schema_name,
-    t.name AS table_name,
-    CAST(CASE WHEN i.type IN (1, 5) THEN 1 ELSE 0 END AS bit) AS is_clustered,
-    c.name AS column_name,
-    ic.key_ordinal
-FROM sys.key_constraints AS kc
-INNER JOIN sys.tables AS t ON kc.parent_object_id = t.object_id
-INNER JOIN sys.schemas AS s ON t.schema_id = s.schema_id
-INNER JOIN sys.indexes AS i ON kc.parent_object_id = i.object_id AND kc.unique_index_id = i.index_id
-INNER JOIN sys.index_columns AS ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
-INNER JOIN sys.columns AS c ON t.object_id = c.object_id AND ic.column_id = c.column_id
-WHERE kc.type = 'PK'
-  AND (@SchemaName IS NULL OR s.name = @SchemaName)
-  AND (@TableName IS NULL OR t.name = @TableName)
-  AND ic.key_ordinal > 0
-ORDER BY s.name, t.name, kc.name, ic.key_ordinal;
-```
-
-Primary key metadata shape:
-
-- `ConstraintName`
-- `TableName` (schema-qualified)
-- `SchemaName`
-- `KeyColumns` (ordinal order)
-- `IsClustered`
-- `ObjectId`
-
 SQL used for discovery:
 
 ```sql
@@ -315,6 +272,49 @@ Index metadata shape:
 - `IncludedColumns`
 - `FilterDefinition`
 - `ObjectId` (`{object_id}:{index_id}`)
+
+## Primary key discovery
+
+`SqlServerDatabaseProvider` also implements `IPrimaryKeyDiscoveryProvider` and returns `DiscoverPrimaryKeysResponse` with normalized `PrimaryKeyConstraint` entries.
+
+- Source catalog views: `sys.key_constraints`, `sys.indexes`, `sys.index_columns`, `sys.tables`, `sys.schemas`, and `sys.columns`
+- Supports full-database discovery or optional table filtering via `DiscoverPrimaryKeysRequest.SchemaName` and `TableName`
+- Preserves primary key column order using `sys.index_columns.key_ordinal`
+- Captures whether the backing primary key index is clustered
+- Uses the SQL Server constraint `object_id` as the provider-specific `PrimaryKeyConstraint.ObjectId`
+
+SQL used for discovery:
+
+```sql
+SELECT
+    kc.object_id,
+    kc.name AS constraint_name,
+    s.name AS schema_name,
+    t.name AS table_name,
+    CAST(CASE WHEN i.type IN (1, 5) THEN 1 ELSE 0 END AS bit) AS is_clustered,
+    c.name AS column_name,
+    ic.key_ordinal
+FROM sys.key_constraints AS kc
+INNER JOIN sys.tables AS t ON kc.parent_object_id = t.object_id
+INNER JOIN sys.schemas AS s ON t.schema_id = s.schema_id
+INNER JOIN sys.indexes AS i ON kc.parent_object_id = i.object_id AND kc.unique_index_id = i.index_id
+INNER JOIN sys.index_columns AS ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+INNER JOIN sys.columns AS c ON t.object_id = c.object_id AND ic.column_id = c.column_id
+WHERE kc.type = 'PK'
+  AND (@SchemaName IS NULL OR s.name = @SchemaName)
+  AND (@TableName IS NULL OR t.name = @TableName)
+  AND ic.key_ordinal > 0
+ORDER BY s.name, t.name, kc.name, ic.key_ordinal;
+```
+
+Primary key metadata shape:
+
+- `ConstraintName`
+- `TableName` (schema-qualified)
+- `SchemaName`
+- `KeyColumns` (ordinal order)
+- `IsClustered`
+- `ObjectId`
 
 Registration uses `MetadataProviderFactoryOptions` with DI:
 
