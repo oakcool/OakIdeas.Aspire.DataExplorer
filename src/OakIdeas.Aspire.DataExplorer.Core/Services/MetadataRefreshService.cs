@@ -57,12 +57,8 @@ public sealed class MetadataRefreshService(
                 selectedDbContext.Resource.DatabaseName,
                 cancellationToken);
 
-            var request = new DiscoverDatabaseMetadataRequest(
-                ResourceId: selectedDbContext.Resource.ResourceId,
-                DatabaseName: selectedDbContext.Resource.DatabaseName);
-
-            var aggregationResponse = await _aggregationService.DiscoverDatabaseMetadataAsync(
-                request,
+            var aggregationResponse = await _aggregationService.GetDatabaseMetadataAsync(
+                selectedDbContext,
                 cancellationToken);
 
             await _metadataCache.SetAsync(

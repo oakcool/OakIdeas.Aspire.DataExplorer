@@ -196,8 +196,8 @@ public interface IMetadataCache
 
 public interface IMetadataAggregationService
 {
-    Task<DiscoverDatabaseMetadataResponse> DiscoverDatabaseMetadataAsync(
-        DiscoverDatabaseMetadataRequest request,
+    Task<DiscoverDatabaseMetadataResponse> GetDatabaseMetadataAsync(
+        SelectedDatabaseContext selectedDbContext,
         CancellationToken cancellationToken);
 }
 
