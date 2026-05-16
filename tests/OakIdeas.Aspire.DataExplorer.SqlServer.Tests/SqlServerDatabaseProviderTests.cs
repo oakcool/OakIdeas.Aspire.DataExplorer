@@ -168,6 +168,37 @@ public sealed class SqlServerDatabaseProviderTests
         command.Parameters["@ObjectType"].Value.Should().Be("V");
     }
 
+    [Fact]
+    public void CreateDiscoverIndexesCommand_UsesIndexCatalogQueryAndParameters()
+    {
+        using var connection = new SqlConnection();
+        var request = new DiscoverIndexesRequest();
+
+        using var command = SqlServerDatabaseProvider.CreateDiscoverIndexesCommand(connection, request);
+
+        command.CommandText.Should().Contain("FROM sys.indexes AS i");
+        command.CommandText.Should().Contain("JOIN sys.index_columns AS ic");
+        command.CommandText.Should().Contain("i.index_id > 0");
+        command.Parameters.Cast<SqlParameter>()
+            .Should()
+            .Contain(parameter => parameter.ParameterName == "@SchemaName")
+            .And.Contain(parameter => parameter.ParameterName == "@TableName");
+        command.Parameters["@SchemaName"].Value.Should().Be(DBNull.Value);
+        command.Parameters["@TableName"].Value.Should().Be(DBNull.Value);
+    }
+
+    [Fact]
+    public void CreateDiscoverIndexesCommand_WhenFiltersProvided_TrimsAndSetsParameters()
+    {
+        using var connection = new SqlConnection();
+        var request = new DiscoverIndexesRequest(SchemaName: " sales ", TableName: " Orders ");
+
+        using var command = SqlServerDatabaseProvider.CreateDiscoverIndexesCommand(connection, request);
+
+        command.Parameters["@SchemaName"].Value.Should().Be("sales");
+        command.Parameters["@TableName"].Value.Should().Be("Orders");
+    }
+
     [Theory]
     [InlineData("int", 4, 10, 0, false, true, false, null)]
     [InlineData("bigint", 8, 19, 0, false, false, false, null)]
@@ -355,6 +386,89 @@ public sealed class SqlServerDatabaseProviderTests
         var result = SqlServerDatabaseProvider.NormalizeColumns(rows);
 
         result.Select(column => column.Name).Should().Equal("OrderId", "CreatedAtUtc", "TotalAmount");
+    }
+
+    [Fact]
+    public void NormalizeIndexes_ProjectsKeyIncludedAndFilteredMetadata()
+    {
+        SqlServerDatabaseProvider.IndexDiscoveryRow[] rows =
+        [
+            new SqlServerDatabaseProvider.IndexDiscoveryRow(
+                ObjectId: 301,
+                IndexId: 1,
+                IndexName: "PK_Orders",
+                SchemaName: "sales",
+                TableName: "Orders",
+                IsPrimaryKey: true,
+                IsUnique: true,
+                IsClustered: true,
+                ColumnName: "OrderId",
+                IsIncludedColumn: false,
+                KeyOrdinal: 1,
+                IndexColumnId: 1,
+                FilterDefinition: null),
+            new SqlServerDatabaseProvider.IndexDiscoveryRow(
+                ObjectId: 301,
+                IndexId: 3,
+                IndexName: "IX_Orders_CustomerId_Status",
+                SchemaName: "sales",
+                TableName: "Orders",
+                IsPrimaryKey: false,
+                IsUnique: false,
+                IsClustered: false,
+                ColumnName: "Status",
+                IsIncludedColumn: false,
+                KeyOrdinal: 2,
+                IndexColumnId: 2,
+                FilterDefinition: "[IsDeleted]=(0)"),
+            new SqlServerDatabaseProvider.IndexDiscoveryRow(
+                ObjectId: 301,
+                IndexId: 3,
+                IndexName: "IX_Orders_CustomerId_Status",
+                SchemaName: "sales",
+                TableName: "Orders",
+                IsPrimaryKey: false,
+                IsUnique: false,
+                IsClustered: false,
+                ColumnName: "CustomerId",
+                IsIncludedColumn: false,
+                KeyOrdinal: 1,
+                IndexColumnId: 1,
+                FilterDefinition: "[IsDeleted]=(0)"),
+            new SqlServerDatabaseProvider.IndexDiscoveryRow(
+                ObjectId: 301,
+                IndexId: 3,
+                IndexName: "IX_Orders_CustomerId_Status",
+                SchemaName: "sales",
+                TableName: "Orders",
+                IsPrimaryKey: false,
+                IsUnique: false,
+                IsClustered: false,
+                ColumnName: "OrderDate",
+                IsIncludedColumn: true,
+                KeyOrdinal: 0,
+                IndexColumnId: 3,
+                FilterDefinition: "[IsDeleted]=(0)"),
+        ];
+
+        var result = SqlServerDatabaseProvider.NormalizeIndexes(rows);
+
+        result.Should().HaveCount(2);
+        result[0].IndexName.Should().Be("PK_Orders");
+        result[0].TableName.Should().Be("sales.Orders");
+        result[0].SchemaName.Should().Be("sales");
+        result[0].IsPrimaryKey.Should().BeTrue();
+        result[0].IsUnique.Should().BeTrue();
+        result[0].IsClustered.Should().BeTrue();
+        result[0].Columns.Should().Equal("OrderId");
+        result[0].IncludedColumns.Should().BeEmpty();
+        result[0].ObjectId.Should().Be("301:1");
+
+        result[1].IndexName.Should().Be("IX_Orders_CustomerId_Status");
+        result[1].Columns.Should().Equal("CustomerId", "Status");
+        result[1].IncludedColumns.Should().Equal("OrderDate");
+        result[1].FilterDefinition.Should().Be("[IsDeleted]=(0)");
+        result[1].ObjectId.Should().Be("301:3");
     }
 
     [Fact]

@@ -6,10 +6,11 @@ using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Models;
 using ColumnMetadataModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.ColumnMetadata;
 using ForeignKeyConstraintModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.ForeignKeyConstraint;
+using IndexMetadataModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.IndexMetadata;
 
 namespace OakIdeas.Aspire.DataExplorer.SqlServer.Providers;
 
-public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscoveryProvider, IForeignKeyDiscoveryProvider, IColumnDiscoveryProvider, ITableDiscoveryProvider, IViewDiscoveryProvider
+public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscoveryProvider, IForeignKeyDiscoveryProvider, IColumnDiscoveryProvider, IIndexDiscoveryProvider, ITableDiscoveryProvider, IViewDiscoveryProvider
 {
     private const string DiscoverSchemasSql = """
         SELECT schema_id, name
@@ -108,6 +109,37 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
                 AND o.type = @ObjectType
             )
         ORDER BY c.column_id;
+        """;
+
+    private const string DiscoverIndexesSql = """
+        SELECT
+            i.object_id,
+            i.index_id,
+            i.name AS index_name,
+            s.name AS schema_name,
+            t.name AS table_name,
+            i.is_primary_key,
+            i.is_unique,
+            CAST(CASE WHEN i.type IN (1, 5) THEN 1 ELSE 0 END AS bit) AS is_clustered,
+            c.name AS column_name,
+            ic.is_included_column,
+            ic.key_ordinal,
+            ic.index_column_id,
+            i.filter_definition
+        FROM sys.indexes AS i
+        INNER JOIN sys.tables AS t ON i.object_id = t.object_id
+        INNER JOIN sys.schemas AS s ON t.schema_id = s.schema_id
+        INNER JOIN sys.index_columns AS ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+        INNER JOIN sys.columns AS c ON t.object_id = c.object_id AND ic.column_id = c.column_id
+        WHERE i.index_id > 0
+          AND i.is_hypothetical = 0
+          AND (@SchemaName IS NULL OR s.name = @SchemaName)
+          AND (@TableName IS NULL OR t.name = @TableName)
+          AND (ic.key_ordinal > 0 OR ic.is_included_column = 1)
+        ORDER BY s.name, t.name, i.name, ic.is_included_column, CASE
+            WHEN ic.is_included_column = 1 THEN ic.index_column_id
+            ELSE ic.key_ordinal
+        END;
         """;
 
     public string ProviderName => "sqlserver";
@@ -309,6 +341,49 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         }
     }
 
+    public async Task<DiscoverIndexesResponse> DiscoverIndexesAsync(
+        DatabaseResource resource,
+        DiscoverIndexesRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentNullException.ThrowIfNull(request);
+
+        try
+        {
+            await using var connection = new SqlConnection(resource.ConnectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            await using var command = CreateDiscoverIndexesCommand(connection, request);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+            var rows = new List<IndexDiscoveryRow>();
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                rows.Add(new IndexDiscoveryRow(
+                    ObjectId: reader.GetInt32(0),
+                    IndexId: reader.GetInt32(1),
+                    IndexName: reader.GetString(2),
+                    SchemaName: reader.GetString(3),
+                    TableName: reader.GetString(4),
+                    IsPrimaryKey: reader.GetBoolean(5),
+                    IsUnique: reader.GetBoolean(6),
+                    IsClustered: reader.GetBoolean(7),
+                    ColumnName: reader.GetString(8),
+                    IsIncludedColumn: reader.GetBoolean(9),
+                    KeyOrdinal: reader.GetInt32(10),
+                    IndexColumnId: reader.GetInt32(11),
+                    FilterDefinition: reader.IsDBNull(12) ? null : reader.GetString(12)));
+            }
+
+            return new DiscoverIndexesResponse(NormalizeIndexes(rows));
+        }
+        catch (SqlException ex) when (HasInsufficientSchemaAccess(ex))
+        {
+            return new DiscoverIndexesResponse(Array.Empty<IndexMetadataModel>());
+        }
+    }
+
     public async Task<DiscoverViewsResponse> DiscoverViewsAsync(
         DatabaseResource resource,
         DiscoverViewsRequest request,
@@ -470,6 +545,26 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         return command;
     }
 
+    internal static SqlCommand CreateDiscoverIndexesCommand(SqlConnection connection, DiscoverIndexesRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentNullException.ThrowIfNull(request);
+
+        string? schemaName = string.IsNullOrWhiteSpace(request.SchemaName)
+            ? null
+            : request.SchemaName.Trim();
+        string? tableName = string.IsNullOrWhiteSpace(request.TableName)
+            ? null
+            : request.TableName.Trim();
+
+        var command = new SqlCommand(DiscoverIndexesSql, connection);
+        command.Parameters.Add("@SchemaName", SqlDbType.NVarChar, 128).Value =
+            (object?)schemaName ?? DBNull.Value;
+        command.Parameters.Add("@TableName", SqlDbType.NVarChar, 128).Value =
+            (object?)tableName ?? DBNull.Value;
+        return command;
+    }
+
     internal static IReadOnlyList<ViewObject> NormalizeViews(IReadOnlyList<ViewDiscoveryRow> rows)
         => rows
             .Select(row => CreateViewObject(row.ObjectId, row.SchemaName, row.ViewName, row.HasDefinition))
@@ -496,6 +591,39 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
                     ["objectId"] = row.ObjectId,
                     ["columnId"] = row.ColumnId,
                 }))
+            .ToList();
+
+    internal static IReadOnlyList<IndexMetadataModel> NormalizeIndexes(
+        IReadOnlyList<IndexDiscoveryRow> rows)
+        => rows
+            .GroupBy(row => (row.ObjectId, row.IndexId))
+            .Select(group =>
+            {
+                var first = group.First();
+                var columns = group
+                    .Where(row => !row.IsIncludedColumn)
+                    .OrderBy(row => row.KeyOrdinal)
+                    .ThenBy(row => row.IndexColumnId)
+                    .Select(row => row.ColumnName)
+                    .ToList();
+                var includedColumns = group
+                    .Where(row => row.IsIncludedColumn)
+                    .OrderBy(row => row.IndexColumnId)
+                    .Select(row => row.ColumnName)
+                    .ToList();
+
+                return new IndexMetadataModel(
+                    IndexName: first.IndexName,
+                    TableName: $"{first.SchemaName}.{first.TableName}",
+                    SchemaName: first.SchemaName,
+                    IsPrimaryKey: first.IsPrimaryKey,
+                    IsUnique: first.IsUnique,
+                    IsClustered: first.IsClustered,
+                    Columns: columns,
+                    IncludedColumns: includedColumns,
+                    FilterDefinition: first.FilterDefinition,
+                    ObjectId: CreateIndexObjectId(first.ObjectId, first.IndexId));
+            })
             .ToList();
 
     internal static IReadOnlyList<ForeignKeyConstraintModel> NormalizeForeignKeyConstraints(
@@ -567,6 +695,9 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
     private static bool HasInsufficientSchemaAccess(SqlException exception)
         => exception.Number is 229 or 916;
 
+    private static string CreateIndexObjectId(int objectId, int indexId)
+        => FormattableString.Invariant($"{objectId}:{indexId}");
+
     internal readonly record struct TableDiscoveryRow(
         int ObjectId,
         string SchemaName,
@@ -586,6 +717,21 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         bool IsComputed,
         string? DefaultValue,
         string? Description);
+
+    internal readonly record struct IndexDiscoveryRow(
+        int ObjectId,
+        int IndexId,
+        string IndexName,
+        string SchemaName,
+        string TableName,
+        bool IsPrimaryKey,
+        bool IsUnique,
+        bool IsClustered,
+        string ColumnName,
+        bool IsIncludedColumn,
+        int KeyOrdinal,
+        int IndexColumnId,
+        string? FilterDefinition);
 
     internal readonly record struct ForeignKeyDiscoveryRow(
         int ObjectId,

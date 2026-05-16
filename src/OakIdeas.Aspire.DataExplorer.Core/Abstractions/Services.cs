@@ -57,6 +57,14 @@ public interface IColumnDiscoveryProvider
         CancellationToken cancellationToken);
 }
 
+public interface IIndexDiscoveryProvider
+{
+    Task<DiscoverIndexesResponse> DiscoverIndexesAsync(
+        DatabaseResource resource,
+        DiscoverIndexesRequest request,
+        CancellationToken cancellationToken);
+}
+
 public interface ITableDiscoveryProvider
 {
     Task<DiscoverTablesResponse> DiscoverTablesAsync(

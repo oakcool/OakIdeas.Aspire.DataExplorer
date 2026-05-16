@@ -345,6 +345,25 @@ public sealed record ColumnMetadata(
 public sealed record DiscoverColumnsResponse(
     IReadOnlyList<ColumnMetadata> Columns);
 
+public sealed record DiscoverIndexesRequest(
+    string? SchemaName = null,
+    string? TableName = null);
+
+public sealed record IndexMetadata(
+    string IndexName,
+    string TableName,
+    string SchemaName,
+    bool IsPrimaryKey,
+    bool IsUnique,
+    bool IsClustered,
+    IReadOnlyList<string> Columns,
+    IReadOnlyList<string> IncludedColumns,
+    string? FilterDefinition,
+    string ObjectId);
+
+public sealed record DiscoverIndexesResponse(
+    IReadOnlyList<IndexMetadata> Indexes);
+
 public enum ReferentialActionBehavior
 {
     NoAction = 0,

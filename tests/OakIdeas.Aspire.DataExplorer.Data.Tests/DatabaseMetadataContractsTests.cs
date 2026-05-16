@@ -182,6 +182,36 @@ public sealed class DatabaseMetadataContractsTests
     }
 
     [Fact]
+    public void DiscoverIndexesContracts_DefaultsAndPayload_ArePreserved()
+    {
+        var request = new DiscoverIndexesRequest();
+        var response = new DiscoverIndexesResponse(
+            [
+                new IndexMetadata(
+                    IndexName: "IX_Orders_CustomerId",
+                    TableName: "sales.Orders",
+                    SchemaName: "sales",
+                    IsPrimaryKey: false,
+                    IsUnique: false,
+                    IsClustered: false,
+                    Columns: ["CustomerId", "OrderDate"],
+                    IncludedColumns: ["TotalAmount"],
+                    FilterDefinition: "[IsActive]=(1)",
+                    ObjectId: "1001:2"),
+            ]);
+
+        request.SchemaName.Should().BeNull();
+        request.TableName.Should().BeNull();
+        response.Indexes.Should().ContainSingle();
+        response.Indexes[0].IndexName.Should().Be("IX_Orders_CustomerId");
+        response.Indexes[0].TableName.Should().Be("sales.Orders");
+        response.Indexes[0].Columns.Should().Equal("CustomerId", "OrderDate");
+        response.Indexes[0].IncludedColumns.Should().ContainSingle().Which.Should().Be("TotalAmount");
+        response.Indexes[0].FilterDefinition.Should().Be("[IsActive]=(1)");
+        response.Indexes[0].ObjectId.Should().Be("1001:2");
+    }
+
+    [Fact]
     public void DiscoverTablesContracts_DefaultsAndPayload_ArePreserved()
     {
         var request = new DiscoverTablesRequest();
