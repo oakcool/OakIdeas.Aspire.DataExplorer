@@ -376,6 +376,13 @@ public sealed record DiscoverForeignKeysRequest(
 public sealed record DiscoverForeignKeysResponse(
     IReadOnlyList<ForeignKeyConstraint> ForeignKeys);
 
+public sealed record DiscoverTablesRequest(
+    string? SchemaName = null,
+    bool IncludeSystemTables = false);
+
+public sealed record DiscoverTablesResponse(
+    IReadOnlyList<TableObject> Tables);
+
 public sealed record DiscoverViewsRequest(
     string? SchemaName = null,
     bool IncludeSystemViews = false);

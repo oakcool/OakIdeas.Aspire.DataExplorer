@@ -9,7 +9,7 @@ using ForeignKeyConstraintModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.
 
 namespace OakIdeas.Aspire.DataExplorer.SqlServer.Providers;
 
-public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscoveryProvider, IForeignKeyDiscoveryProvider, IColumnDiscoveryProvider, IViewDiscoveryProvider
+public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscoveryProvider, IForeignKeyDiscoveryProvider, IColumnDiscoveryProvider, ITableDiscoveryProvider, IViewDiscoveryProvider
 {
     private const string DiscoverSchemasSql = """
         SELECT schema_id, name
@@ -20,6 +20,21 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
               OR name NOT IN (N'dbo', N'guest', N'INFORMATION_SCHEMA', N'sys')
           )
         ORDER BY name;
+        """;
+
+    private const string DiscoverTablesSql = """
+        SELECT
+            t.object_id,
+            SCHEMA_NAME(t.schema_id) AS schema_name,
+            t.name AS table_name,
+            ISNULL(SUM(ps.row_count), 0) AS row_count
+        FROM sys.tables AS t
+        LEFT JOIN sys.dm_db_partition_stats AS ps ON t.object_id = ps.object_id
+            AND ps.index_id IN (0, 1)
+        WHERE (@IncludeSystemTables = 1 OR t.is_ms_shipped = 0)
+          AND (@SchemaName IS NULL OR SCHEMA_NAME(t.schema_id) = @SchemaName)
+        GROUP BY t.object_id, SCHEMA_NAME(t.schema_id), t.name
+        ORDER BY schema_name, table_name;
         """;
 
     private const string DiscoverViewsSql = """
@@ -165,6 +180,40 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         }
     }
 
+    public async Task<DiscoverTablesResponse> DiscoverTablesAsync(
+        DatabaseResource resource,
+        DiscoverTablesRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentNullException.ThrowIfNull(request);
+
+        try
+        {
+            await using var connection = new SqlConnection(resource.ConnectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            await using var command = CreateDiscoverTablesCommand(connection, request);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+            var rows = new List<TableDiscoveryRow>();
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                rows.Add(new TableDiscoveryRow(
+                    ObjectId: reader.GetInt32(0),
+                    SchemaName: reader.GetString(1),
+                    TableName: reader.GetString(2),
+                    RowCount: reader.GetInt64(3)));
+            }
+
+            return new DiscoverTablesResponse(NormalizeTables(rows));
+        }
+        catch (SqlException ex) when (HasInsufficientSchemaAccess(ex))
+        {
+            return new DiscoverTablesResponse(Array.Empty<TableObject>());
+        }
+    }
+
     public Task<QueryResult> ExecuteQueryAsync(
         DatabaseResource resource,
         ExecuteQueryRequest request,
@@ -294,6 +343,17 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         }
     }
 
+    internal static TableObject CreateTableObject(int objectId, string schemaName, string tableName, long rowCount)
+        => new(
+            objectId: objectId.ToString(CultureInfo.InvariantCulture),
+            schemaName: schemaName,
+            objectName: tableName,
+            providerMetadata: new Dictionary<string, object?>
+            {
+                ["objectId"] = objectId,
+                ["rowCount"] = rowCount,
+            });
+
     internal static SchemaObject CreateSchemaObject(int schemaId, string schemaName)
         => new(
             objectId: $"schema.{schemaName}",
@@ -322,6 +382,27 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         command.Parameters.Add("@IncludeSystemSchemas", SqlDbType.Bit).Value = includeSystemSchemas;
         return command;
     }
+
+    internal static SqlCommand CreateDiscoverTablesCommand(SqlConnection connection, DiscoverTablesRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentNullException.ThrowIfNull(request);
+
+        string? schemaName = string.IsNullOrWhiteSpace(request.SchemaName)
+            ? null
+            : request.SchemaName.Trim();
+
+        var command = new SqlCommand(DiscoverTablesSql, connection);
+        command.Parameters.Add("@IncludeSystemTables", SqlDbType.Bit).Value = request.IncludeSystemTables;
+        command.Parameters.Add("@SchemaName", SqlDbType.NVarChar, 128).Value =
+            (object?)schemaName ?? DBNull.Value;
+        return command;
+    }
+
+    internal static IReadOnlyList<TableObject> NormalizeTables(IReadOnlyList<TableDiscoveryRow> rows)
+        => rows
+            .Select(row => CreateTableObject(row.ObjectId, row.SchemaName, row.TableName, row.RowCount))
+            .ToList();
 
     internal static SqlCommand CreateDiscoverForeignKeysCommand(SqlConnection connection, DiscoverForeignKeysRequest request)
     {
@@ -485,6 +566,12 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
 
     private static bool HasInsufficientSchemaAccess(SqlException exception)
         => exception.Number is 229 or 916;
+
+    internal readonly record struct TableDiscoveryRow(
+        int ObjectId,
+        string SchemaName,
+        string TableName,
+        long RowCount);
 
     internal readonly record struct ColumnDiscoveryRow(
         int ObjectId,

@@ -459,6 +459,96 @@ public sealed class SqlServerDatabaseProviderTests
         result[1].HasDefinitionAvailable.Should().BeFalse();
     }
 
+    [Fact]
+    public void CreateTableObject_IncludesObjectIdAndRowCountMetadata()
+    {
+        var table = SqlServerDatabaseProvider.CreateTableObject(
+            objectId: 2001,
+            schemaName: "sales",
+            tableName: "Orders",
+            rowCount: 1500L);
+
+        table.ObjectId.Should().Be("2001");
+        table.SchemaName.Should().Be("sales");
+        table.ObjectName.Should().Be("Orders");
+        table.FullyQualifiedName.Should().Be("sales.Orders");
+        table.ObjectType.Should().Be(DatabaseObjectType.Table);
+        table.ProviderMetadata["objectId"].Should().Be(2001);
+        table.ProviderMetadata["rowCount"].Should().Be(1500L);
+    }
+
+    [Fact]
+    public void CreateDiscoverTablesCommand_UsesTableCatalogQueryAndParameters()
+    {
+        using var connection = new SqlConnection();
+        var request = new DiscoverTablesRequest();
+
+        using var command = SqlServerDatabaseProvider.CreateDiscoverTablesCommand(connection, request);
+
+        command.CommandText.Should().Contain("FROM sys.tables AS t");
+        command.CommandText.Should().Contain("sys.dm_db_partition_stats AS ps");
+        command.Parameters.Cast<SqlParameter>()
+            .Should()
+            .Contain(p => p.ParameterName == "@IncludeSystemTables")
+            .And.Contain(p => p.ParameterName == "@SchemaName");
+        command.Parameters["@IncludeSystemTables"].Value.Should().Be(false);
+        command.Parameters["@SchemaName"].Value.Should().Be(DBNull.Value);
+    }
+
+    [Fact]
+    public void CreateDiscoverTablesCommand_WhenIncludingSystemTables_SetsParameterToTrue()
+    {
+        using var connection = new SqlConnection();
+        var request = new DiscoverTablesRequest(IncludeSystemTables: true);
+
+        using var command = SqlServerDatabaseProvider.CreateDiscoverTablesCommand(connection, request);
+
+        command.Parameters["@IncludeSystemTables"].Value.Should().Be(true);
+    }
+
+    [Fact]
+    public void CreateDiscoverTablesCommand_WhenSchemaFilterProvided_TrimsAndSetsParameter()
+    {
+        using var connection = new SqlConnection();
+        var request = new DiscoverTablesRequest(SchemaName: " sales ");
+
+        using var command = SqlServerDatabaseProvider.CreateDiscoverTablesCommand(connection, request);
+
+        command.Parameters["@SchemaName"].Value.Should().Be("sales");
+    }
+
+    [Fact]
+    public void NormalizeTables_ProjectsTableObjectsWithCorrectMetadata()
+    {
+        SqlServerDatabaseProvider.TableDiscoveryRow[] rows =
+        [
+            new SqlServerDatabaseProvider.TableDiscoveryRow(
+                ObjectId: 501,
+                SchemaName: "sales",
+                TableName: "Orders",
+                RowCount: 1000L),
+            new SqlServerDatabaseProvider.TableDiscoveryRow(
+                ObjectId: 502,
+                SchemaName: "analytics",
+                TableName: "Events",
+                RowCount: 0L),
+        ];
+
+        var result = SqlServerDatabaseProvider.NormalizeTables(rows);
+
+        result.Should().HaveCount(2);
+        result[0].ObjectId.Should().Be("501");
+        result[0].SchemaName.Should().Be("sales");
+        result[0].ObjectName.Should().Be("Orders");
+        result[0].ProviderMetadata["objectId"].Should().Be(501);
+        result[0].ProviderMetadata["rowCount"].Should().Be(1000L);
+
+        result[1].ObjectId.Should().Be("502");
+        result[1].SchemaName.Should().Be("analytics");
+        result[1].ObjectName.Should().Be("Events");
+        result[1].ProviderMetadata["rowCount"].Should().Be(0L);
+    }
+
     private static DatabaseResource CreateResource(string providerName)
         => new("db", providerName, "Server=localhost;Database=db;", IsLocal: true, IsWritable: false);
 }

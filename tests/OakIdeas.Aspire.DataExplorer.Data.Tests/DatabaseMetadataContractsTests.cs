@@ -182,6 +182,29 @@ public sealed class DatabaseMetadataContractsTests
     }
 
     [Fact]
+    public void DiscoverTablesContracts_DefaultsAndPayload_ArePreserved()
+    {
+        var request = new DiscoverTablesRequest();
+        var response = new DiscoverTablesResponse(
+            [
+                new TableObject(
+                    objectId: "4001",
+                    schemaName: "sales",
+                    objectName: "Orders",
+                    providerMetadata: new Dictionary<string, object?> { ["objectId"] = 4001, ["rowCount"] = 500L }),
+            ]);
+
+        request.SchemaName.Should().BeNull();
+        request.IncludeSystemTables.Should().BeFalse();
+        response.Tables.Should().ContainSingle();
+        response.Tables[0].SchemaName.Should().Be("sales");
+        response.Tables[0].ObjectName.Should().Be("Orders");
+        response.Tables[0].FullyQualifiedName.Should().Be("sales.Orders");
+        response.Tables[0].ProviderMetadata["objectId"].Should().Be(4001);
+        response.Tables[0].ProviderMetadata["rowCount"].Should().Be(500L);
+    }
+
+    [Fact]
     public void DiscoverViewsContracts_DefaultsAndPayload_ArePreserved()
     {
         var request = new DiscoverViewsRequest();
