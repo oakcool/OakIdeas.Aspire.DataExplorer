@@ -174,3 +174,39 @@ public interface ISelectedDatabaseService
 
     Task<bool> IsSelectedAsync(CancellationToken cancellationToken);
 }
+
+public interface IMetadataCache
+{
+    Task<DatabaseMetadataRoot?> GetAsync(
+        string resourceId,
+        string databaseName,
+        CancellationToken cancellationToken);
+
+    Task SetAsync(
+        string resourceId,
+        string databaseName,
+        DatabaseMetadataRoot metadata,
+        CancellationToken cancellationToken);
+
+    Task InvalidateAsync(
+        string resourceId,
+        string databaseName,
+        CancellationToken cancellationToken);
+}
+
+public interface IMetadataAggregationService
+{
+    Task<DiscoverDatabaseMetadataResponse> DiscoverDatabaseMetadataAsync(
+        DiscoverDatabaseMetadataRequest request,
+        CancellationToken cancellationToken);
+}
+
+public interface IMetadataRefreshService
+{
+    Task<RefreshMetadataResponse> RefreshDatabaseMetadataAsync(
+        SelectedDatabaseContext selectedDbContext,
+        CancellationToken cancellationToken);
+
+    Task<RefreshMetadataResponse?> GetRefreshStatusAsync(
+        CancellationToken cancellationToken);
+}
