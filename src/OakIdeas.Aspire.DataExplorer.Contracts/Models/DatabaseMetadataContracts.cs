@@ -459,6 +459,28 @@ public sealed record DiscoverViewsRequest(
 public sealed record DiscoverViewsResponse(
     IReadOnlyList<ViewObject> Views);
 
+public enum FunctionType
+{
+    Scalar = 1,
+    TableValued = 2,
+    InlineTableValued = 3,
+}
+
+public sealed record FunctionMetadata(
+    string SchemaName,
+    string FunctionName,
+    FunctionType FunctionType,
+    string ObjectId,
+    string? ReturnType,
+    bool HasDefinitionAvailable,
+    DateTimeOffset? CreatedAt);
+
+public sealed record DiscoverFunctionsRequest(
+    bool IncludeSystemFunctions = false);
+
+public sealed record DiscoverFunctionsResponse(
+    IReadOnlyDictionary<string, IReadOnlyDictionary<FunctionType, IReadOnlyList<FunctionMetadata>>> FunctionsBySchema);
+
 public sealed record StoredProcedureParameterMetadata(
     string Name,
     string DataType);

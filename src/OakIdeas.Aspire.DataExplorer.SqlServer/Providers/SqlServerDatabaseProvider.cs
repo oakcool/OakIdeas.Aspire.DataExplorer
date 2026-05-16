@@ -7,6 +7,7 @@ using OakIdeas.Aspire.DataExplorer.Core.Models;
 using ColumnMetadataModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.ColumnMetadata;
 using ConstraintMetadataModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.ConstraintMetadata;
 using ForeignKeyConstraintModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.ForeignKeyConstraint;
+using FunctionMetadataModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.FunctionMetadata;
 using IndexMetadataModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.IndexMetadata;
 using PrimaryKeyConstraintModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.PrimaryKeyConstraint;
 using StoredProcedureMetadataModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.StoredProcedureMetadata;
@@ -14,7 +15,7 @@ using TriggerMetadataModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.Trigg
 
 namespace OakIdeas.Aspire.DataExplorer.SqlServer.Providers;
 
-public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscoveryProvider, IForeignKeyDiscoveryProvider, IColumnDiscoveryProvider, IIndexDiscoveryProvider, IPrimaryKeyDiscoveryProvider, ITableDiscoveryProvider, IViewDiscoveryProvider, IStoredProcedureDiscoveryProvider, ITriggerDiscoveryProvider, IConstraintDiscoveryProvider
+public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscoveryProvider, IForeignKeyDiscoveryProvider, IColumnDiscoveryProvider, IIndexDiscoveryProvider, IPrimaryKeyDiscoveryProvider, ITableDiscoveryProvider, IViewDiscoveryProvider, IStoredProcedureDiscoveryProvider, IFunctionDiscoveryProvider, ITriggerDiscoveryProvider, IConstraintDiscoveryProvider
 {
     private const string DiscoverSchemasSql = """
         SELECT schema_id, name
@@ -70,6 +71,24 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         WHERE (@IncludeSystemProcedures = 1 OR p.is_ms_shipped = 0)
           AND (@SchemaName IS NULL OR SCHEMA_NAME(p.schema_id) = @SchemaName)
         ORDER BY schema_name, procedure_name, prm.parameter_id;
+        """;
+
+    private const string DiscoverFunctionsSql = """
+        SELECT
+            o.object_id,
+            SCHEMA_NAME(o.schema_id) AS schema_name,
+            o.name AS function_name,
+            o.type AS function_type_code,
+            return_type.name AS return_type_name,
+            CASE WHEN OBJECT_DEFINITION(o.object_id) IS NOT NULL THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS has_definition,
+            o.create_date
+        FROM sys.objects AS o
+        INNER JOIN sys.functions AS f ON o.object_id = f.object_id
+        LEFT JOIN sys.parameters AS return_param ON o.object_id = return_param.object_id AND return_param.parameter_id = 0
+        LEFT JOIN sys.types AS return_type ON return_param.user_type_id = return_type.user_type_id
+        WHERE o.type IN (N'FN', N'TF', N'IF')
+          AND (@IncludeSystemFunctions = 1 OR o.is_ms_shipped = 0)
+        ORDER BY schema_name, function_name;
         """;
 
     private const string DiscoverTriggersSql = """
@@ -654,6 +673,44 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         }
     }
 
+    public async Task<DiscoverFunctionsResponse> DiscoverFunctionsAsync(
+        DatabaseResource resource,
+        DiscoverFunctionsRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentNullException.ThrowIfNull(request);
+
+        try
+        {
+            await using var connection = new SqlConnection(resource.ConnectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            await using var command = CreateDiscoverFunctionsCommand(connection, request);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+            var rows = new List<FunctionDiscoveryRow>();
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                rows.Add(new FunctionDiscoveryRow(
+                    ObjectId: reader.GetInt32(0),
+                    SchemaName: reader.GetString(1),
+                    FunctionName: reader.GetString(2),
+                    FunctionTypeCode: reader.GetString(3),
+                    ReturnType: reader.IsDBNull(4) ? null : reader.GetString(4),
+                    HasDefinitionAvailable: reader.GetBoolean(5),
+                    CreatedAt: reader.IsDBNull(6) ? null : reader.GetDateTime(6)));
+            }
+
+            return new DiscoverFunctionsResponse(GroupFunctionsBySchemaAndType(NormalizeFunctions(rows)));
+        }
+        catch (SqlException ex) when (HasInsufficientSchemaAccess(ex))
+        {
+            return new DiscoverFunctionsResponse(
+                new Dictionary<string, IReadOnlyDictionary<FunctionType, IReadOnlyList<FunctionMetadataModel>>>(StringComparer.OrdinalIgnoreCase));
+        }
+    }
+
     public async Task<DiscoverConstraintsResponse> DiscoverConstraintsAsync(
         DatabaseResource resource,
         DiscoverConstraintsRequest request,
@@ -835,6 +892,16 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         return command;
     }
 
+    internal static SqlCommand CreateDiscoverFunctionsCommand(SqlConnection connection, DiscoverFunctionsRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentNullException.ThrowIfNull(request);
+
+        var command = new SqlCommand(DiscoverFunctionsSql, connection);
+        command.Parameters.Add("@IncludeSystemFunctions", SqlDbType.Bit).Value = request.IncludeSystemFunctions;
+        return command;
+    }
+
     internal static SqlCommand CreateDiscoverTriggersCommand(SqlConnection connection, DiscoverTriggersRequest request)
     {
         ArgumentNullException.ThrowIfNull(connection);
@@ -1002,6 +1069,37 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
                     .ToList(),
                 StringComparer.OrdinalIgnoreCase);
 
+    internal static IReadOnlyList<FunctionMetadataModel> NormalizeFunctions(IReadOnlyList<FunctionDiscoveryRow> rows)
+        => rows
+            .Select(row => new FunctionMetadataModel(
+                SchemaName: row.SchemaName,
+                FunctionName: row.FunctionName,
+                FunctionType: MapFunctionType(row.FunctionTypeCode),
+                ObjectId: row.ObjectId.ToString(CultureInfo.InvariantCulture),
+                ReturnType: row.ReturnType,
+                HasDefinitionAvailable: row.HasDefinitionAvailable,
+                CreatedAt: row.CreatedAt is null
+                    ? null
+                    : new DateTimeOffset(DateTime.SpecifyKind(row.CreatedAt.Value, DateTimeKind.Utc))))
+            .ToList();
+
+    internal static IReadOnlyDictionary<string, IReadOnlyDictionary<FunctionType, IReadOnlyList<FunctionMetadataModel>>> GroupFunctionsBySchemaAndType(
+        IReadOnlyList<FunctionMetadataModel> functions)
+        => functions
+            .GroupBy(function => function.SchemaName, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                schemaGroup => schemaGroup.Key,
+                schemaGroup => (IReadOnlyDictionary<FunctionType, IReadOnlyList<FunctionMetadataModel>>)schemaGroup
+                    .GroupBy(function => function.FunctionType)
+                    .OrderBy(typeGroup => typeGroup.Key)
+                    .ToDictionary(
+                        typeGroup => typeGroup.Key,
+                        typeGroup => (IReadOnlyList<FunctionMetadataModel>)typeGroup
+                            .OrderBy(function => function.FunctionName, StringComparer.OrdinalIgnoreCase)
+                            .ToList()),
+                StringComparer.OrdinalIgnoreCase);
+
     internal static IReadOnlyList<ColumnMetadataModel> NormalizeColumns(
         IReadOnlyList<ColumnDiscoveryRow> rows)
         => rows
@@ -1146,6 +1244,15 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
             ? TriggerParentObjectType.Database
             : TriggerParentObjectType.Table;
 
+    internal static FunctionType MapFunctionType(string typeCode)
+        => typeCode switch
+        {
+            "FN" => FunctionType.Scalar,
+            "TF" => FunctionType.TableValued,
+            "IF" => FunctionType.InlineTableValued,
+            _ => throw new ArgumentException($"Unknown function type code: {typeCode}", nameof(typeCode)),
+        };
+
     private static (string SchemaName, string ObjectName) ParseSchemaAndObjectName(string? fullyQualifiedName)
     {
         if (string.IsNullOrWhiteSpace(fullyQualifiedName))
@@ -1275,4 +1382,13 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         int? ParameterId,
         string? ParameterName,
         string? ParameterDataType);
+
+    internal readonly record struct FunctionDiscoveryRow(
+        int ObjectId,
+        string SchemaName,
+        string FunctionName,
+        string FunctionTypeCode,
+        string? ReturnType,
+        bool HasDefinitionAvailable,
+        DateTime? CreatedAt);
 }

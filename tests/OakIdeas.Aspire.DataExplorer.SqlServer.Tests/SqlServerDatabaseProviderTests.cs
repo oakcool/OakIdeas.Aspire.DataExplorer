@@ -746,6 +746,100 @@ public sealed class SqlServerDatabaseProviderTests
     }
 
     [Fact]
+    public void CreateDiscoverFunctionsCommand_UsesFunctionCatalogQueryAndParameters()
+    {
+        using var connection = new SqlConnection();
+        var request = new DiscoverFunctionsRequest();
+
+        using var command = SqlServerDatabaseProvider.CreateDiscoverFunctionsCommand(connection, request);
+
+        command.CommandText.Should().Contain("FROM sys.objects AS o");
+        command.CommandText.Should().Contain("INNER JOIN sys.functions AS f");
+        command.CommandText.Should().Contain("LEFT JOIN sys.parameters AS return_param");
+        command.Parameters.Cast<SqlParameter>()
+            .Should()
+            .ContainSingle(parameter => parameter.ParameterName == "@IncludeSystemFunctions");
+        command.Parameters["@IncludeSystemFunctions"].Value.Should().Be(false);
+    }
+
+    [Fact]
+    public void CreateDiscoverFunctionsCommand_WhenIncludingSystemFunctions_SetsParameterToTrue()
+    {
+        using var connection = new SqlConnection();
+        var request = new DiscoverFunctionsRequest(IncludeSystemFunctions: true);
+
+        using var command = SqlServerDatabaseProvider.CreateDiscoverFunctionsCommand(connection, request);
+
+        command.Parameters["@IncludeSystemFunctions"].Value.Should().Be(true);
+    }
+
+    [Fact]
+    public void NormalizeFunctions_ProjectsAndGroupsBySchemaAndFunctionType()
+    {
+        SqlServerDatabaseProvider.FunctionDiscoveryRow[] rows =
+        [
+            new SqlServerDatabaseProvider.FunctionDiscoveryRow(
+                ObjectId: 811,
+                SchemaName: "sales",
+                FunctionName: "fn_OrderCount",
+                FunctionTypeCode: "FN",
+                ReturnType: "int",
+                HasDefinitionAvailable: true,
+                CreatedAt: new DateTime(2026, 5, 16, 0, 0, 0)),
+            new SqlServerDatabaseProvider.FunctionDiscoveryRow(
+                ObjectId: 812,
+                SchemaName: "sales",
+                FunctionName: "tvf_OrderTotals",
+                FunctionTypeCode: "TF",
+                ReturnType: "table",
+                HasDefinitionAvailable: true,
+                CreatedAt: new DateTime(2026, 5, 16, 0, 0, 0)),
+            new SqlServerDatabaseProvider.FunctionDiscoveryRow(
+                ObjectId: 813,
+                SchemaName: "analytics",
+                FunctionName: "itvf_MonthlyRevenue",
+                FunctionTypeCode: "IF",
+                ReturnType: "table",
+                HasDefinitionAvailable: false,
+                CreatedAt: null),
+        ];
+
+        var normalized = SqlServerDatabaseProvider.NormalizeFunctions(rows);
+        var grouped = SqlServerDatabaseProvider.GroupFunctionsBySchemaAndType(normalized);
+
+        normalized.Should().HaveCount(3);
+        normalized[0].FunctionType.Should().Be(FunctionType.Scalar);
+        normalized[0].ObjectId.Should().Be("811");
+        normalized[0].ReturnType.Should().Be("int");
+        normalized[1].FunctionType.Should().Be(FunctionType.TableValued);
+        normalized[2].FunctionType.Should().Be(FunctionType.InlineTableValued);
+        normalized[2].HasDefinitionAvailable.Should().BeFalse();
+
+        grouped.Keys.Should().Equal("analytics", "sales");
+        grouped["sales"].Should().ContainKeys(FunctionType.Scalar, FunctionType.TableValued);
+        grouped["sales"][FunctionType.Scalar].Should().ContainSingle().Which.FunctionName.Should().Be("fn_OrderCount");
+        grouped["analytics"][FunctionType.InlineTableValued].Should().ContainSingle().Which.FunctionName.Should().Be("itvf_MonthlyRevenue");
+    }
+
+    [Theory]
+    [InlineData("FN", FunctionType.Scalar)]
+    [InlineData("TF", FunctionType.TableValued)]
+    [InlineData("IF", FunctionType.InlineTableValued)]
+    public void MapFunctionType_MapsExpectedTypeCodes(string typeCode, FunctionType expected)
+    {
+        SqlServerDatabaseProvider.MapFunctionType(typeCode).Should().Be(expected);
+    }
+
+    [Fact]
+    public void MapFunctionType_WhenUnknownCode_ThrowsArgumentException()
+    {
+        var action = () => SqlServerDatabaseProvider.MapFunctionType("FS");
+
+        action.Should().Throw<ArgumentException>()
+            .WithParameterName("typeCode");
+    }
+
+    [Fact]
     public void CreateDiscoverTriggersCommand_UsesTriggerCatalogQueryAndParameters()
     {
         using var connection = new SqlConnection();

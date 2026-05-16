@@ -290,6 +290,38 @@ public sealed class DatabaseMetadataContractsTests
     }
 
     [Fact]
+    public void DiscoverFunctionsContracts_DefaultsAndPayload_ArePreserved()
+    {
+        var request = new DiscoverFunctionsRequest();
+        var response = new DiscoverFunctionsResponse(
+            new Dictionary<string, IReadOnlyDictionary<FunctionType, IReadOnlyList<FunctionMetadata>>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["sales"] = new Dictionary<FunctionType, IReadOnlyList<FunctionMetadata>>
+                {
+                    [FunctionType.Scalar] =
+                    [
+                        new FunctionMetadata(
+                            SchemaName: "sales",
+                            FunctionName: "fn_OrderCount",
+                            FunctionType: FunctionType.Scalar,
+                            ObjectId: "8101",
+                            ReturnType: "int",
+                            HasDefinitionAvailable: true,
+                            CreatedAt: new DateTimeOffset(2026, 5, 16, 0, 0, 0, TimeSpan.Zero)),
+                    ],
+                },
+            });
+
+        request.IncludeSystemFunctions.Should().BeFalse();
+        response.FunctionsBySchema.Should().ContainKey("sales");
+        response.FunctionsBySchema["sales"].Should().ContainKey(FunctionType.Scalar);
+        response.FunctionsBySchema["sales"][FunctionType.Scalar].Should().ContainSingle();
+        response.FunctionsBySchema["sales"][FunctionType.Scalar][0].FunctionName.Should().Be("fn_OrderCount");
+        response.FunctionsBySchema["sales"][FunctionType.Scalar][0].ObjectId.Should().Be("8101");
+        response.FunctionsBySchema["sales"][FunctionType.Scalar][0].ReturnType.Should().Be("int");
+    }
+
+    [Fact]
     public void DiscoverStoredProceduresContracts_DefaultsAndPayload_ArePreserved()
     {
         var request = new DiscoverStoredProceduresRequest();
