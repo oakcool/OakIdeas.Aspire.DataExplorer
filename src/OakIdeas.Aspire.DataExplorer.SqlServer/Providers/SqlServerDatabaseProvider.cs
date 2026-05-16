@@ -7,10 +7,11 @@ using OakIdeas.Aspire.DataExplorer.Core.Models;
 using ColumnMetadataModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.ColumnMetadata;
 using ForeignKeyConstraintModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.ForeignKeyConstraint;
 using IndexMetadataModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.IndexMetadata;
+using PrimaryKeyConstraintModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.PrimaryKeyConstraint;
 
 namespace OakIdeas.Aspire.DataExplorer.SqlServer.Providers;
 
-public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscoveryProvider, IForeignKeyDiscoveryProvider, IColumnDiscoveryProvider, IIndexDiscoveryProvider, ITableDiscoveryProvider, IViewDiscoveryProvider
+public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscoveryProvider, IForeignKeyDiscoveryProvider, IColumnDiscoveryProvider, IIndexDiscoveryProvider, IPrimaryKeyDiscoveryProvider, ITableDiscoveryProvider, IViewDiscoveryProvider
 {
     private const string DiscoverSchemasSql = """
         SELECT schema_id, name
@@ -140,6 +141,28 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
             WHEN ic.is_included_column = 1 THEN ic.index_column_id
             ELSE ic.key_ordinal
         END;
+        """;
+
+    private const string DiscoverPrimaryKeysSql = """
+        SELECT
+            kc.object_id,
+            kc.name AS constraint_name,
+            s.name AS schema_name,
+            t.name AS table_name,
+            CAST(CASE WHEN i.type IN (1, 5) THEN 1 ELSE 0 END AS bit) AS is_clustered,
+            c.name AS column_name,
+            ic.key_ordinal
+        FROM sys.key_constraints AS kc
+        INNER JOIN sys.tables AS t ON kc.parent_object_id = t.object_id
+        INNER JOIN sys.schemas AS s ON t.schema_id = s.schema_id
+        INNER JOIN sys.indexes AS i ON kc.parent_object_id = i.object_id AND kc.unique_index_id = i.index_id
+        INNER JOIN sys.index_columns AS ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+        INNER JOIN sys.columns AS c ON t.object_id = c.object_id AND ic.column_id = c.column_id
+        WHERE kc.type = 'PK'
+          AND (@SchemaName IS NULL OR s.name = @SchemaName)
+          AND (@TableName IS NULL OR t.name = @TableName)
+          AND ic.key_ordinal > 0
+        ORDER BY s.name, t.name, kc.name, ic.key_ordinal;
         """;
 
     public string ProviderName => "sqlserver";
@@ -384,6 +407,43 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         }
     }
 
+    public async Task<DiscoverPrimaryKeysResponse> DiscoverPrimaryKeysAsync(
+        DatabaseResource resource,
+        DiscoverPrimaryKeysRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentNullException.ThrowIfNull(request);
+
+        try
+        {
+            await using var connection = new SqlConnection(resource.ConnectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            await using var command = CreateDiscoverPrimaryKeysCommand(connection, request);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+            var rows = new List<PrimaryKeyDiscoveryRow>();
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                rows.Add(new PrimaryKeyDiscoveryRow(
+                    ObjectId: reader.GetInt32(0),
+                    ConstraintName: reader.GetString(1),
+                    SchemaName: reader.GetString(2),
+                    TableName: reader.GetString(3),
+                    IsClustered: reader.GetBoolean(4),
+                    ColumnName: reader.GetString(5),
+                    KeyOrdinal: reader.GetInt32(6)));
+            }
+
+            return new DiscoverPrimaryKeysResponse(NormalizePrimaryKeys(rows));
+        }
+        catch (SqlException ex) when (HasInsufficientSchemaAccess(ex))
+        {
+            return new DiscoverPrimaryKeysResponse(Array.Empty<PrimaryKeyConstraintModel>());
+        }
+    }
+
     public async Task<DiscoverViewsResponse> DiscoverViewsAsync(
         DatabaseResource resource,
         DiscoverViewsRequest request,
@@ -565,6 +625,26 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         return command;
     }
 
+    internal static SqlCommand CreateDiscoverPrimaryKeysCommand(SqlConnection connection, DiscoverPrimaryKeysRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentNullException.ThrowIfNull(request);
+
+        string? schemaName = string.IsNullOrWhiteSpace(request.SchemaName)
+            ? null
+            : request.SchemaName.Trim();
+        string? tableName = string.IsNullOrWhiteSpace(request.TableName)
+            ? null
+            : request.TableName.Trim();
+
+        var command = new SqlCommand(DiscoverPrimaryKeysSql, connection);
+        command.Parameters.Add("@SchemaName", SqlDbType.NVarChar, 128).Value =
+            (object?)schemaName ?? DBNull.Value;
+        command.Parameters.Add("@TableName", SqlDbType.NVarChar, 128).Value =
+            (object?)tableName ?? DBNull.Value;
+        return command;
+    }
+
     internal static IReadOnlyList<ViewObject> NormalizeViews(IReadOnlyList<ViewDiscoveryRow> rows)
         => rows
             .Select(row => CreateViewObject(row.ObjectId, row.SchemaName, row.ViewName, row.HasDefinition))
@@ -650,6 +730,28 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
                     OnDeleteBehavior: MapReferentialAction(first.DeleteReferentialAction),
                     OnUpdateBehavior: MapReferentialAction(first.UpdateReferentialAction),
                     IsDisabled: first.IsDisabled,
+                    ObjectId: first.ObjectId.ToString(CultureInfo.InvariantCulture));
+            })
+            .ToList();
+
+    internal static IReadOnlyList<PrimaryKeyConstraintModel> NormalizePrimaryKeys(
+        IReadOnlyList<PrimaryKeyDiscoveryRow> rows)
+        => rows
+            .GroupBy(row => row.ObjectId)
+            .Select(group =>
+            {
+                var first = group.First();
+                var keyColumns = group
+                    .OrderBy(row => row.KeyOrdinal)
+                    .Select(row => row.ColumnName)
+                    .ToList();
+
+                return new PrimaryKeyConstraintModel(
+                    ConstraintName: first.ConstraintName,
+                    TableName: $"{first.SchemaName}.{first.TableName}",
+                    SchemaName: first.SchemaName,
+                    KeyColumns: keyColumns,
+                    IsClustered: first.IsClustered,
                     ObjectId: first.ObjectId.ToString(CultureInfo.InvariantCulture));
             })
             .ToList();
@@ -746,6 +848,15 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         int DeleteReferentialAction,
         int UpdateReferentialAction,
         bool IsDisabled);
+
+    internal readonly record struct PrimaryKeyDiscoveryRow(
+        int ObjectId,
+        string ConstraintName,
+        string SchemaName,
+        string TableName,
+        bool IsClustered,
+        string ColumnName,
+        int KeyOrdinal);
 
     internal readonly record struct ViewDiscoveryRow(
         int ObjectId,

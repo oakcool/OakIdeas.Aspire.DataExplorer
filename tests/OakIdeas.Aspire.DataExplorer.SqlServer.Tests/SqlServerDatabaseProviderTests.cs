@@ -199,6 +199,37 @@ public sealed class SqlServerDatabaseProviderTests
         command.Parameters["@TableName"].Value.Should().Be("Orders");
     }
 
+    [Fact]
+    public void CreateDiscoverPrimaryKeysCommand_UsesPrimaryKeyCatalogQueryAndParameters()
+    {
+        using var connection = new SqlConnection();
+        var request = new DiscoverPrimaryKeysRequest();
+
+        using var command = SqlServerDatabaseProvider.CreateDiscoverPrimaryKeysCommand(connection, request);
+
+        command.CommandText.Should().Contain("FROM sys.key_constraints AS kc");
+        command.CommandText.Should().Contain("JOIN sys.index_columns AS ic");
+        command.CommandText.Should().Contain("kc.type = 'PK'");
+        command.Parameters.Cast<SqlParameter>()
+            .Should()
+            .Contain(parameter => parameter.ParameterName == "@SchemaName")
+            .And.Contain(parameter => parameter.ParameterName == "@TableName");
+        command.Parameters["@SchemaName"].Value.Should().Be(DBNull.Value);
+        command.Parameters["@TableName"].Value.Should().Be(DBNull.Value);
+    }
+
+    [Fact]
+    public void CreateDiscoverPrimaryKeysCommand_WhenFiltersProvided_TrimsAndSetsParameters()
+    {
+        using var connection = new SqlConnection();
+        var request = new DiscoverPrimaryKeysRequest(SchemaName: " sales ", TableName: " Orders ");
+
+        using var command = SqlServerDatabaseProvider.CreateDiscoverPrimaryKeysCommand(connection, request);
+
+        command.Parameters["@SchemaName"].Value.Should().Be("sales");
+        command.Parameters["@TableName"].Value.Should().Be("Orders");
+    }
+
     [Theory]
     [InlineData("int", 4, 10, 0, false, true, false, null)]
     [InlineData("bigint", 8, 19, 0, false, false, false, null)]
@@ -469,6 +500,52 @@ public sealed class SqlServerDatabaseProviderTests
         result[1].IncludedColumns.Should().Equal("OrderDate");
         result[1].FilterDefinition.Should().Be("[IsDeleted]=(0)");
         result[1].ObjectId.Should().Be("301:3");
+    }
+
+    [Fact]
+    public void NormalizePrimaryKeys_PreservesCompositeColumnOrderAndClusteredState()
+    {
+        SqlServerDatabaseProvider.PrimaryKeyDiscoveryRow[] rows =
+        [
+            new SqlServerDatabaseProvider.PrimaryKeyDiscoveryRow(
+                ObjectId: 601,
+                ConstraintName: "PK_Customers",
+                SchemaName: "sales",
+                TableName: "Customers",
+                IsClustered: true,
+                ColumnName: "CustomerId",
+                KeyOrdinal: 1),
+            new SqlServerDatabaseProvider.PrimaryKeyDiscoveryRow(
+                ObjectId: 701,
+                ConstraintName: "PK_OrderLines",
+                SchemaName: "sales",
+                TableName: "OrderLines",
+                IsClustered: false,
+                ColumnName: "LineNumber",
+                KeyOrdinal: 2),
+            new SqlServerDatabaseProvider.PrimaryKeyDiscoveryRow(
+                ObjectId: 701,
+                ConstraintName: "PK_OrderLines",
+                SchemaName: "sales",
+                TableName: "OrderLines",
+                IsClustered: false,
+                ColumnName: "OrderId",
+                KeyOrdinal: 1),
+        ];
+
+        var result = SqlServerDatabaseProvider.NormalizePrimaryKeys(rows);
+
+        result.Should().HaveCount(2);
+        result[0].ConstraintName.Should().Be("PK_Customers");
+        result[0].TableName.Should().Be("sales.Customers");
+        result[0].SchemaName.Should().Be("sales");
+        result[0].KeyColumns.Should().Equal("CustomerId");
+        result[0].IsClustered.Should().BeTrue();
+        result[0].ObjectId.Should().Be("601");
+
+        result[1].ConstraintName.Should().Be("PK_OrderLines");
+        result[1].KeyColumns.Should().Equal("OrderId", "LineNumber");
+        result[1].IsClustered.Should().BeFalse();
     }
 
     [Fact]

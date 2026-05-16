@@ -364,6 +364,21 @@ public sealed record IndexMetadata(
 public sealed record DiscoverIndexesResponse(
     IReadOnlyList<IndexMetadata> Indexes);
 
+public sealed record DiscoverPrimaryKeysRequest(
+    string? SchemaName = null,
+    string? TableName = null);
+
+public sealed record PrimaryKeyConstraint(
+    string ConstraintName,
+    string TableName,
+    string SchemaName,
+    IReadOnlyList<string> KeyColumns,
+    bool IsClustered,
+    string ObjectId);
+
+public sealed record DiscoverPrimaryKeysResponse(
+    IReadOnlyList<PrimaryKeyConstraint> PrimaryKeys);
+
 public enum ReferentialActionBehavior
 {
     NoAction = 0,
