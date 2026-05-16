@@ -135,6 +135,97 @@ public sealed class SqlServerDatabaseProviderTests
         command.Parameters["@ParentTableName"].Value.Should().Be("orders");
     }
 
+    [Fact]
+    public void CreateDiscoverColumnsCommand_UsesColumnCatalogQueryAndObjectId()
+    {
+        using var connection = new SqlConnection();
+        var request = new DiscoverColumnsRequest(ObjectId: "42", ObjectType: DatabaseObjectType.Table);
+
+        using var command = SqlServerDatabaseProvider.CreateDiscoverColumnsCommand(connection, request);
+
+        command.CommandText.Should().Contain("FROM sys.columns AS c");
+        command.CommandText.Should().Contain("LEFT JOIN sys.identity_columns AS ic");
+        command.CommandText.Should().Contain("LEFT JOIN sys.computed_columns AS cc");
+        command.Parameters["@ObjectId"].Value.Should().Be(42);
+        command.Parameters["@SchemaName"].Value.Should().Be(DBNull.Value);
+        command.Parameters["@ObjectName"].Value.Should().Be(DBNull.Value);
+        command.Parameters["@ObjectType"].Value.Should().Be(DBNull.Value);
+    }
+
+    [Fact]
+    public void CreateDiscoverColumnsCommand_WhenUsingFullyQualifiedName_SetsSchemaNameObjectNameAndType()
+    {
+        using var connection = new SqlConnection();
+        var request = new DiscoverColumnsRequest(
+            FullyQualifiedName: "analytics.MonthlyRevenue",
+            ObjectType: DatabaseObjectType.View);
+
+        using var command = SqlServerDatabaseProvider.CreateDiscoverColumnsCommand(connection, request);
+
+        command.Parameters["@ObjectId"].Value.Should().Be(DBNull.Value);
+        command.Parameters["@SchemaName"].Value.Should().Be("analytics");
+        command.Parameters["@ObjectName"].Value.Should().Be("MonthlyRevenue");
+        command.Parameters["@ObjectType"].Value.Should().Be("V");
+    }
+
+    [Theory]
+    [InlineData("int", 4, 10, 0, false, true, false, null)]
+    [InlineData("bigint", 8, 19, 0, false, false, false, null)]
+    [InlineData("varchar", 100, null, null, true, false, false, "('value')")]
+    [InlineData("char", 8, null, null, false, false, false, null)]
+    [InlineData("nvarchar", 200, null, null, true, false, false, null)]
+    [InlineData("datetime", 8, null, null, false, false, false, "(getdate())")]
+    [InlineData("datetime2", 8, 27, 7, false, false, false, null)]
+    [InlineData("date", 3, null, null, true, false, false, null)]
+    [InlineData("decimal", 17, 19, 4, false, false, false, null)]
+    [InlineData("money", 8, 19, 4, false, false, false, null)]
+    [InlineData("float", 8, 53, null, true, false, false, null)]
+    [InlineData("bit", 1, null, null, false, false, false, "((0))")]
+    [InlineData("uniqueidentifier", 16, null, null, false, false, false, "(newid())")]
+    public void NormalizeColumns_CoversCommonSqlServerDataTypesAndColumnFlags(
+        string dataType,
+        int? maxLength,
+        int? precision,
+        int? scale,
+        bool isNullable,
+        bool isIdentity,
+        bool isComputed,
+        string? defaultValue)
+    {
+        SqlServerDatabaseProvider.ColumnDiscoveryRow[] rows =
+        [
+            new SqlServerDatabaseProvider.ColumnDiscoveryRow(
+                ObjectId: 900,
+                ColumnId: 2,
+                Name: "C",
+                DataType: dataType,
+                MaxLength: maxLength.HasValue ? (short)maxLength.Value : null,
+                Precision: precision.HasValue ? (byte)precision.Value : null,
+                Scale: scale.HasValue ? (byte)scale.Value : null,
+                IsNullable: isNullable,
+                IsIdentity: isIdentity,
+                IsComputed: isComputed,
+                DefaultValue: defaultValue,
+                Description: "column"),
+        ];
+
+        var result = SqlServerDatabaseProvider.NormalizeColumns(rows);
+
+        result.Should().ContainSingle();
+        var column = result[0];
+        column.Ordinal.Should().Be(2);
+        column.DataType.Should().Be(dataType);
+        column.MaxLength.Should().Be(maxLength);
+        column.Precision.Should().Be(precision);
+        column.Scale.Should().Be(scale);
+        column.IsNullable.Should().Be(isNullable);
+        column.IsIdentity.Should().Be(isIdentity);
+        column.IsComputed.Should().Be(isComputed);
+        column.DefaultValue.Should().Be(defaultValue);
+        column.ProviderMetadata["objectId"].Should().Be(900);
+        column.ProviderMetadata["columnId"].Should().Be(2);
+    }
+
     [Theory]
     [InlineData(0, ReferentialActionBehavior.NoAction)]
     [InlineData(1, ReferentialActionBehavior.Cascade)]
@@ -213,6 +304,57 @@ public sealed class SqlServerDatabaseProviderTests
         constraints[1].OnDeleteBehavior.Should().Be(ReferentialActionBehavior.SetDefault);
         constraints[1].OnUpdateBehavior.Should().Be(ReferentialActionBehavior.SetNull);
         constraints[1].IsDisabled.Should().BeTrue();
+    }
+
+    [Fact]
+    public void NormalizeColumns_PreservesOrdinalOrder()
+    {
+        SqlServerDatabaseProvider.ColumnDiscoveryRow[] rows =
+        [
+            new SqlServerDatabaseProvider.ColumnDiscoveryRow(
+                ObjectId: 51,
+                ColumnId: 3,
+                Name: "TotalAmount",
+                DataType: "decimal",
+                MaxLength: 9,
+                Precision: 18,
+                Scale: 2,
+                IsNullable: false,
+                IsIdentity: false,
+                IsComputed: true,
+                DefaultValue: null,
+                Description: null),
+            new SqlServerDatabaseProvider.ColumnDiscoveryRow(
+                ObjectId: 51,
+                ColumnId: 1,
+                Name: "OrderId",
+                DataType: "int",
+                MaxLength: 4,
+                Precision: 10,
+                Scale: 0,
+                IsNullable: false,
+                IsIdentity: true,
+                IsComputed: false,
+                DefaultValue: null,
+                Description: null),
+            new SqlServerDatabaseProvider.ColumnDiscoveryRow(
+                ObjectId: 51,
+                ColumnId: 2,
+                Name: "CreatedAtUtc",
+                DataType: "datetime2",
+                MaxLength: 8,
+                Precision: 27,
+                Scale: 7,
+                IsNullable: false,
+                IsIdentity: false,
+                IsComputed: false,
+                DefaultValue: "(sysutcdatetime())",
+                Description: null),
+        ];
+
+        var result = SqlServerDatabaseProvider.NormalizeColumns(rows);
+
+        result.Select(column => column.Name).Should().Equal("OrderId", "CreatedAtUtc", "TotalAmount");
     }
 
     private static DatabaseResource CreateResource(string providerName)

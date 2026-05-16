@@ -4,11 +4,12 @@ using Microsoft.Data.SqlClient;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Models;
+using ColumnMetadataModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.ColumnMetadata;
 using ForeignKeyConstraintModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.ForeignKeyConstraint;
 
 namespace OakIdeas.Aspire.DataExplorer.SqlServer.Providers;
 
-public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscoveryProvider, IForeignKeyDiscoveryProvider
+public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscoveryProvider, IForeignKeyDiscoveryProvider, IColumnDiscoveryProvider
 {
     private const string DiscoverSchemasSql = """
         SELECT schema_id, name
@@ -46,6 +47,40 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         WHERE (@ParentSchemaName IS NULL OR ps.name = @ParentSchemaName)
           AND (@ParentTableName IS NULL OR pt.name = @ParentTableName)
         ORDER BY fk.object_id, fkc.constraint_column_id;
+        """;
+
+    private const string DiscoverColumnsSql = """
+        SELECT
+            c.object_id,
+            c.column_id,
+            c.name AS column_name,
+            t.name AS data_type,
+            c.max_length,
+            c.precision,
+            c.scale,
+            c.is_nullable,
+            CAST(ISNULL(ic.is_identity, 0) AS bit) AS is_identity,
+            CAST(ISNULL(cc.is_computed, 0) AS bit) AS is_computed,
+            dc.definition AS default_value,
+            CAST(ep.value AS nvarchar(4000)) AS description
+        FROM sys.columns AS c
+        INNER JOIN sys.objects AS o ON c.object_id = o.object_id
+        INNER JOIN sys.schemas AS s ON o.schema_id = s.schema_id
+        INNER JOIN sys.types AS t ON c.user_type_id = t.user_type_id
+        LEFT JOIN sys.identity_columns AS ic ON c.object_id = ic.object_id AND c.column_id = ic.column_id
+        LEFT JOIN sys.computed_columns AS cc ON c.object_id = cc.object_id AND c.column_id = cc.column_id
+        LEFT JOIN sys.default_constraints AS dc ON c.default_object_id = dc.object_id
+        LEFT JOIN sys.extended_properties AS ep ON ep.major_id = c.object_id AND ep.minor_id = c.column_id AND ep.class = 1 AND ep.name = N'MS_Description'
+        WHERE (
+                @ObjectId IS NOT NULL AND c.object_id = @ObjectId
+            )
+            OR (
+                @ObjectId IS NULL
+                AND s.name = @SchemaName
+                AND o.name = @ObjectName
+                AND o.type = @ObjectType
+            )
+        ORDER BY c.column_id;
         """;
 
     public string ProviderName => "sqlserver";
@@ -171,6 +206,48 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         }
     }
 
+    public async Task<DiscoverColumnsResponse> DiscoverColumnsAsync(
+        DatabaseResource resource,
+        DiscoverColumnsRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentNullException.ThrowIfNull(request);
+
+        try
+        {
+            await using var connection = new SqlConnection(resource.ConnectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            await using var command = CreateDiscoverColumnsCommand(connection, request);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+            var rows = new List<ColumnDiscoveryRow>();
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                rows.Add(new ColumnDiscoveryRow(
+                    ObjectId: reader.GetInt32(0),
+                    ColumnId: reader.GetInt32(1),
+                    Name: reader.GetString(2),
+                    DataType: reader.GetString(3),
+                    MaxLength: reader.IsDBNull(4) ? null : reader.GetInt16(4),
+                    Precision: reader.IsDBNull(5) ? null : reader.GetByte(5),
+                    Scale: reader.IsDBNull(6) ? null : reader.GetByte(6),
+                    IsNullable: reader.GetBoolean(7),
+                    IsIdentity: reader.GetBoolean(8),
+                    IsComputed: reader.GetBoolean(9),
+                    DefaultValue: reader.IsDBNull(10) ? null : reader.GetString(10),
+                    Description: reader.IsDBNull(11) ? null : reader.GetString(11)));
+            }
+
+            return new DiscoverColumnsResponse(NormalizeColumns(rows));
+        }
+        catch (SqlException ex) when (HasInsufficientSchemaAccess(ex))
+        {
+            return new DiscoverColumnsResponse(Array.Empty<ColumnMetadataModel>());
+        }
+    }
+
     internal static SchemaObject CreateSchemaObject(int schemaId, string schemaName)
         => new(
             objectId: $"schema.{schemaName}",
@@ -210,6 +287,58 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         return command;
     }
 
+    internal static SqlCommand CreateDiscoverColumnsCommand(SqlConnection connection, DiscoverColumnsRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentNullException.ThrowIfNull(request);
+
+        var command = new SqlCommand(DiscoverColumnsSql, connection);
+        command.Parameters.Add("@ObjectId", SqlDbType.Int).Value = DBNull.Value;
+
+        if (!string.IsNullOrWhiteSpace(request.ObjectId))
+        {
+            if (!int.TryParse(request.ObjectId.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var objectId))
+            {
+                throw new ArgumentException("ObjectId must be a valid SQL Server object_id integer.", nameof(request));
+            }
+
+            command.Parameters["@ObjectId"].Value = objectId;
+            command.Parameters.Add("@SchemaName", SqlDbType.NVarChar, 128).Value = DBNull.Value;
+            command.Parameters.Add("@ObjectName", SqlDbType.NVarChar, 128).Value = DBNull.Value;
+            command.Parameters.Add("@ObjectType", SqlDbType.NChar, 2).Value = DBNull.Value;
+            return command;
+        }
+
+        var (schemaName, objectName) = ParseSchemaAndObjectName(request.FullyQualifiedName);
+        command.Parameters.Add("@SchemaName", SqlDbType.NVarChar, 128).Value = schemaName;
+        command.Parameters.Add("@ObjectName", SqlDbType.NVarChar, 128).Value = objectName;
+        command.Parameters.Add("@ObjectType", SqlDbType.NChar, 2).Value = MapObjectType(request.ObjectType);
+        return command;
+    }
+
+    internal static IReadOnlyList<ColumnMetadataModel> NormalizeColumns(
+        IReadOnlyList<ColumnDiscoveryRow> rows)
+        => rows
+            .OrderBy(row => row.ColumnId)
+            .Select(row => new ColumnMetadataModel(
+                Name: row.Name,
+                Ordinal: row.ColumnId,
+                DataType: row.DataType,
+                MaxLength: row.MaxLength,
+                Precision: row.Precision,
+                Scale: row.Scale,
+                IsNullable: row.IsNullable,
+                IsIdentity: row.IsIdentity,
+                IsComputed: row.IsComputed,
+                DefaultValue: row.DefaultValue,
+                Description: row.Description,
+                ProviderMetadata: new Dictionary<string, object?>
+                {
+                    ["objectId"] = row.ObjectId,
+                    ["columnId"] = row.ColumnId,
+                }))
+            .ToList();
+
     internal static IReadOnlyList<ForeignKeyConstraintModel> NormalizeForeignKeyConstraints(
         IReadOnlyList<ForeignKeyDiscoveryRow> rows)
         => rows
@@ -248,8 +377,50 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
             _ => ReferentialActionBehavior.NoAction,
         };
 
+    private static (string SchemaName, string ObjectName) ParseSchemaAndObjectName(string? fullyQualifiedName)
+    {
+        if (string.IsNullOrWhiteSpace(fullyQualifiedName))
+        {
+            throw new ArgumentException("Either ObjectId or FullyQualifiedName must be provided.", nameof(fullyQualifiedName));
+        }
+
+        var parts = fullyQualifiedName
+            .Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        return parts.Length switch
+        {
+            1 => ("dbo", parts[0]),
+            >= 2 => (parts[^2], parts[^1]),
+            _ => throw new ArgumentException(
+                "FullyQualifiedName must be in the format [schema].[object] or [database].[schema].[object].",
+                nameof(fullyQualifiedName)),
+        };
+    }
+
+    private static string MapObjectType(DatabaseObjectType objectType)
+        => objectType switch
+        {
+            DatabaseObjectType.Table => "U",
+            DatabaseObjectType.View => "V",
+            _ => throw new ArgumentException("ObjectType must be Table or View.", nameof(objectType)),
+        };
+
     private static bool HasInsufficientSchemaAccess(SqlException exception)
         => exception.Number is 229 or 916;
+
+    internal readonly record struct ColumnDiscoveryRow(
+        int ObjectId,
+        int ColumnId,
+        string Name,
+        string DataType,
+        short? MaxLength,
+        byte? Precision,
+        byte? Scale,
+        bool IsNullable,
+        bool IsIdentity,
+        bool IsComputed,
+        string? DefaultValue,
+        string? Description);
 
     internal readonly record struct ForeignKeyDiscoveryRow(
         int ObjectId,

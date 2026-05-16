@@ -319,6 +319,28 @@ public sealed record DiscoverSchemasRequest(
 public sealed record DiscoverSchemasResponse(
     IReadOnlyList<SchemaObject> Schemas);
 
+public sealed record DiscoverColumnsRequest(
+    string? ObjectId = null,
+    string? FullyQualifiedName = null,
+    DatabaseObjectType ObjectType = DatabaseObjectType.Table);
+
+public sealed record ColumnMetadata(
+    string Name,
+    int Ordinal,
+    string DataType,
+    int? MaxLength,
+    int? Precision,
+    int? Scale,
+    bool IsNullable,
+    bool IsIdentity,
+    bool IsComputed,
+    string? DefaultValue,
+    string? Description,
+    IReadOnlyDictionary<string, object?> ProviderMetadata);
+
+public sealed record DiscoverColumnsResponse(
+    IReadOnlyList<ColumnMetadata> Columns);
+
 public enum ReferentialActionBehavior
 {
     NoAction = 0,
