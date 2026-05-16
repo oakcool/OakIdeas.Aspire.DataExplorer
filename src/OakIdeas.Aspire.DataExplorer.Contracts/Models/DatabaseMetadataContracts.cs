@@ -458,3 +458,27 @@ public sealed record DiscoverViewsRequest(
 
 public sealed record DiscoverViewsResponse(
     IReadOnlyList<ViewObject> Views);
+
+public enum ConstraintType
+{
+    Default = 1,
+    Check = 2,
+    Unique = 3,
+}
+
+public sealed record ConstraintMetadata(
+    string ConstraintName,
+    ConstraintType ConstraintType,
+    string TableName,
+    string SchemaName,
+    string? ColumnName,
+    string? Definition,
+    bool IsDisabled,
+    string ObjectId);
+
+public sealed record DiscoverConstraintsRequest(
+    string? SchemaName = null,
+    string? TableName = null);
+
+public sealed record DiscoverConstraintsResponse(
+    IReadOnlyList<ConstraintMetadata> Constraints);

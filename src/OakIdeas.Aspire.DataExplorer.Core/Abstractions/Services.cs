@@ -97,6 +97,14 @@ public interface ITriggerDiscoveryProvider
         CancellationToken cancellationToken);
 }
 
+public interface IConstraintDiscoveryProvider
+{
+    Task<DiscoverConstraintsResponse> DiscoverConstraintsAsync(
+        DatabaseResource resource,
+        DiscoverConstraintsRequest request,
+        CancellationToken cancellationToken);
+}
+
 public interface ITableDataService
 {
     Task<TablePageResult> GetRowsAsync(

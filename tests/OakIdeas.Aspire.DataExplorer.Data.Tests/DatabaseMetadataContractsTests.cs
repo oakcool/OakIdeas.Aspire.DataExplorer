@@ -288,4 +288,64 @@ public sealed class DatabaseMetadataContractsTests
         response.Triggers[0].HasDefinitionAvailable.Should().BeTrue();
         response.Triggers[0].ObjectId.Should().Be("6101");
     }
+
+    [Fact]
+    public void DiscoverConstraintsContracts_DefaultsAndPayload_ArePreserved()
+    {
+        var request = new DiscoverConstraintsRequest();
+        var response = new DiscoverConstraintsResponse(
+            [
+                new ConstraintMetadata(
+                    ConstraintName: "CK_Orders_Amount",
+                    ConstraintType: ConstraintType.Check,
+                    TableName: "sales.Orders",
+                    SchemaName: "sales",
+                    ColumnName: "TotalAmount",
+                    Definition: "(TotalAmount > 0)",
+                    IsDisabled: false,
+                    ObjectId: "7001"),
+                new ConstraintMetadata(
+                    ConstraintName: "DF_Orders_Status",
+                    ConstraintType: ConstraintType.Default,
+                    TableName: "sales.Orders",
+                    SchemaName: "sales",
+                    ColumnName: "Status",
+                    Definition: "('Pending')",
+                    IsDisabled: false,
+                    ObjectId: "7002"),
+                new ConstraintMetadata(
+                    ConstraintName: "UQ_Orders_OrderNumber",
+                    ConstraintType: ConstraintType.Unique,
+                    TableName: "sales.Orders",
+                    SchemaName: "sales",
+                    ColumnName: null,
+                    Definition: null,
+                    IsDisabled: false,
+                    ObjectId: "7003"),
+            ]);
+
+        request.SchemaName.Should().BeNull();
+        request.TableName.Should().BeNull();
+        response.Constraints.Should().HaveCount(3);
+
+        var check = response.Constraints[0];
+        check.ConstraintName.Should().Be("CK_Orders_Amount");
+        check.ConstraintType.Should().Be(ConstraintType.Check);
+        check.TableName.Should().Be("sales.Orders");
+        check.SchemaName.Should().Be("sales");
+        check.ColumnName.Should().Be("TotalAmount");
+        check.Definition.Should().Be("(TotalAmount > 0)");
+        check.IsDisabled.Should().BeFalse();
+        check.ObjectId.Should().Be("7001");
+
+        var defaultConstraint = response.Constraints[1];
+        defaultConstraint.ConstraintType.Should().Be(ConstraintType.Default);
+        defaultConstraint.ColumnName.Should().Be("Status");
+        defaultConstraint.Definition.Should().Be("('Pending')");
+
+        var unique = response.Constraints[2];
+        unique.ConstraintType.Should().Be(ConstraintType.Unique);
+        unique.ColumnName.Should().BeNull();
+        unique.Definition.Should().BeNull();
+    }
 }
