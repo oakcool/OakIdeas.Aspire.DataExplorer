@@ -175,6 +175,41 @@ WHERE (@IncludeSystemProcedures = 1 OR p.is_ms_shipped = 0)
 ORDER BY schema_name, procedure_name, prm.parameter_id;
 ```
 
+## Function discovery
+
+`SqlServerDatabaseProvider` also implements `IFunctionDiscoveryProvider` and returns `DiscoverFunctionsResponse` grouped by schema and function type with `FunctionMetadata` entries.
+
+- Source catalog views: `sys.objects`, `sys.functions`, `sys.parameters`, and `sys.types`
+- Default behavior: excludes system functions (`is_ms_shipped = 1`)
+- Optional behavior: include system functions via `DiscoverFunctionsRequest.IncludeSystemFunctions = true`
+- Function type mapping:
+  - `FN` => `FunctionType.Scalar`
+  - `TF` => `FunctionType.TableValued`
+  - `IF` => `FunctionType.InlineTableValued`
+- `FunctionMetadata.HasDefinitionAvailable` is `true` when `OBJECT_DEFINITION()` returns a non-null result
+- Includes `CreatedAt` from `sys.objects.create_date` when available
+- Attempts return-type discovery from `sys.parameters` (`parameter_id = 0`) and `sys.types`
+
+SQL used for discovery:
+
+```sql
+SELECT
+    o.object_id,
+    SCHEMA_NAME(o.schema_id) AS schema_name,
+    o.name AS function_name,
+    o.type AS function_type_code,
+    return_type.name AS return_type_name,
+    CASE WHEN OBJECT_DEFINITION(o.object_id) IS NOT NULL THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS has_definition,
+    o.create_date
+FROM sys.objects AS o
+INNER JOIN sys.functions AS f ON o.object_id = f.object_id
+LEFT JOIN sys.parameters AS return_param ON o.object_id = return_param.object_id AND return_param.parameter_id = 0
+LEFT JOIN sys.types AS return_type ON return_param.user_type_id = return_type.user_type_id
+WHERE o.type IN (N'FN', N'TF', N'IF')
+  AND (@IncludeSystemFunctions = 1 OR o.is_ms_shipped = 0)
+ORDER BY schema_name, function_name;
+```
+
 ## Trigger discovery
 
 `SqlServerDatabaseProvider` also implements `ITriggerDiscoveryProvider` and returns `DiscoverTriggersResponse` with normalized `TriggerMetadata` entries.
