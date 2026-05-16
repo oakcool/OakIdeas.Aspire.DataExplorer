@@ -28,6 +28,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\OakIdeas.Aspire.DataExplorer.AppHost\OakIdeas.Aspire.DataExplorer.AppHost.csproj" />
     <ProjectReference Include="..\..\src\OakIdeas.Aspire.DataExplorer.SqlServer\OakIdeas.Aspire.DataExplorer.SqlServer.csproj" />
+    <ProjectReference Include="..\..\src\OakIdeas.Aspire.DataExplorer.Web\OakIdeas.Aspire.DataExplorer.Web.csproj" />
   </ItemGroup>
 
 </Project>
