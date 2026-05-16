@@ -830,4 +830,113 @@ public sealed class SqlServerDatabaseProviderTests
 
     private static DatabaseResource CreateResource(string providerName)
         => new("db", providerName, "Server=localhost;Database=db;", IsLocal: true, IsWritable: false);
+
+    [Fact]
+    public void CreateDiscoverConstraintsCommand_UsesConstraintCatalogQueryAndParameters()
+    {
+        using var connection = new SqlConnection();
+        var request = new DiscoverConstraintsRequest();
+
+        using var command = SqlServerDatabaseProvider.CreateDiscoverConstraintsCommand(connection, request);
+
+        command.CommandText.Should().Contain("FROM sys.default_constraints AS dc");
+        command.CommandText.Should().Contain("FROM sys.check_constraints AS cc");
+        command.CommandText.Should().Contain("FROM sys.key_constraints AS kc");
+        command.CommandText.Should().Contain("kc.type = N'UQ'");
+        command.Parameters.Cast<SqlParameter>()
+            .Should()
+            .Contain(parameter => parameter.ParameterName == "@SchemaName")
+            .And.Contain(parameter => parameter.ParameterName == "@TableName");
+        command.Parameters["@SchemaName"].Value.Should().Be(DBNull.Value);
+        command.Parameters["@TableName"].Value.Should().Be(DBNull.Value);
+    }
+
+    [Fact]
+    public void CreateDiscoverConstraintsCommand_WhenFiltersProvided_TrimsAndSetsParameters()
+    {
+        using var connection = new SqlConnection();
+        var request = new DiscoverConstraintsRequest(SchemaName: " sales ", TableName: " Orders ");
+
+        using var command = SqlServerDatabaseProvider.CreateDiscoverConstraintsCommand(connection, request);
+
+        command.Parameters["@SchemaName"].Value.Should().Be("sales");
+        command.Parameters["@TableName"].Value.Should().Be("Orders");
+    }
+
+    [Theory]
+    [InlineData("D", ConstraintType.Default)]
+    [InlineData("C", ConstraintType.Check)]
+    [InlineData("U", ConstraintType.Unique)]
+    public void MapConstraintType_MapsExpectedTypeCodes(string typeCode, ConstraintType expected)
+    {
+        SqlServerDatabaseProvider.MapConstraintType(typeCode).Should().Be(expected);
+    }
+
+    [Fact]
+    public void MapConstraintType_WhenUnknownCode_ThrowsArgumentException()
+    {
+        var action = () => SqlServerDatabaseProvider.MapConstraintType("X");
+
+        action.Should().Throw<ArgumentException>()
+            .WithParameterName("typeCode");
+    }
+
+    [Fact]
+    public void NormalizeConstraints_ProjectsAllConstraintTypesWithCorrectMetadata()
+    {
+        SqlServerDatabaseProvider.ConstraintDiscoveryRow[] rows =
+        [
+            new SqlServerDatabaseProvider.ConstraintDiscoveryRow(
+                ObjectId: 801,
+                ConstraintName: "DF_Orders_Status",
+                SchemaName: "sales",
+                TableName: "Orders",
+                ColumnName: "Status",
+                Definition: "('Pending')",
+                IsDisabled: false,
+                ConstraintTypeCode: "D"),
+            new SqlServerDatabaseProvider.ConstraintDiscoveryRow(
+                ObjectId: 802,
+                ConstraintName: "CK_Orders_Amount",
+                SchemaName: "sales",
+                TableName: "Orders",
+                ColumnName: "TotalAmount",
+                Definition: "(TotalAmount > 0)",
+                IsDisabled: false,
+                ConstraintTypeCode: "C"),
+            new SqlServerDatabaseProvider.ConstraintDiscoveryRow(
+                ObjectId: 803,
+                ConstraintName: "UQ_Orders_OrderNumber",
+                SchemaName: "sales",
+                TableName: "Orders",
+                ColumnName: null,
+                Definition: null,
+                IsDisabled: false,
+                ConstraintTypeCode: "U"),
+        ];
+
+        var result = SqlServerDatabaseProvider.NormalizeConstraints(rows);
+
+        result.Should().HaveCount(3);
+
+        result[0].ConstraintName.Should().Be("DF_Orders_Status");
+        result[0].ConstraintType.Should().Be(ConstraintType.Default);
+        result[0].TableName.Should().Be("sales.Orders");
+        result[0].SchemaName.Should().Be("sales");
+        result[0].ColumnName.Should().Be("Status");
+        result[0].Definition.Should().Be("('Pending')");
+        result[0].IsDisabled.Should().BeFalse();
+        result[0].ObjectId.Should().Be("801");
+
+        result[1].ConstraintName.Should().Be("CK_Orders_Amount");
+        result[1].ConstraintType.Should().Be(ConstraintType.Check);
+        result[1].ColumnName.Should().Be("TotalAmount");
+        result[1].Definition.Should().Be("(TotalAmount > 0)");
+
+        result[2].ConstraintName.Should().Be("UQ_Orders_OrderNumber");
+        result[2].ConstraintType.Should().Be(ConstraintType.Unique);
+        result[2].ColumnName.Should().BeNull();
+        result[2].Definition.Should().BeNull();
+        result[2].ObjectId.Should().Be("803");
+    }
 }

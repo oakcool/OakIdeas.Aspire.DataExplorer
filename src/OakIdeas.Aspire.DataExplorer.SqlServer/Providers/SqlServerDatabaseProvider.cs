@@ -5,6 +5,7 @@ using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Models;
 using ColumnMetadataModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.ColumnMetadata;
+using ConstraintMetadataModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.ConstraintMetadata;
 using ForeignKeyConstraintModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.ForeignKeyConstraint;
 using IndexMetadataModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.IndexMetadata;
 using PrimaryKeyConstraintModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.PrimaryKeyConstraint;
@@ -12,7 +13,7 @@ using TriggerMetadataModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.Trigg
 
 namespace OakIdeas.Aspire.DataExplorer.SqlServer.Providers;
 
-public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscoveryProvider, IForeignKeyDiscoveryProvider, IColumnDiscoveryProvider, IIndexDiscoveryProvider, IPrimaryKeyDiscoveryProvider, ITableDiscoveryProvider, IViewDiscoveryProvider, ITriggerDiscoveryProvider
+public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscoveryProvider, IForeignKeyDiscoveryProvider, IColumnDiscoveryProvider, IIndexDiscoveryProvider, IPrimaryKeyDiscoveryProvider, ITableDiscoveryProvider, IViewDiscoveryProvider, ITriggerDiscoveryProvider, IConstraintDiscoveryProvider
 {
     private const string DiscoverSchemasSql = """
         SELECT schema_id, name
@@ -185,6 +186,62 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
           AND (@TableName IS NULL OR t.name = @TableName)
           AND ic.key_ordinal > 0
         ORDER BY s.name, t.name, kc.name, ic.key_ordinal;
+        """;
+
+    private const string DiscoverConstraintsSql = """
+        SELECT
+            dc.object_id,
+            dc.name AS constraint_name,
+            s.name AS schema_name,
+            t.name AS table_name,
+            c.name AS column_name,
+            dc.definition,
+            CAST(0 AS bit) AS is_disabled,
+            N'D' AS constraint_type
+        FROM sys.default_constraints AS dc
+        INNER JOIN sys.tables AS t ON dc.parent_object_id = t.object_id
+        INNER JOIN sys.schemas AS s ON t.schema_id = s.schema_id
+        INNER JOIN sys.columns AS c ON dc.parent_object_id = c.object_id AND dc.parent_column_id = c.column_id
+        WHERE (@SchemaName IS NULL OR s.name = @SchemaName)
+          AND (@TableName IS NULL OR t.name = @TableName)
+
+        UNION ALL
+
+        SELECT
+            cc.object_id,
+            cc.name AS constraint_name,
+            s.name AS schema_name,
+            t.name AS table_name,
+            c.name AS column_name,
+            cc.definition,
+            cc.is_disabled,
+            N'C' AS constraint_type
+        FROM sys.check_constraints AS cc
+        INNER JOIN sys.tables AS t ON cc.parent_object_id = t.object_id
+        INNER JOIN sys.schemas AS s ON t.schema_id = s.schema_id
+        LEFT JOIN sys.columns AS c ON cc.parent_object_id = c.object_id AND cc.parent_column_id > 0 AND cc.parent_column_id = c.column_id
+        WHERE (@SchemaName IS NULL OR s.name = @SchemaName)
+          AND (@TableName IS NULL OR t.name = @TableName)
+
+        UNION ALL
+
+        SELECT
+            kc.object_id,
+            kc.name AS constraint_name,
+            s.name AS schema_name,
+            t.name AS table_name,
+            NULL AS column_name,
+            NULL AS definition,
+            CAST(0 AS bit) AS is_disabled,
+            N'U' AS constraint_type
+        FROM sys.key_constraints AS kc
+        INNER JOIN sys.tables AS t ON kc.parent_object_id = t.object_id
+        INNER JOIN sys.schemas AS s ON t.schema_id = s.schema_id
+        WHERE kc.type = N'UQ'
+          AND (@SchemaName IS NULL OR s.name = @SchemaName)
+          AND (@TableName IS NULL OR t.name = @TableName)
+
+        ORDER BY schema_name, table_name, constraint_type, constraint_name;
         """;
 
     public string ProviderName => "sqlserver";
@@ -540,6 +597,44 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         }
     }
 
+    public async Task<DiscoverConstraintsResponse> DiscoverConstraintsAsync(
+        DatabaseResource resource,
+        DiscoverConstraintsRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentNullException.ThrowIfNull(request);
+
+        try
+        {
+            await using var connection = new SqlConnection(resource.ConnectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            await using var command = CreateDiscoverConstraintsCommand(connection, request);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+            var rows = new List<ConstraintDiscoveryRow>();
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                rows.Add(new ConstraintDiscoveryRow(
+                    ObjectId: reader.GetInt32(0),
+                    ConstraintName: reader.GetString(1),
+                    SchemaName: reader.GetString(2),
+                    TableName: reader.GetString(3),
+                    ColumnName: reader.IsDBNull(4) ? null : reader.GetString(4),
+                    Definition: reader.IsDBNull(5) ? null : reader.GetString(5),
+                    IsDisabled: reader.GetBoolean(6),
+                    ConstraintTypeCode: reader.GetString(7)));
+            }
+
+            return new DiscoverConstraintsResponse(NormalizeConstraints(rows));
+        }
+        catch (SqlException ex) when (HasInsufficientSchemaAccess(ex))
+        {
+            return new DiscoverConstraintsResponse(Array.Empty<ConstraintMetadataModel>());
+        }
+    }
+
     internal static TableObject CreateTableObject(int objectId, string schemaName, string tableName, long rowCount)
         => new(
             objectId: objectId.ToString(CultureInfo.InvariantCulture),
@@ -727,6 +822,26 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         return command;
     }
 
+    internal static SqlCommand CreateDiscoverConstraintsCommand(SqlConnection connection, DiscoverConstraintsRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentNullException.ThrowIfNull(request);
+
+        string? schemaName = string.IsNullOrWhiteSpace(request.SchemaName)
+            ? null
+            : request.SchemaName.Trim();
+        string? tableName = string.IsNullOrWhiteSpace(request.TableName)
+            ? null
+            : request.TableName.Trim();
+
+        var command = new SqlCommand(DiscoverConstraintsSql, connection);
+        command.Parameters.Add("@SchemaName", SqlDbType.NVarChar, 128).Value =
+            (object?)schemaName ?? DBNull.Value;
+        command.Parameters.Add("@TableName", SqlDbType.NVarChar, 128).Value =
+            (object?)tableName ?? DBNull.Value;
+        return command;
+    }
+
     internal static IReadOnlyList<ViewObject> NormalizeViews(IReadOnlyList<ViewDiscoveryRow> rows)
         => rows
             .Select(row => CreateViewObject(row.ObjectId, row.SchemaName, row.ViewName, row.HasDefinition))
@@ -882,6 +997,29 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
             })
             .ToList();
 
+    internal static IReadOnlyList<ConstraintMetadataModel> NormalizeConstraints(
+        IReadOnlyList<ConstraintDiscoveryRow> rows)
+        => rows
+            .Select(row => new ConstraintMetadataModel(
+                ConstraintName: row.ConstraintName,
+                ConstraintType: MapConstraintType(row.ConstraintTypeCode),
+                TableName: $"{row.SchemaName}.{row.TableName}",
+                SchemaName: row.SchemaName,
+                ColumnName: row.ColumnName,
+                Definition: row.Definition,
+                IsDisabled: row.IsDisabled,
+                ObjectId: row.ObjectId.ToString(CultureInfo.InvariantCulture)))
+            .ToList();
+
+    internal static ConstraintType MapConstraintType(string typeCode)
+        => typeCode switch
+        {
+            "D" => ConstraintType.Default,
+            "C" => ConstraintType.Check,
+            "U" => ConstraintType.Unique,
+            _ => throw new ArgumentException($"Unknown constraint type code: {typeCode}", nameof(typeCode)),
+        };
+
     internal static ReferentialActionBehavior MapReferentialAction(int action)
         => action switch
         {
@@ -1006,4 +1144,14 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         bool HasDefinitionAvailable,
         DateTime? CreatedAt,
         string? TriggerEventType);
+
+    internal readonly record struct ConstraintDiscoveryRow(
+        int ObjectId,
+        string ConstraintName,
+        string SchemaName,
+        string TableName,
+        string? ColumnName,
+        string? Definition,
+        bool IsDisabled,
+        string ConstraintTypeCode);
 }
