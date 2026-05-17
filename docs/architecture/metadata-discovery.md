@@ -55,7 +55,7 @@ This keeps service orchestration provider-agnostic while allowing provider proje
 
 - `InMemoryMetadataCache` is the first cache implementation.
 - TTL is controlled by `MetadataAggregationOptions.CacheTtlMinutes`.
-- Refresh invalidates cache, re-aggregates metadata, then stores the latest snapshot.
+- Refresh invalidates cache, re-aggregates metadata, and only performs a fallback cache write when aggregation has not already restored the latest snapshot.
 - Refresh is single-flight per service instance (`SemaphoreSlim`) to prevent concurrent refresh collisions.
 
 ## Failure and diagnostics model
@@ -70,5 +70,6 @@ See also:
 - [Architecture overview](./overview.md)
 - [Provider model](./provider-model.md)
 - [Error handling and diagnostics](./error-handling.md)
+- [Architecture review — 2026-05](./architecture-review-2026-05.md)
 - [ADR 0005: Metadata discovery aggregation, cache, and partial-failure strategy](../decisions/0005-metadata-discovery-aggregation.md)
 - [ADR 0007: Metadata refresh single-flight and cache invalidation](../decisions/0007-metadata-refresh-single-flight.md)

@@ -11,7 +11,7 @@ Users can trigger metadata refresh repeatedly from the UI. Concurrent refresh op
 
 - Acquire a non-blocking `SemaphoreSlim` lock per service instance.
 - If lock is not available, return `RefreshStatus.InProgress` immediately.
-- Invalidate cache first, then run aggregation, then write fresh metadata snapshot.
+- Invalidate cache first, then run aggregation, and only perform a fallback cache write if aggregation has not already restored the fresh snapshot.
 - Persist latest refresh status for retrieval via `GetRefreshStatusAsync`.
 
 ## Consequences
