@@ -33,3 +33,8 @@ To run the DataExplorer tool at the same time, start the main AppHost in a secon
 ```bash
 dotnet run --project src/OakIdeas.Aspire.DataExplorer.AppHost
 ```
+
+## E2E validation assets
+
+- SQL setup script: [`docs/samples/test-database-setup.sql`](./test-database-setup.sql)
+- Validation guide/checklist: [`docs/samples/e2e-validation-checklist.md`](./e2e-validation-checklist.md)
