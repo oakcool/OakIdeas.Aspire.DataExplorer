@@ -14,6 +14,7 @@ public static class SelectedDatabaseServiceCollectionExtensions
         services.AddLogging();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IProviderErrorMapper, NullProviderErrorMapper>());
         services.TryAddSingleton<IErrorHandler, ErrorHandler>();
+        services.TryAddSingleton<IAspireResourceDiscovery, NullAspireResourceDiscovery>();
         services.AddScoped<ISelectedDatabaseService, SelectedDatabaseService>();
         return services;
     }

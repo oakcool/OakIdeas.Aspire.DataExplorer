@@ -43,6 +43,31 @@
          @onpointerleave="StopSidebarResize">
         <aside class="de-layout-sidebar @( _isExplorerMinimized ? "de-layout-sidebar--minimized" : string.Empty )"
                style="--explorer-width: @ExplorerWidthPx;">
+            @if (!_isExplorerMinimized)
+            {
+                <div class="de-database-picker">
+                    <label class="de-database-picker__label" for="database-picker">Database</label>
+                    <select id="database-picker"
+                            class="de-database-picker__select"
+                            value="@_selectedResourceId"
+                            disabled="@(_isExplorerLoading || !_availableDatabases.Any())"
+                            @onchange="HandleDatabaseSelectionChanged">
+                        @if (!_availableDatabases.Any())
+                        {
+                            <option value="">No databases discovered</option>
+                        }
+                        else
+                        {
+                            @foreach (var resource in _availableDatabases)
+                            {
+                                var optionText = BuildDatabaseOptionLabel(resource);
+                                <option value="@resource.ResourceId" disabled="@(!resource.IsAvailable)">@optionText</option>
+                            }
+                        }
+                    </select>
+                </div>
+            }
+
             <ObjectExplorer IsLoading="@_isExplorerLoading"
                             ErrorMessage="@_explorerErrorMessage"
                             Error="@_explorerError"
@@ -88,8 +113,10 @@
     private string? _explorerErrorMessage;
     private DataExplorerError? _explorerError;
     private ObjectExplorer.ObjectSelection? _selectedObject;
+    private string? _selectedResourceId;
     private CancellationTokenSource? _explorerLoadCts;
 
+    private readonly List<DiscoveredDatabaseResource> _availableDatabases = [];
     private readonly List<ObjectExplorer.ConnectionNode> _connections = [];
 
     private string ExplorerWidthPx => $"{_explorerWidth}px";
@@ -106,6 +133,43 @@
 
     private void HandleConnectionSelect(string _)
     {
+    }
+
+    private async Task HandleDatabaseSelectionChanged(ChangeEventArgs args)
+    {
+        var selectedResourceId = args.Value?.ToString();
+        if (string.IsNullOrWhiteSpace(selectedResourceId))
+        {
+            return;
+        }
+
+        var selectedResource = _availableDatabases.FirstOrDefault(resource =>
+            string.Equals(resource.ResourceId, selectedResourceId, StringComparison.OrdinalIgnoreCase));
+        if (selectedResource is null || !selectedResource.IsAvailable)
+        {
+            return;
+        }
+
+        if (string.Equals(_selectedResourceId, selectedResourceId, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var selectionResponse = await ExplorerService.SelectDatabaseAsync(selectedResourceId, CancellationToken.None);
+        if (!selectionResponse.Succeeded || selectionResponse.Selection is null)
+        {
+            _explorerError = selectionResponse.Error;
+            _explorerErrorMessage = selectionResponse.ValidationErrors.FirstOrDefault()
+                ?? "Unable to select the requested database resource.";
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        _selectedObject = null;
+        NavigationManager.NavigateTo("/explorer", replace: true);
+
+        _selectedResourceId = selectionResponse.Selection.ResourceId;
+        await LoadObjectExplorerAsync(forceRefresh: true);
     }
 
     private void HandleObjectSelect(ObjectExplorer.ObjectSelection selection)
@@ -152,6 +216,9 @@
         {
             var token = loadCts.Token;
             var available = await ExplorerService.GetAvailableDatabasesAsync(token);
+            _availableDatabases.Clear();
+            _availableDatabases.AddRange(available.Resources);
+
             if (available.Error is not null)
             {
                 _explorerError = available.Error;
@@ -163,9 +230,12 @@
             var selected = await EnsureSelectedDatabaseAsync(available, token);
             if (selected is null)
             {
+                _selectedResourceId = null;
                 _connections.Clear();
                 return;
             }
+
+            _selectedResourceId = selected.ResourceId;
 
             if (forceRefresh)
             {
@@ -218,6 +288,12 @@
 
             await InvokeAsync(StateHasChanged);
         }
+    }
+
+    private static string BuildDatabaseOptionLabel(DiscoveredDatabaseResource resource)
+    {
+        var status = resource.IsAvailable ? string.Empty : " (unavailable)";
+        return $"{resource.DatabaseName} - {resource.ResourceName} [{resource.ProviderType}]{status}";
     }
 
     private void StartSidebarResize(PointerEventArgs _)

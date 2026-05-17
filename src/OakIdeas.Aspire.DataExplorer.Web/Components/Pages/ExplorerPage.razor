@@ -161,6 +161,7 @@
 
     private async Task LoadMetadataAsync(CancellationToken cancellationToken)
     {
+        
         var metadataResponse = await ExplorerService.GetDatabaseMetadataAsync(cancellationToken);
         _metadataError = metadataResponse.Error;
         var aggregated = metadataResponse.AggregatedMetadata;

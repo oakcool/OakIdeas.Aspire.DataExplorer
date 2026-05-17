@@ -30,6 +30,7 @@ flowchart TD
 ## Metadata discovery components
 
 - `IAspireResourceDiscovery` (Hosting) discovers database resources.
+- In the Web runtime, discovery reads Aspire-provided `ConnectionStrings` configuration entries and projects them into discovered database resources.
 - `ISelectedDatabaseService` (Core) manages scoped selected-database context.
 - `IMetadataAggregationService` (Core) coordinates provider discovery and normalization.
 - `IMetadataCache` (Core) stores metadata snapshots by resource/database key.

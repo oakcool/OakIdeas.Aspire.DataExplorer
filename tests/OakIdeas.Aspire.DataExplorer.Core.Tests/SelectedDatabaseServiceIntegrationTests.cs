@@ -9,6 +9,20 @@ namespace OakIdeas.Aspire.DataExplorer.Core.Tests;
 public sealed class SelectedDatabaseServiceIntegrationTests
 {
     [Fact]
+    public async Task AddSelectedDatabaseService_ResolvesWithoutAspireDiscoveryRegistration()
+    {
+        var services = new ServiceCollection();
+        services.AddSelectedDatabaseService();
+
+        await using var serviceProvider = services.BuildServiceProvider().CreateAsyncScope();
+        var service = serviceProvider.ServiceProvider.GetRequiredService<ISelectedDatabaseService>();
+
+        var selected = await service.GetSelectedDatabaseAsync(CancellationToken.None);
+
+        selected.Should().BeNull();
+    }
+
+    [Fact]
     public async Task SelectDatabaseAsync_UsesAspireResourceDiscoveryFlow()
     {
         var services = new ServiceCollection();
