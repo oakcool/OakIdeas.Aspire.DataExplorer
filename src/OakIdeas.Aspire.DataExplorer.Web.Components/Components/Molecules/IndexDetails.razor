@@ -1,0 +1,53 @@
+@* Renders a list of index metadata for a table object *@
+<div class="index-details">
+    @if (Indexes is null || Indexes.Count == 0)
+    {
+        <EmptyMetadata Message="No indexes available." />
+    }
+    else
+    {
+        <div class="index-details__scroll">
+            <table class="index-details__grid">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Columns</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var idx in Indexes)
+                    {
+                        <tr>
+                            <td class="index-details__name">@idx.Name</td>
+                            <td class="index-details__type">
+                                @if (idx.IsPrimaryKey)
+                                {
+                                    <span class="index-details__badge index-details__badge--pk">PK</span>
+                                }
+                                @if (idx.IsUnique && !idx.IsPrimaryKey)
+                                {
+                                    <span class="index-details__badge index-details__badge--unique">Unique</span>
+                                }
+                                <span class="index-details__clustered">@(idx.IsClustered ? "Clustered" : "Non-clustered")</span>
+                            </td>
+                            <td class="index-details__columns">@string.Join(", ", idx.Columns)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<IndexModel>? Indexes { get; set; }
+
+    public sealed record IndexModel(
+        string Name,
+        bool IsPrimaryKey,
+        bool IsUnique,
+        bool IsClustered,
+        IReadOnlyList<string> Columns);
+}

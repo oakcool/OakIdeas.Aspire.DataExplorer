@@ -1,0 +1,35 @@
+@* Collapsible section used to group related metadata fields *@
+<div class="metadata-section @(IsCollapsed ? "metadata-section--collapsed" : string.Empty)">
+    <button class="metadata-section__header" type="button" @onclick="ToggleCollapsed">
+        <span class="metadata-section__toggle" aria-hidden="true">
+            <HeroIcon Kind="@(IsCollapsed ? HeroIconKind.ChevronRight : HeroIconKind.ChevronDown)" Size="13" />
+        </span>
+        <span class="metadata-section__title">@Title</span>
+        @if (!string.IsNullOrEmpty(Badge))
+        {
+            <span class="metadata-section__badge">@Badge</span>
+        }
+    </button>
+    @if (!IsCollapsed && ChildContent is not null)
+    {
+        <div class="metadata-section__body">
+            @ChildContent
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Badge { get; set; } = string.Empty;
+
+    [Parameter]
+    public bool IsCollapsed { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private void ToggleCollapsed() => IsCollapsed = !IsCollapsed;
+}

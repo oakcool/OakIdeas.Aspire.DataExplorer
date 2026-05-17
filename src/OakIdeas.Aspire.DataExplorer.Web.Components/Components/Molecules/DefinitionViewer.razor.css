@@ -1,0 +1,52 @@
+.definition-viewer {
+    display: flex;
+    flex-direction: column;
+    min-height: 3rem;
+}
+
+.definition-viewer__loading {
+    padding: 0.75rem 0;
+    display: flex;
+    align-items: center;
+}
+
+.definition-viewer__unavailable {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0;
+    font-size: 0.8rem;
+    color: #8b949e;
+    font-style: italic;
+}
+
+.definition-viewer__unavailable-icon {
+    display: inline-flex;
+    align-items: center;
+    color: #6e7681;
+    flex-shrink: 0;
+}
+
+.definition-viewer__code-wrap {
+    border: 1px solid #21262d;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.definition-viewer__pre {
+    margin: 0;
+    padding: 0.75rem;
+    overflow-x: auto;
+    background: #010409;
+    max-height: 420px;
+    overflow-y: auto;
+}
+
+.definition-viewer__code {
+    font-family: 'Cascadia Code', 'Consolas', 'SFMono-Regular', 'DejaVu Sans Mono', monospace;
+    font-size: 0.78rem;
+    line-height: 1.6;
+    color: #e6edf3;
+    white-space: pre;
+    display: block;
+}

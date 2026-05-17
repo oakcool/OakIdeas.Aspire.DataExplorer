@@ -1,0 +1,64 @@
+@* Renders a table of column metadata for a table or view object *@
+<div class="column-details">
+    @if (Columns is null || Columns.Count == 0)
+    {
+        <EmptyMetadata Message="No columns available." />
+    }
+    else
+    {
+        <div class="column-details__scroll">
+            <table class="column-details__grid">
+                <thead>
+                    <tr>
+                        <th class="column-details__ordinal">#</th>
+                        <th>Name</th>
+                        <th>Data Type</th>
+                        <th>Nullable</th>
+                        <th>Default</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var col in Columns)
+                    {
+                        <tr>
+                            <td class="column-details__ordinal">@col.Ordinal</td>
+                            <td class="column-details__name">
+                                @col.Name
+                                @if (col.IsIdentity)
+                                {
+                                    <span class="column-details__tag column-details__tag--identity">ID</span>
+                                }
+                                @if (col.IsComputed)
+                                {
+                                    <span class="column-details__tag column-details__tag--computed">CALC</span>
+                                }
+                            </td>
+                            <td class="column-details__type">@col.DataType</td>
+                            <td class="column-details__nullable @(col.IsNullable ? "column-details__nullable--yes" : "column-details__nullable--no")">
+                                @(col.IsNullable ? "Yes" : "No")
+                            </td>
+                            <td class="column-details__default">@(col.DefaultValue ?? "-")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="column-details__footer">
+            @Columns.Count column@(Columns.Count != 1 ? "s" : "")
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<ColumnModel>? Columns { get; set; }
+
+    public sealed record ColumnModel(
+        string Name,
+        int Ordinal,
+        string DataType,
+        bool IsNullable,
+        bool IsIdentity,
+        bool IsComputed,
+        string? DefaultValue);
+}

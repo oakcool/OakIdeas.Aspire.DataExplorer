@@ -1,6 +1,11 @@
 @page "/explorer"
+@using OakIdeas.Aspire.DataExplorer.Contracts.Models
+@using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer
+@using OakIdeas.Aspire.DataExplorer.Web.Abstractions
+@implements IDisposable
+@inject IExplorerService ExplorerService
 
-<PageTitle>Explorer — Data Explorer</PageTitle>
+<PageTitle>@PageTitle</PageTitle>
 
 <div class="de-explorer-page">
     <div class="de-main">
@@ -9,17 +14,320 @@
                 <HeroIcon Kind="HeroIconKind.QueueList" Size="18" Class="de-main__title-icon" />
                 <span>Schema Explorer</span>
             </h2>
-            <StatusBadge Text="Select a table" Variant="info" />
+            @if (_selection is not null)
+            {
+                <StatusBadge Text="@StatusText" Variant="info" />
+            }
+            else
+            {
+                <StatusBadge Text="Select an object" Variant="info" />
+            }
         </div>
 
         <div class="de-explorer-body">
-            <div class="de-explorer-empty">
-                <span class="de-explorer-empty__icon" aria-hidden="true">
-                    <HeroIcon Kind="HeroIconKind.TableCells" Size="36" />
-                </span>
-                <p>Select a table in the Object Explorer to browse its schema.</p>
-            </div>
+            <ObjectDetails @key="_selection?.ObjectId"
+                           Selection="_selection"
+                           Metadata="_objectMetadata"
+                           Definition="_definitionModel"
+                           IsLoading="_isLoading"
+                           IsDefinitionLoading="_isDefinitionLoading" />
         </div>
     </div>
 </div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "objectId")]
+    public string? ObjectId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "objectType")]
+    public string? ObjectType { get; set; }
+
+    [SupplyParameterFromQuery(Name = "objectName")]
+    public string? ObjectName { get; set; }
+
+    [SupplyParameterFromQuery(Name = "schemaName")]
+    public string? SchemaName { get; set; }
+
+    [SupplyParameterFromQuery(Name = "connectionName")]
+    public string? ConnectionName { get; set; }
+
+    [SupplyParameterFromQuery(Name = "databaseName")]
+    public string? DatabaseName { get; set; }
+
+    private ObjectDetails.ObjectModel? _selection;
+    private ObjectDetails.ObjectMetadata? _objectMetadata;
+    private ObjectDetails.DefinitionModel? _definitionModel;
+    private bool _isLoading;
+    private bool _isDefinitionLoading;
+    private CancellationTokenSource? _loadCts;
+
+    private string PageTitle => _selection is null
+        ? "Explorer — Data Explorer"
+        : $"{_selection.SchemaName}.{_selection.ObjectName} — Data Explorer";
+
+    private string StatusText => _selection is null
+        ? "Select an object"
+        : _selection.Kind switch
+        {
+            ObjectDetails.ObjectKind.Table => "Table",
+            ObjectDetails.ObjectKind.View => "View",
+            ObjectDetails.ObjectKind.Procedure => "Procedure",
+            ObjectDetails.ObjectKind.Function => "Function",
+            ObjectDetails.ObjectKind.Trigger => "Trigger",
+            _ => "Object",
+        };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var kind = ParseObjectKind(ObjectType);
+        if (string.IsNullOrWhiteSpace(ObjectId) || kind is null)
+        {
+            _selection = null;
+            _objectMetadata = null;
+            _definitionModel = null;
+            return;
+        }
+
+        _loadCts?.Cancel();
+        _loadCts?.Dispose();
+        var cts = new CancellationTokenSource();
+        _loadCts = cts;
+
+        _selection = new ObjectDetails.ObjectModel(
+            ObjectId: ObjectId,
+            ObjectName: ObjectName ?? ObjectId,
+            SchemaName: SchemaName ?? string.Empty,
+            ConnectionName: ConnectionName ?? string.Empty,
+            DatabaseName: DatabaseName ?? string.Empty,
+            Kind: kind.Value);
+        _objectMetadata = null;
+        _definitionModel = null;
+        _isLoading = true;
+        _isDefinitionLoading = true;
+
+        try
+        {
+            var token = cts.Token;
+            await LoadMetadataAsync(token);
+            await LoadDefinitionAsync(kind.Value, token);
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            if (ReferenceEquals(_loadCts, cts))
+            {
+                _isLoading = false;
+                _isDefinitionLoading = false;
+            }
+        }
+    }
+
+    private async Task LoadMetadataAsync(CancellationToken cancellationToken)
+    {
+        var metadataResponse = await ExplorerService.GetDatabaseMetadataAsync(cancellationToken);
+        var aggregated = metadataResponse.AggregatedMetadata;
+
+        if (aggregated is null || _selection is null)
+        {
+            _isLoading = false;
+            return;
+        }
+
+        var fqn = $"{_selection.SchemaName}.{_selection.ObjectName}";
+
+        var columns = aggregated.ColumnsByObject.TryGetValue(fqn, out var cols)
+            ? cols.Select(c => new ColumnDetails.ColumnModel(
+                Name: c.Name,
+                Ordinal: c.Ordinal,
+                DataType: FormatDataType(c),
+                IsNullable: c.IsNullable,
+                IsIdentity: c.IsIdentity,
+                IsComputed: c.IsComputed,
+                DefaultValue: c.DefaultValue)).ToArray()
+            : null;
+
+        IReadOnlyList<string>? primaryKeyColumns = null;
+        if (aggregated.PrimaryKeysByTable.TryGetValue(fqn, out var pks) && pks.Count > 0)
+        {
+            primaryKeyColumns = pks.SelectMany(pk => pk.KeyColumns).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        }
+
+        IReadOnlyList<RelationshipDetails.ForeignKeyModel>? foreignKeys = null;
+        if (aggregated.ForeignKeysByTable.TryGetValue(fqn, out var fks) && fks.Count > 0)
+        {
+            foreignKeys = fks.Select(fk => new RelationshipDetails.ForeignKeyModel(
+                ConstraintName: fk.ConstraintName,
+                ParentTableName: fk.ParentTableName,
+                ParentSchemaName: fk.ParentSchemaName,
+                ReferencedTableName: fk.ReferencedTableName,
+                ReferencedSchemaName: fk.ReferencedSchemaName,
+                ColumnMappings: fk.KeyColumns.Select(kc => new RelationshipDetails.ColumnMappingModel(
+                    ParentColumnName: kc.ParentColumnName,
+                    ReferencedColumnName: kc.ReferencedColumnName)).ToArray())).ToArray();
+        }
+
+        IReadOnlyList<IndexDetails.IndexModel>? indexes = null;
+        if (aggregated.IndexesByTable.TryGetValue(fqn, out var idxList) && idxList.Count > 0)
+        {
+            indexes = idxList.Select(idx => new IndexDetails.IndexModel(
+                Name: idx.IndexName,
+                IsPrimaryKey: idx.IsPrimaryKey,
+                IsUnique: idx.IsUnique,
+                IsClustered: idx.IsClustered,
+                Columns: idx.Columns)).ToArray();
+        }
+
+        IReadOnlyList<ObjectDetails.ConstraintModel>? constraints = null;
+        var objectConstraints = aggregated.Constraints
+            .Where(c => c.SchemaName.Equals(_selection.SchemaName, StringComparison.OrdinalIgnoreCase)
+                     && c.TableName.Equals(_selection.ObjectName, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (objectConstraints.Length > 0)
+        {
+            constraints = objectConstraints.Select(c => new ObjectDetails.ConstraintModel(
+                ConstraintName: c.ConstraintName,
+                ConstraintKind: c.ConstraintType.ToString(),
+                ColumnName: c.ColumnName,
+                Definition: c.Definition)).ToArray();
+        }
+
+        string? triggerType = null;
+        bool? triggerIsEnabled = null;
+        string? functionType = null;
+        string? returnType = null;
+        IReadOnlyList<ObjectDetails.ParameterModel>? parameters = null;
+
+        if (_selection.Kind is ObjectDetails.ObjectKind.Trigger)
+        {
+            var trigger = aggregated.Triggers
+                .FirstOrDefault(t => t.SchemaName.Equals(_selection.SchemaName, StringComparison.OrdinalIgnoreCase)
+                                  && t.TriggerName.Equals(_selection.ObjectName, StringComparison.OrdinalIgnoreCase));
+            if (trigger is not null)
+            {
+                triggerType = FormatTriggerType(trigger.TriggerType);
+                triggerIsEnabled = trigger.IsEnabled;
+            }
+        }
+        else if (_selection.Kind is ObjectDetails.ObjectKind.Function)
+        {
+            FunctionMetadata? func = null;
+            if (aggregated.FunctionsBySchema.TryGetValue(_selection.SchemaName, out var byType))
+            {
+                func = byType.Values
+                    .SelectMany(list => list)
+                    .FirstOrDefault(f => f.FunctionName.Equals(_selection.ObjectName, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (func is not null)
+            {
+                functionType = func.FunctionType.ToString();
+                returnType = func.ReturnType;
+            }
+        }
+        else if (_selection.Kind is ObjectDetails.ObjectKind.Procedure)
+        {
+            StoredProcedureMetadata? proc = null;
+            if (aggregated.ProceduresBySchema.TryGetValue(_selection.SchemaName, out var procs))
+            {
+                proc = procs.FirstOrDefault(p => p.ProcedureName.Equals(_selection.ObjectName, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (proc?.Parameters is { Count: > 0 } procParams)
+            {
+                parameters = procParams.Select(p => new ObjectDetails.ParameterModel(
+                    Name: p.Name,
+                    DataType: p.DataType)).ToArray();
+            }
+        }
+
+        _objectMetadata = new ObjectDetails.ObjectMetadata(
+            Columns: columns,
+            PrimaryKeyColumns: primaryKeyColumns,
+            ForeignKeys: foreignKeys,
+            Indexes: indexes,
+            Constraints: constraints,
+            TriggerType: triggerType,
+            TriggerIsEnabled: triggerIsEnabled,
+            FunctionType: functionType,
+            ReturnType: returnType,
+            Parameters: parameters);
+
+        _isLoading = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadDefinitionAsync(ObjectDetails.ObjectKind kind, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(ObjectId))
+        {
+            _definitionModel = new ObjectDetails.DefinitionModel(null, false, "Object ID is required.");
+            _isDefinitionLoading = false;
+            return;
+        }
+
+        var contractType = kind switch
+        {
+            ObjectDetails.ObjectKind.Table => DatabaseObjectType.Table,
+            ObjectDetails.ObjectKind.View => DatabaseObjectType.View,
+            ObjectDetails.ObjectKind.Procedure => DatabaseObjectType.Procedure,
+            ObjectDetails.ObjectKind.Function => DatabaseObjectType.Function,
+            ObjectDetails.ObjectKind.Trigger => DatabaseObjectType.Trigger,
+            _ => DatabaseObjectType.Unknown,
+        };
+
+        var response = await ExplorerService.GetObjectDefinitionAsync(ObjectId, contractType, cancellationToken);
+
+        _definitionModel = new ObjectDetails.DefinitionModel(
+            Definition: response.Definition,
+            IsAvailable: response.IsAvailable,
+            UnavailableReason: response.UnavailableReason);
+
+        _isDefinitionLoading = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private static ObjectDetails.ObjectKind? ParseObjectKind(string? objectType)
+        => objectType?.ToLowerInvariant() switch
+        {
+            "table" => ObjectDetails.ObjectKind.Table,
+            "view" => ObjectDetails.ObjectKind.View,
+            "procedure" => ObjectDetails.ObjectKind.Procedure,
+            "function" => ObjectDetails.ObjectKind.Function,
+            "trigger" => ObjectDetails.ObjectKind.Trigger,
+            _ => null,
+        };
+
+    private static string FormatDataType(ColumnMetadata col)
+    {
+        if (col.MaxLength.HasValue && col.MaxLength.Value > 0)
+        {
+            return $"{col.DataType}({col.MaxLength.Value})";
+        }
+
+        if (col.Precision.HasValue && col.Scale.HasValue)
+        {
+            return $"{col.DataType}({col.Precision.Value},{col.Scale.Value})";
+        }
+
+        return col.DataType;
+    }
+
+    private static string FormatTriggerType(TriggerType type)
+    {
+        var parts = new List<string>();
+        if (type.HasFlag(TriggerType.Insert)) parts.Add("INSERT");
+        if (type.HasFlag(TriggerType.Update)) parts.Add("UPDATE");
+        if (type.HasFlag(TriggerType.Delete)) parts.Add("DELETE");
+        var prefix = type.HasFlag(TriggerType.InsteadOf) ? "INSTEAD OF" : "AFTER";
+        return parts.Count > 0 ? $"{prefix} {string.Join(", ", parts)}" : type.ToString();
+    }
+
+    public void Dispose()
+    {
+        _loadCts?.Cancel();
+        _loadCts?.Dispose();
+    }
+}
 

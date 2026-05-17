@@ -1,0 +1,55 @@
+@* Renders foreign key relationships for a table object *@
+<div class="relationship-details">
+    @if (ForeignKeys is null || ForeignKeys.Count == 0)
+    {
+        <EmptyMetadata Message="No foreign key relationships." />
+    }
+    else
+    {
+        <div class="relationship-details__scroll">
+            <table class="relationship-details__grid">
+                <thead>
+                    <tr>
+                        <th>Constraint</th>
+                        <th>Parent Table</th>
+                        <th>Referenced Table</th>
+                        <th>Columns</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var fk in ForeignKeys)
+                    {
+                        <tr>
+                            <td class="relationship-details__name">@fk.ConstraintName</td>
+                            <td class="relationship-details__table">@fk.ParentSchemaName.@fk.ParentTableName</td>
+                            <td class="relationship-details__table">@fk.ReferencedSchemaName.@fk.ReferencedTableName</td>
+                            <td class="relationship-details__columns">
+                                @if (fk.ColumnMappings.Count > 0)
+                                {
+                                    @string.Join(", ", fk.ColumnMappings.Select(c => $"{c.ParentColumnName} → {c.ReferencedColumnName}"))
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<ForeignKeyModel>? ForeignKeys { get; set; }
+
+    public sealed record ForeignKeyModel(
+        string ConstraintName,
+        string ParentTableName,
+        string ParentSchemaName,
+        string ReferencedTableName,
+        string ReferencedSchemaName,
+        IReadOnlyList<ColumnMappingModel> ColumnMappings);
+
+    public sealed record ColumnMappingModel(
+        string ParentColumnName,
+        string ReferencedColumnName);
+}
