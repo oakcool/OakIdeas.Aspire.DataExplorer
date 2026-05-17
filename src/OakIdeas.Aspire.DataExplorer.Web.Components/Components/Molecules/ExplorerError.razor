@@ -1,0 +1,11 @@
+<div class="explorer-state explorer-state--error" role="alert">
+    <span class="explorer-state__icon" aria-hidden="true">
+        <HeroIcon Kind="HeroIconKind.ExclamationTriangle" Size="18" />
+    </span>
+    <span>@ErrorMessage</span>
+</div>
+
+@code {
+    [Parameter]
+    public string ErrorMessage { get; set; } = "Unable to load database metadata.";
+}

@@ -23,29 +23,46 @@ public sealed class ObjectExplorerModelTests
     }
 
     [Fact]
-    public void SchemaNode_StoresNameAndTables()
+    public void SchemaNode_StoresTypeGroups()
     {
-        var node = new ObjectExplorer.SchemaNode("dbo", ["Users", "Orders"]);
+        var table = new ObjectExplorer.ObjectNodeModel("dbo.Users", "Users", ObjectExplorer.ObjectKind.Table);
+        var view = new ObjectExplorer.ObjectNodeModel("dbo.ActiveUsers", "ActiveUsers", ObjectExplorer.ObjectKind.View);
+        var node = new ObjectExplorer.SchemaNode("dbo", [table], [view], [], [], []);
 
         node.Name.Should().Be("dbo");
-        node.Tables.Should().Equal("Users", "Orders");
+        node.Tables.Should().ContainSingle().Which.Name.Should().Be("Users");
+        node.Views.Should().ContainSingle().Which.Name.Should().Be("ActiveUsers");
     }
 
     [Fact]
-    public void TableSelection_StoresAllFields()
+    public void ObjectSelection_StoresAllFields()
     {
-        var sel = new ObjectExplorer.TableSelection("sample", "dbo", "Users");
+        var selection = new ObjectExplorer.ObjectSelection(
+            "sample",
+            "applicationdb",
+            "dbo",
+            "dbo.Users",
+            "Users",
+            ObjectExplorer.ObjectKind.Table);
 
-        sel.ConnectionName.Should().Be("sample");
-        sel.SchemaName.Should().Be("dbo");
-        sel.TableName.Should().Be("Users");
+        selection.ConnectionName.Should().Be("sample");
+        selection.DatabaseName.Should().Be("applicationdb");
+        selection.SchemaName.Should().Be("dbo");
+        selection.ObjectId.Should().Be("dbo.Users");
+        selection.ObjectName.Should().Be("Users");
+        selection.ObjectKind.Should().Be(ObjectExplorer.ObjectKind.Table);
     }
 
     [Fact]
     public void ConnectionNode_CanBeNestedDeep()
     {
-        var tables = (IReadOnlyList<string>)["Users", "Products", "Orders"];
-        var schema = new ObjectExplorer.SchemaNode("dbo", tables);
+        var tables = (IReadOnlyList<ObjectExplorer.ObjectNodeModel>)
+        [
+            new("dbo.Users", "Users", ObjectExplorer.ObjectKind.Table),
+            new("dbo.Products", "Products", ObjectExplorer.ObjectKind.Table),
+            new("dbo.Orders", "Orders", ObjectExplorer.ObjectKind.Table),
+        ];
+        var schema = new ObjectExplorer.SchemaNode("dbo", tables, [], [], [], []);
         var db = new ObjectExplorer.DatabaseNode("applicationdb", [schema]);
         var conn = new ObjectExplorer.ConnectionNode("my-connection", [db]);
 
@@ -55,11 +72,14 @@ public sealed class ObjectExplorerModelTests
     }
 
     [Fact]
-    public void SchemaNode_TablesAreOrdered_AsProvided()
+    public void SchemaNode_HasAnyObjectsReflectsGroups()
     {
-        var tables = (IReadOnlyList<string>)["Zebra", "Alpha", "Middle"];
-        var node = new ObjectExplorer.SchemaNode("dbo", tables);
+        var empty = new ObjectExplorer.SchemaNode("dbo", [], [], [], [], []);
+        var populated = new ObjectExplorer.SchemaNode("dbo", [], [], [], [
+            new ObjectExplorer.ObjectNodeModel("dbo.FormatName", "FormatName", ObjectExplorer.ObjectKind.Function)
+        ], []);
 
-        node.Tables.Should().Equal("Zebra", "Alpha", "Middle");
+        empty.HasAnyObjects.Should().BeFalse();
+        populated.HasAnyObjects.Should().BeTrue();
     }
 }

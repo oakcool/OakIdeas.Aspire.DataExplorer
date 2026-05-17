@@ -1,8 +1,13 @@
 @inherits LayoutComponentBase
+@implements IDisposable
 @using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Atoms
 @using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Molecules
+@using OakIdeas.Aspire.DataExplorer.Contracts.Models
+@using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer
+@using OakIdeas.Aspire.DataExplorer.Web.Abstractions
 @using Microsoft.AspNetCore.Components.Web
 @inject NavigationManager NavigationManager
+@inject IExplorerService ExplorerService
 
 <div class="de-shell">
     <AlertBanner />
@@ -37,10 +42,13 @@
          @onpointerleave="StopSidebarResize">
         <aside class="de-layout-sidebar @( _isExplorerMinimized ? "de-layout-sidebar--minimized" : string.Empty )"
                style="--explorer-width: @ExplorerWidthPx;">
-            <ObjectExplorer IsLoading="false"
+            <ObjectExplorer IsLoading="@_isExplorerLoading"
+                            ErrorMessage="@_explorerErrorMessage"
                             Connections="@_connections"
+                            SelectedObject="@_selectedObject"
+                            OnConnectionSelect="HandleConnectionSelect"
                             IsMinimized="_isExplorerMinimized"
-                            OnTableSelect="HandleTableSelect"
+                            OnObjectSelect="HandleObjectSelect"
                             OnRefresh="HandleRefresh"
                             OnMinimizeToggle="HandleExplorerMinimizeToggle" />
         </aside>
@@ -74,20 +82,42 @@
     private int _explorerWidth = 300;
     private bool _isExplorerMinimized;
     private bool _isResizingSidebar;
+    private bool _isExplorerLoading;
+    private string? _explorerErrorMessage;
+    private ObjectExplorer.ObjectSelection? _selectedObject;
+    private CancellationTokenSource? _explorerLoadCts;
 
-    private List<ObjectExplorer.ConnectionNode> _connections = [
-        new("sample", [
-            new("applicationdb", [
-                new("dbo", ["Users", "TodoItems", "Logs"])
-            ])
-        ])
-    ];
+    private readonly List<ObjectExplorer.ConnectionNode> _connections = [];
 
     private string ExplorerWidthPx => $"{_explorerWidth}px";
 
-    private void HandleRefresh()
+    protected override async Task OnInitializedAsync()
     {
-        // Refresh connections would go here.
+        await LoadObjectExplorerAsync(forceRefresh: false);
+    }
+
+    private Task HandleRefresh()
+    {
+        return LoadObjectExplorerAsync(forceRefresh: true);
+    }
+
+    private void HandleConnectionSelect(string _)
+    {
+    }
+
+    private void HandleObjectSelect(ObjectExplorer.ObjectSelection selection)
+    {
+        _selectedObject = selection;
+
+        if (selection.ObjectKind is not ObjectExplorer.ObjectKind.Table)
+        {
+            return;
+        }
+
+        var connection = Uri.EscapeDataString(selection.ConnectionName);
+        var schema = Uri.EscapeDataString(selection.SchemaName);
+        var table = Uri.EscapeDataString(selection.ObjectName);
+        NavigationManager.NavigateTo($"/tables/{connection}/{schema}/{table}");
     }
 
     private void HandleExplorerMinimizeToggle(bool minimized)
@@ -95,9 +125,73 @@
         _isExplorerMinimized = minimized;
     }
 
-    private void HandleTableSelect(ObjectExplorer.TableSelection selection)
+    private async Task LoadObjectExplorerAsync(bool forceRefresh)
     {
-        NavigationManager.NavigateTo($"/tables/{selection.ConnectionName}/{selection.SchemaName}/{selection.TableName}");
+        _explorerLoadCts?.Cancel();
+        _explorerLoadCts?.Dispose();
+        var loadCts = new CancellationTokenSource();
+        _explorerLoadCts = loadCts;
+
+        _isExplorerLoading = true;
+        _explorerErrorMessage = null;
+
+        try
+        {
+            var token = loadCts.Token;
+            var available = await ExplorerService.GetAvailableDatabasesAsync(token);
+            var selected = await EnsureSelectedDatabaseAsync(available, token);
+            if (selected is null)
+            {
+                _connections.Clear();
+                return;
+            }
+
+            if (forceRefresh)
+            {
+                var refreshResponse = await ExplorerService.RefreshDatabaseMetadataAsync(token);
+                if (refreshResponse.Status is RefreshStatus.Failed && refreshResponse.Errors.Any())
+                {
+                    _explorerErrorMessage = refreshResponse.Errors[0];
+                    _connections.Clear();
+                    return;
+                }
+            }
+
+            var metadataResponse = await ExplorerService.GetDatabaseMetadataAsync(token);
+            if (metadataResponse.Errors.Any())
+            {
+                _explorerErrorMessage = string.Join(" ", metadataResponse.Errors);
+                _connections.Clear();
+                return;
+            }
+
+            if (metadataResponse.Metadata is null)
+            {
+                _connections.Clear();
+                return;
+            }
+
+            var connectionNode = BuildConnectionNode(selected, metadataResponse.Metadata);
+            _connections.Clear();
+            _connections.Add(connectionNode);
+        }
+        catch (OperationCanceledException) when (loadCts.IsCancellationRequested)
+        {
+        }
+        catch
+        {
+            _explorerErrorMessage = "Unable to load metadata for Object Explorer.";
+            _connections.Clear();
+        }
+        finally
+        {
+            if (ReferenceEquals(_explorerLoadCts, loadCts))
+            {
+                _isExplorerLoading = false;
+            }
+
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private void StartSidebarResize(PointerEventArgs _)
@@ -119,5 +213,156 @@
     private void StopSidebarResize(PointerEventArgs _)
     {
         _isResizingSidebar = false;
+    }
+
+    public void Dispose()
+    {
+        _explorerLoadCts?.Cancel();
+        _explorerLoadCts?.Dispose();
+    }
+
+    private async Task<ExplorerDatabaseSelection?> EnsureSelectedDatabaseAsync(
+        GetAvailableDatabasesResponse available,
+        CancellationToken cancellationToken)
+    {
+        if (!available.Resources.Any())
+        {
+            return null;
+        }
+
+        var selectedResponse = await ExplorerService.GetSelectedDatabaseAsync(cancellationToken);
+        if (selectedResponse.Selection is not null && selectedResponse.Selection.IsValid)
+        {
+            return selectedResponse.Selection;
+        }
+
+        var target = available.Resources.FirstOrDefault(resource => resource.IsAvailable) ?? available.Resources[0];
+        var selectionResponse = await ExplorerService.SelectDatabaseAsync(target.ResourceId, cancellationToken);
+        if (!selectionResponse.Succeeded || selectionResponse.Selection is null)
+        {
+            _explorerErrorMessage = selectionResponse.ValidationErrors.FirstOrDefault()
+                ?? "Unable to select a database resource for metadata loading.";
+            return null;
+        }
+
+        return selectionResponse.Selection;
+    }
+
+    private static ObjectExplorer.ConnectionNode BuildConnectionNode(
+        ExplorerDatabaseSelection selected,
+        DatabaseMetadataRoot metadata)
+        => new(
+            selected.ResourceName,
+            [
+                new ObjectExplorer.DatabaseNode(
+                    selected.DatabaseName,
+                    BuildSchemaNodes(metadata))
+            ]);
+
+    private static IReadOnlyList<ObjectExplorer.SchemaNode> BuildSchemaNodes(DatabaseMetadataRoot metadata)
+    {
+        var schemas = new Dictionary<string, SchemaAccumulator>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (objectType, objectsByName) in metadata.Objects)
+        {
+            foreach (var databaseObject in objectsByName.Values)
+            {
+                var schemaName = ResolveSchemaName(databaseObject);
+                var schema = GetOrCreateSchema(schemas, schemaName);
+
+                switch (objectType)
+                {
+                    case DatabaseObjectType.Table:
+                        schema.Tables.Add(new ObjectExplorer.ObjectNodeModel(
+                            databaseObject.ObjectId,
+                            databaseObject.ObjectName,
+                            ObjectExplorer.ObjectKind.Table));
+                        break;
+                    case DatabaseObjectType.View:
+                        schema.Views.Add(new ObjectExplorer.ObjectNodeModel(
+                            databaseObject.ObjectId,
+                            databaseObject.ObjectName,
+                            ObjectExplorer.ObjectKind.View));
+                        break;
+                    case DatabaseObjectType.Procedure:
+                        schema.Procedures.Add(new ObjectExplorer.ObjectNodeModel(
+                            databaseObject.ObjectId,
+                            databaseObject.ObjectName,
+                            ObjectExplorer.ObjectKind.Procedure));
+                        break;
+                    case DatabaseObjectType.Function:
+                        schema.Functions.Add(new ObjectExplorer.ObjectNodeModel(
+                            databaseObject.ObjectId,
+                            databaseObject.ObjectName,
+                            ObjectExplorer.ObjectKind.Function));
+                        break;
+                    case DatabaseObjectType.Trigger:
+                        schema.Triggers.Add(new ObjectExplorer.ObjectNodeModel(
+                            databaseObject.ObjectId,
+                            databaseObject.ObjectName,
+                            ObjectExplorer.ObjectKind.Trigger));
+                        break;
+                    case DatabaseObjectType.Schema:
+                        break;
+                }
+            }
+        }
+
+        return schemas
+            .OrderBy(schema => schema.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(schema => new ObjectExplorer.SchemaNode(
+                schema.Key,
+                Sort(schema.Value.Tables),
+                Sort(schema.Value.Views),
+                Sort(schema.Value.Procedures),
+                Sort(schema.Value.Functions),
+                Sort(schema.Value.Triggers)))
+            .ToArray();
+    }
+
+    private static SchemaAccumulator GetOrCreateSchema(
+        IDictionary<string, SchemaAccumulator> schemas,
+        string schemaName)
+    {
+        if (!schemas.TryGetValue(schemaName, out var schema))
+        {
+            schema = new SchemaAccumulator();
+            schemas[schemaName] = schema;
+        }
+
+        return schema;
+    }
+
+    private static string ResolveSchemaName(DatabaseObject databaseObject)
+    {
+        if (databaseObject is SchemaBoundDatabaseObject schemaBoundObject)
+        {
+            return schemaBoundObject.SchemaName;
+        }
+
+        if (databaseObject is SchemaObject schemaObject)
+        {
+            return schemaObject.ObjectName;
+        }
+
+        var dotIndex = databaseObject.FullyQualifiedName.IndexOf('.', StringComparison.Ordinal);
+        return dotIndex > 0
+            ? databaseObject.FullyQualifiedName[..dotIndex]
+            : "default";
+    }
+
+    private static IReadOnlyList<ObjectExplorer.ObjectNodeModel> Sort(IEnumerable<ObjectExplorer.ObjectNodeModel> objects)
+        => objects
+            .OrderBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.ObjectId, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private sealed class SchemaAccumulator
+    {
+        public List<ObjectExplorer.ObjectNodeModel> Tables { get; } = [];
+        public List<ObjectExplorer.ObjectNodeModel> Views { get; } = [];
+        public List<ObjectExplorer.ObjectNodeModel> Procedures { get; } = [];
+        public List<ObjectExplorer.ObjectNodeModel> Functions { get; } = [];
+        public List<ObjectExplorer.ObjectNodeModel> Triggers { get; } = [];
     }
 }
