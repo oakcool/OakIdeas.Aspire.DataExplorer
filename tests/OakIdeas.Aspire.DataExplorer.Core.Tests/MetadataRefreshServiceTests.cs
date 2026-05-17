@@ -61,6 +61,22 @@ public sealed class MetadataRefreshServiceTests
     }
 
     [Fact]
+    public async Task RefreshDatabaseMetadataAsync_WhenAggregationAlreadyCachesMetadata_DoesNotWriteDuplicateCacheEntry()
+    {
+        var expectedMetadata = CreateMetadataRoot("applicationdb", "sql-main");
+        var cache = new SpyMetadataCache();
+        var aggregation = new CachingMetadataAggregationService(expectedMetadata, cache);
+        using var service = new MetadataRefreshService(aggregation, cache, CreateErrorHandler());
+        var context = CreateSelectedDatabaseContext("sql-main", "applicationdb");
+
+        await service.RefreshDatabaseMetadataAsync(context, CancellationToken.None);
+
+        cache.SetCallCount.Should().Be(1);
+        cache.StoredMetadata.Should().ContainKey(("sql-main", "applicationdb"));
+        cache.StoredMetadata[("sql-main", "applicationdb")].Should().Be(expectedMetadata);
+    }
+
+    [Fact]
     public async Task RefreshDatabaseMetadataAsync_WhenConcurrentRefreshRequested_ReturnsInProgress()
     {
         var barrier = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -249,6 +265,27 @@ public sealed class MetadataRefreshServiceTests
         }
     }
 
+    private sealed class CachingMetadataAggregationService(
+        DatabaseMetadataRoot metadata,
+        IMetadataCache metadataCache) : IMetadataAggregationService
+    {
+        private readonly DatabaseMetadataRoot _metadata = metadata;
+        private readonly IMetadataCache _metadataCache = metadataCache;
+
+        public async Task<DiscoverDatabaseMetadataResponse> GetDatabaseMetadataAsync(
+            SelectedDatabaseContext selectedDbContext,
+            CancellationToken cancellationToken)
+        {
+            await _metadataCache.SetAsync(
+                selectedDbContext.Resource.ResourceId,
+                selectedDbContext.Resource.DatabaseName,
+                _metadata,
+                cancellationToken);
+
+            return new DiscoverDatabaseMetadataResponse(_metadata);
+        }
+    }
+
     private sealed class BlockingMetadataAggregationService(Task releaseSignal) : IMetadataAggregationService
     {
         private readonly Task _releaseSignal = releaseSignal;
@@ -276,6 +313,7 @@ public sealed class MetadataRefreshServiceTests
         public List<(string ResourceId, string DatabaseName)> InvalidatedKeys { get; } = [];
         public Dictionary<(string, string), DatabaseMetadataRoot> StoredMetadata => _store;
         public bool InvalidationCalledBeforeAggregation { get; private set; }
+        public int SetCallCount { get; private set; }
         private bool _setHasBeenCalled;
 
         public Task<DatabaseMetadataRoot?> GetAsync(
@@ -293,6 +331,7 @@ public sealed class MetadataRefreshServiceTests
             DatabaseMetadataRoot metadata,
             CancellationToken cancellationToken)
         {
+            SetCallCount++;
             _setHasBeenCalled = true;
             _store[(resourceId, databaseName)] = metadata;
             return Task.CompletedTask;

@@ -47,6 +47,7 @@ See:
 
 - [Architecture overview](docs/architecture/overview.md)
 - [Metadata discovery architecture](docs/architecture/metadata-discovery.md)
+- [Architecture review and next steps](docs/architecture/architecture-review-2026-05.md)
 - [Usage quickstart](docs/usage/quickstart.md)
 
 ## Metadata feature completeness (current)

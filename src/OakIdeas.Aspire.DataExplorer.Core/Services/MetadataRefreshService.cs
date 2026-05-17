@@ -63,11 +63,19 @@ public sealed class MetadataRefreshService(
                 selectedDbContext,
                 cancellationToken);
 
-            await _metadataCache.SetAsync(
+            var cachedMetadata = await _metadataCache.GetAsync(
                 selectedDbContext.Resource.ResourceId,
                 selectedDbContext.Resource.DatabaseName,
-                aggregationResponse.Metadata,
                 cancellationToken);
+
+            if (cachedMetadata is null)
+            {
+                await _metadataCache.SetAsync(
+                    selectedDbContext.Resource.ResourceId,
+                    selectedDbContext.Resource.DatabaseName,
+                    aggregationResponse.Metadata,
+                    cancellationToken);
+            }
 
             var completedResponse = new RefreshMetadataResponse(
                 Status: RefreshStatus.Completed,
