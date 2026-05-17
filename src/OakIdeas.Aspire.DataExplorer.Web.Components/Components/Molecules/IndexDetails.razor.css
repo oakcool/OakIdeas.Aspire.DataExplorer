@@ -1,0 +1,73 @@
+.index-details__scroll {
+    overflow-x: auto;
+}
+
+.index-details__grid {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+    color: #c9d1d9;
+}
+
+.index-details__grid th {
+    padding: 0.3rem 0.6rem;
+    text-align: left;
+    font-weight: 600;
+    color: #8b949e;
+    border-bottom: 1px solid #21262d;
+    white-space: nowrap;
+}
+
+.index-details__grid td {
+    padding: 0.3rem 0.6rem;
+    border-bottom: 1px solid #161b22;
+}
+
+.index-details__grid tr:last-child td {
+    border-bottom: none;
+}
+
+.index-details__grid tr:hover td {
+    background: #161b22;
+}
+
+.index-details__name {
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.index-details__type {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    white-space: nowrap;
+}
+
+.index-details__badge {
+    display: inline-block;
+    padding: 0.05rem 0.35rem;
+    border-radius: 3px;
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+.index-details__badge--pk {
+    background: #2d2a1e;
+    color: #e3b341;
+}
+
+.index-details__badge--unique {
+    background: #1f2d3d;
+    color: #58a6ff;
+}
+
+.index-details__clustered {
+    font-size: 0.75rem;
+    color: #8b949e;
+}
+
+.index-details__columns {
+    font-family: 'Cascadia Code', 'Consolas', 'SFMono-Regular', monospace;
+    font-size: 0.77rem;
+    color: #a5d6ff;
+}

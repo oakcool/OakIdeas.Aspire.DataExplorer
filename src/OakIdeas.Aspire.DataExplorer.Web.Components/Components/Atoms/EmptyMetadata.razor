@@ -1,0 +1,7 @@
+@* Placeholder rendered when a metadata section is unavailable or empty *@
+<span class="empty-metadata" role="note">@Message</span>
+
+@code {
+    [Parameter]
+    public string Message { get; set; } = "Not available";
+}

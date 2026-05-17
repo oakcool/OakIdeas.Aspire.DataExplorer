@@ -1,0 +1,42 @@
+@* Displays a SQL object definition in a styled code block *@
+<div class="definition-viewer">
+    @if (IsLoading)
+    {
+        <div class="definition-viewer__loading">
+            <LoadingSpinner Label="Loading definition…" />
+        </div>
+    }
+    else if (!IsAvailable)
+    {
+        <div class="definition-viewer__unavailable">
+            <span class="definition-viewer__unavailable-icon" aria-hidden="true">
+                <HeroIcon Kind="HeroIconKind.ExclamationTriangle" Size="16" />
+            </span>
+            <span>@(UnavailableReason ?? "Definition not available.")</span>
+        </div>
+    }
+    else if (string.IsNullOrWhiteSpace(Definition))
+    {
+        <EmptyMetadata Message="Definition is empty." />
+    }
+    else
+    {
+        <div class="definition-viewer__code-wrap">
+            <pre class="definition-viewer__pre"><code class="definition-viewer__code">@Definition</code></pre>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string? Definition { get; set; }
+
+    [Parameter]
+    public bool IsAvailable { get; set; }
+
+    [Parameter]
+    public string? UnavailableReason { get; set; }
+
+    [Parameter]
+    public bool IsLoading { get; set; }
+}

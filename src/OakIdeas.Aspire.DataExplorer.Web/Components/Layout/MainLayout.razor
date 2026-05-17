@@ -109,15 +109,24 @@
     {
         _selectedObject = selection;
 
-        if (selection.ObjectKind is not ObjectExplorer.ObjectKind.Table)
+        var objectType = selection.ObjectKind switch
         {
-            return;
-        }
+            ObjectExplorer.ObjectKind.Table => "table",
+            ObjectExplorer.ObjectKind.View => "view",
+            ObjectExplorer.ObjectKind.Procedure => "procedure",
+            ObjectExplorer.ObjectKind.Function => "function",
+            ObjectExplorer.ObjectKind.Trigger => "trigger",
+            _ => "table",
+        };
 
-        var connection = Uri.EscapeDataString(selection.ConnectionName);
-        var schema = Uri.EscapeDataString(selection.SchemaName);
-        var table = Uri.EscapeDataString(selection.ObjectName);
-        NavigationManager.NavigateTo($"/tables/{connection}/{schema}/{table}");
+        var query = $"objectId={Uri.EscapeDataString(selection.ObjectId)}" +
+                    $"&objectType={Uri.EscapeDataString(objectType)}" +
+                    $"&objectName={Uri.EscapeDataString(selection.ObjectName)}" +
+                    $"&schemaName={Uri.EscapeDataString(selection.SchemaName)}" +
+                    $"&connectionName={Uri.EscapeDataString(selection.ConnectionName)}" +
+                    $"&databaseName={Uri.EscapeDataString(selection.DatabaseName)}";
+
+        NavigationManager.NavigateTo($"/explorer?{query}");
     }
 
     private void HandleExplorerMinimizeToggle(bool minimized)

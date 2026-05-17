@@ -1,0 +1,264 @@
+@* Displays detailed metadata for a selected database object *@
+@if (Selection is null)
+{
+    <div class="object-details--empty">
+        <span class="object-details__empty-icon" aria-hidden="true">
+            <HeroIcon Kind="HeroIconKind.TableCells" Size="36" />
+        </span>
+        <p>Select an object in the explorer to view its details.</p>
+    </div>
+}
+else if (IsLoading)
+{
+    <div class="object-details__loading">
+        <LoadingSpinner Label="Loading object details…" />
+    </div>
+}
+else
+{
+    @* Use @key to force re-render when the selected object changes *@
+    <div @key="@Selection.ObjectId" class="object-details">
+        <div class="object-details__header">
+            <span class="object-details__icon" aria-hidden="true">
+                <HeroIcon Kind="@KindIcon" Size="18" />
+            </span>
+            <div class="object-details__title-group">
+                <span class="object-details__schema">@Selection.SchemaName</span>
+                <span class="object-details__sep" aria-hidden="true">.</span>
+                <span class="object-details__name">@Selection.ObjectName</span>
+            </div>
+            <span class="object-details__kind-badge">@KindLabel</span>
+        </div>
+
+        <div class="object-details__body">
+            @if (Selection.Kind is ObjectKind.Table)
+            {
+                <MetadataSection Title="Columns" Badge="@(Metadata?.Columns?.Count.ToString() ?? string.Empty)">
+                    <ColumnDetails Columns="@Metadata?.Columns" />
+                </MetadataSection>
+
+                <MetadataSection Title="Primary Key">
+                    @if (Metadata?.PrimaryKeyColumns is { Count: > 0 } pkCols)
+                    {
+                        <span class="object-details__pk-cols">@string.Join(", ", pkCols)</span>
+                    }
+                    else
+                    {
+                        <EmptyMetadata Message="No primary key defined." />
+                    }
+                </MetadataSection>
+
+                <MetadataSection Title="Foreign Keys" Badge="@(Metadata?.ForeignKeys?.Count.ToString() ?? string.Empty)">
+                    <RelationshipDetails ForeignKeys="@Metadata?.ForeignKeys" />
+                </MetadataSection>
+
+                <MetadataSection Title="Indexes" Badge="@(Metadata?.Indexes?.Count.ToString() ?? string.Empty)">
+                    <IndexDetails Indexes="@Metadata?.Indexes" />
+                </MetadataSection>
+
+                <MetadataSection Title="Constraints" Badge="@(Metadata?.Constraints?.Count.ToString() ?? string.Empty)">
+                    @if (Metadata?.Constraints is { Count: > 0 } constraints)
+                    {
+                        <div class="object-details__constraint-list">
+                            @foreach (var constraint in constraints)
+                            {
+                                <div class="object-details__constraint">
+                                    <span class="object-details__constraint-kind">@constraint.ConstraintKind</span>
+                                    <span class="object-details__constraint-name">@constraint.ConstraintName</span>
+                                    @if (!string.IsNullOrEmpty(constraint.ColumnName))
+                                    {
+                                        <span class="object-details__constraint-col">on @constraint.ColumnName</span>
+                                    }
+                                    @if (!string.IsNullOrEmpty(constraint.Definition))
+                                    {
+                                        <span class="object-details__constraint-def">@constraint.Definition</span>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <EmptyMetadata Message="No additional constraints." />
+                    }
+                </MetadataSection>
+            }
+            else if (Selection.Kind is ObjectKind.View)
+            {
+                <MetadataSection Title="Columns" Badge="@(Metadata?.Columns?.Count.ToString() ?? string.Empty)">
+                    <ColumnDetails Columns="@Metadata?.Columns" />
+                </MetadataSection>
+
+                <MetadataSection Title="Definition">
+                    <DefinitionViewer Definition="@Definition?.Definition"
+                                      IsAvailable="@(Definition?.IsAvailable ?? false)"
+                                      UnavailableReason="@Definition?.UnavailableReason"
+                                      IsLoading="@IsDefinitionLoading" />
+                </MetadataSection>
+            }
+            else if (Selection.Kind is ObjectKind.Procedure)
+            {
+                @if (Metadata?.Parameters is { Count: > 0 } parameters)
+                {
+                    <MetadataSection Title="Parameters" Badge="@parameters.Count.ToString()">
+                        <div class="object-details__param-list">
+                            @foreach (var param in parameters)
+                            {
+                                <div class="object-details__param">
+                                    <span class="object-details__param-name">@param.Name</span>
+                                    <span class="object-details__param-type">@param.DataType</span>
+                                </div>
+                            }
+                        </div>
+                    </MetadataSection>
+                }
+
+                <MetadataSection Title="Definition">
+                    <DefinitionViewer Definition="@Definition?.Definition"
+                                      IsAvailable="@(Definition?.IsAvailable ?? false)"
+                                      UnavailableReason="@Definition?.UnavailableReason"
+                                      IsLoading="@IsDefinitionLoading" />
+                </MetadataSection>
+            }
+            else if (Selection.Kind is ObjectKind.Function)
+            {
+                <MetadataSection Title="Details">
+                    <div class="object-details__function-info">
+                        @if (!string.IsNullOrEmpty(Metadata?.FunctionType))
+                        {
+                            <div class="object-details__info-row">
+                                <span class="object-details__info-label">Type</span>
+                                <span class="object-details__info-value">@Metadata.FunctionType</span>
+                            </div>
+                        }
+                        @if (!string.IsNullOrEmpty(Metadata?.ReturnType))
+                        {
+                            <div class="object-details__info-row">
+                                <span class="object-details__info-label">Returns</span>
+                                <span class="object-details__info-value object-details__info-value--code">@Metadata.ReturnType</span>
+                            </div>
+                        }
+                    </div>
+                </MetadataSection>
+
+                <MetadataSection Title="Definition">
+                    <DefinitionViewer Definition="@Definition?.Definition"
+                                      IsAvailable="@(Definition?.IsAvailable ?? false)"
+                                      UnavailableReason="@Definition?.UnavailableReason"
+                                      IsLoading="@IsDefinitionLoading" />
+                </MetadataSection>
+            }
+            else if (Selection.Kind is ObjectKind.Trigger)
+            {
+                <MetadataSection Title="Details">
+                    <div class="object-details__trigger-info">
+                        @if (!string.IsNullOrEmpty(Metadata?.TriggerType))
+                        {
+                            <div class="object-details__info-row">
+                                <span class="object-details__info-label">Events</span>
+                                <span class="object-details__info-value">@Metadata.TriggerType</span>
+                            </div>
+                        }
+                        @if (Metadata?.TriggerIsEnabled.HasValue == true)
+                        {
+                            <div class="object-details__info-row">
+                                <span class="object-details__info-label">Status</span>
+                                <span class="object-details__info-value @(Metadata.TriggerIsEnabled.Value ? "object-details__info-value--enabled" : "object-details__info-value--disabled")">
+                                    @(Metadata.TriggerIsEnabled.Value ? "Enabled" : "Disabled")
+                                </span>
+                            </div>
+                        }
+                    </div>
+                </MetadataSection>
+
+                <MetadataSection Title="Definition">
+                    <DefinitionViewer Definition="@Definition?.Definition"
+                                      IsAvailable="@(Definition?.IsAvailable ?? false)"
+                                      UnavailableReason="@Definition?.UnavailableReason"
+                                      IsLoading="@IsDefinitionLoading" />
+                </MetadataSection>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public ObjectModel? Selection { get; set; }
+
+    [Parameter]
+    public ObjectMetadata? Metadata { get; set; }
+
+    [Parameter]
+    public DefinitionModel? Definition { get; set; }
+
+    [Parameter]
+    public bool IsLoading { get; set; }
+
+    [Parameter]
+    public bool IsDefinitionLoading { get; set; }
+
+    private HeroIconKind KindIcon => Selection?.Kind switch
+    {
+        ObjectKind.Table => HeroIconKind.TableCells,
+        ObjectKind.View => HeroIconKind.QueueList,
+        ObjectKind.Procedure => HeroIconKind.Play,
+        ObjectKind.Function => HeroIconKind.CodeBracket,
+        ObjectKind.Trigger => HeroIconKind.Link,
+        _ => HeroIconKind.TableCells,
+    };
+
+    private string KindLabel => Selection?.Kind switch
+    {
+        ObjectKind.Table => "Table",
+        ObjectKind.View => "View",
+        ObjectKind.Procedure => "Procedure",
+        ObjectKind.Function => "Function",
+        ObjectKind.Trigger => "Trigger",
+        _ => string.Empty,
+    };
+
+    public sealed record ObjectModel(
+        string ObjectId,
+        string ObjectName,
+        string SchemaName,
+        string ConnectionName,
+        string DatabaseName,
+        ObjectKind Kind);
+
+    public sealed record ObjectMetadata(
+        IReadOnlyList<ColumnDetails.ColumnModel>? Columns = null,
+        IReadOnlyList<string>? PrimaryKeyColumns = null,
+        IReadOnlyList<RelationshipDetails.ForeignKeyModel>? ForeignKeys = null,
+        IReadOnlyList<IndexDetails.IndexModel>? Indexes = null,
+        IReadOnlyList<ConstraintModel>? Constraints = null,
+        string? TriggerType = null,
+        bool? TriggerIsEnabled = null,
+        string? FunctionType = null,
+        string? ReturnType = null,
+        IReadOnlyList<ParameterModel>? Parameters = null);
+
+    public sealed record DefinitionModel(
+        string? Definition,
+        bool IsAvailable,
+        string? UnavailableReason = null);
+
+    public sealed record ConstraintModel(
+        string ConstraintName,
+        string ConstraintKind,
+        string? ColumnName,
+        string? Definition);
+
+    public sealed record ParameterModel(
+        string Name,
+        string DataType);
+
+    public enum ObjectKind
+    {
+        Table,
+        View,
+        Procedure,
+        Function,
+        Trigger,
+    }
+}
