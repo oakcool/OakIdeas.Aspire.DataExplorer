@@ -1,4 +1,12 @@
+using Microsoft.Extensions.Hosting;
+using OakIdeas.Aspire.DataExplorer.Hosting.Extensions;
+
 var builder = DistributedApplication.CreateBuilder(args);
+
+if (builder.Environment.IsDevelopment())
+{
+    builder.AddDataExplorer();
+}
 
 var sql = builder.AddSqlServer("sql")
     .AddDatabase("applicationdb");

@@ -46,6 +46,54 @@ public sealed class ExplorerServiceTests
     }
 
     [Fact]
+    public async Task SelectDatabaseAsync_WhenResourceExists_ReturnsSelectedDatabase()
+    {
+        var resources = new[]
+        {
+            CreateResource("sql-main", "applicationdb"),
+            CreateResource("sql-analytics", "analyticsdb"),
+        };
+
+        var selectedService = new StubSelectedDatabaseService(
+            selectedContext: null,
+            availableResources: resources);
+
+        var service = CreateService(selectedDatabaseService: selectedService);
+
+        var response = await service.SelectDatabaseAsync("sql-analytics", CancellationToken.None);
+
+        response.Succeeded.Should().BeTrue();
+        response.Selection.Should().NotBeNull();
+        response.Selection!.ResourceId.Should().Be("sql-analytics");
+        response.Selection.DatabaseName.Should().Be("analyticsdb");
+    }
+
+    [Fact]
+    public async Task GetDatabaseMetadataAsync_WhenDatabaseChanges_ReturnsMetadataForSelectedDatabase()
+    {
+        var resources = new[]
+        {
+            CreateResource("sql-main", "applicationdb"),
+            CreateResource("sql-analytics", "analyticsdb"),
+        };
+
+        var selectedService = new StubSelectedDatabaseService(
+            selectedContext: CreateSelectedContext("sql-main", "applicationdb"),
+            availableResources: resources);
+
+        var service = CreateService(selectedDatabaseService: selectedService);
+
+        var firstResponse = await service.GetDatabaseMetadataAsync(CancellationToken.None);
+        await service.SelectDatabaseAsync("sql-analytics", CancellationToken.None);
+        var secondResponse = await service.GetDatabaseMetadataAsync(CancellationToken.None);
+
+        firstResponse.Metadata.Should().NotBeNull();
+        firstResponse.Metadata!.DatabaseName.Should().Be("applicationdb");
+        secondResponse.Metadata.Should().NotBeNull();
+        secondResponse.Metadata!.DatabaseName.Should().Be("analyticsdb");
+    }
+
+    [Fact]
     public async Task GetDatabaseMetadataAsync_WhenNoSelectedDatabase_ReturnsValidationError()
     {
         var service = CreateService(
@@ -129,11 +177,11 @@ public sealed class ExplorerServiceTests
             providerFactory ?? new StubProviderFactory(new DefinitionProvider("SELECT 1;")),
             new ErrorHandler(NullLogger<ErrorHandler>.Instance, []));
 
-    private static DiscoveredDatabaseResource CreateResource(string resourceId)
+    private static DiscoveredDatabaseResource CreateResource(string resourceId, string databaseName = "applicationdb")
         => new(
             ResourceId: resourceId,
             ResourceName: resourceId,
-            DatabaseName: "applicationdb",
+            DatabaseName: databaseName,
             ProviderType: DatabaseProviderType.SqlServer,
             ConnectionMetadata: new ConnectionMetadata(new Dictionary<string, string?>()),
             IsAvailable: true,
@@ -175,9 +223,14 @@ public sealed class ExplorerServiceTests
             => throw _exception;
     }
 
-    private sealed class StubSelectedDatabaseService(SelectedDatabaseContext? selectedContext) : ISelectedDatabaseService
+    private sealed class StubSelectedDatabaseService(
+        SelectedDatabaseContext? selectedContext,
+        IReadOnlyList<DiscoveredDatabaseResource>? availableResources = null) : ISelectedDatabaseService
     {
         private SelectedDatabaseContext? _selectedContext = selectedContext;
+        private readonly IReadOnlyDictionary<string, DiscoveredDatabaseResource> _availableResources =
+            (availableResources ?? [])
+            .ToDictionary(resource => resource.ResourceId, StringComparer.OrdinalIgnoreCase);
 
         public event EventHandler<SelectedDatabaseContext?>? SelectionChanged;
 
@@ -190,7 +243,14 @@ public sealed class ExplorerServiceTests
                 return Task.FromResult(new OakIdeas.Aspire.DataExplorer.Core.Models.SelectDatabaseResponse(false, _selectedContext, "Resource ID is required."));
             }
 
-            return Task.FromResult(new OakIdeas.Aspire.DataExplorer.Core.Models.SelectDatabaseResponse(true, _selectedContext, null));
+            if (_availableResources.TryGetValue(resourceId.Trim(), out var resource))
+            {
+                _selectedContext = new SelectedDatabaseContext(resource, IsValid: true, ValidationMessage: null);
+                SelectionChanged?.Invoke(this, _selectedContext);
+                return Task.FromResult(new OakIdeas.Aspire.DataExplorer.Core.Models.SelectDatabaseResponse(true, _selectedContext, null));
+            }
+
+            return Task.FromResult(new OakIdeas.Aspire.DataExplorer.Core.Models.SelectDatabaseResponse(false, _selectedContext, "Resource was not found."));
         }
 
         public Task<SelectedDatabaseContext?> GetSelectedDatabaseAsync(CancellationToken cancellationToken)
