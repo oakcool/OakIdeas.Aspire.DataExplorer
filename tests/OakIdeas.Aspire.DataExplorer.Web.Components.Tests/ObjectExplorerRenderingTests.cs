@@ -1,5 +1,6 @@
 using Bunit;
 using Microsoft.AspNetCore.Components;
+using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Molecules;
 
 namespace OakIdeas.Aspire.DataExplorer.Web.Components.Tests;
@@ -32,6 +33,27 @@ public sealed class ObjectExplorerRenderingTests : TestContext
             .Add(p => p.ErrorMessage, "Unable to load metadata."));
 
         component.Markup.Should().Contain("Unable to load metadata.");
+    }
+
+    [Fact]
+    public void RendersDiagnosticErrorDetails()
+    {
+        var error = new DataExplorerError(
+            ErrorCategory.ConnectionFailed,
+            "The selected database is currently unavailable.",
+            "Confirm the database is running and try again.",
+            "load-metadata",
+            "applicationdb",
+            DateTimeOffset.UtcNow,
+            "sql-unavailable");
+
+        var component = RenderComponent<ObjectExplorer>(parameters => parameters
+            .Add(p => p.ErrorMessage, error.Message)
+            .Add(p => p.Error, error));
+
+        component.Markup.Should().Contain("Confirm the database is running and try again.");
+        component.Markup.Should().Contain("Diagnostic details");
+        component.Markup.Should().Contain("sql-unavailable");
     }
 
     [Fact]

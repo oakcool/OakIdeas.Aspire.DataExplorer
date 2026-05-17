@@ -1,0 +1,16 @@
+@using OakIdeas.Aspire.DataExplorer.Contracts.Models
+
+@if (!string.IsNullOrWhiteSpace(RecoverySuggestion))
+{
+    <p class="explorer-state__hint">@RecoverySuggestion</p>
+}
+
+@code {
+    [Parameter]
+    public DataExplorerError? Error { get; set; }
+
+    [Parameter]
+    public string? Suggestion { get; set; }
+
+    private string? RecoverySuggestion => Error?.RecoverySuggestion ?? Suggestion;
+}

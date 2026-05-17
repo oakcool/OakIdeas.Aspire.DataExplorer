@@ -17,6 +17,7 @@ OakIdeas.Aspire.DataExplorer is a development-time-only Aspire add-on for explor
 - Keep UI components focused and composable.
 - Use dependency injection and async APIs with `CancellationToken`.
 - Keep generated SQL parameterized.
+- Route user-visible failures through shared error contracts and sanitized diagnostics.
 - Keep Aspire resource discovery provider-agnostic in shared contracts and core logic; place Aspire-specific enumeration in Hosting.
 - Register providers through `MetadataProviderFactoryOptions`; keep concrete provider registrations in composition roots or provider projects, never in shared contracts/core models.
 
@@ -32,3 +33,4 @@ OakIdeas.Aspire.DataExplorer is a development-time-only Aspire add-on for explor
 
 - Update docs when architecture or behavior changes.
 - Add ADRs for significant decisions.
+- Document new error categories, recovery guidance, and safe logging expectations when diagnostics behavior changes.

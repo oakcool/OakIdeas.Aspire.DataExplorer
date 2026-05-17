@@ -1,0 +1,41 @@
+@using OakIdeas.Aspire.DataExplorer.Contracts.Models
+
+@if (Error is not null)
+{
+    <details class="explorer-state__details">
+        <summary>Diagnostic details</summary>
+        <dl>
+            <div>
+                <dt>Category</dt>
+                <dd>@Error.Category</dd>
+            </div>
+            <div>
+                <dt>Operation</dt>
+                <dd>@Error.Operation</dd>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(Error.Target))
+            {
+                <div>
+                    <dt>Target</dt>
+                    <dd>@Error.Target</dd>
+                </div>
+            }
+            <div>
+                <dt>Timestamp (UTC)</dt>
+                <dd>@Error.Timestamp.UtcDateTime.ToString("u")</dd>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(Error.DiagnosticCode))
+            {
+                <div>
+                    <dt>Code</dt>
+                    <dd>@Error.DiagnosticCode</dd>
+                </div>
+            }
+        </dl>
+    </details>
+}
+
+@code {
+    [Parameter]
+    public DataExplorerError? Error { get; set; }
+}

@@ -1,0 +1,16 @@
+@using OakIdeas.Aspire.DataExplorer.Contracts.Models
+
+<div class="explorer-state explorer-state--error" role="alert">
+    <span class="explorer-state__icon" aria-hidden="true">
+        <HeroIcon Kind="HeroIconKind.ExclamationTriangle" Size="18" />
+    </span>
+    <span>@(Error?.Message ?? Message)</span>
+</div>
+
+@code {
+    [Parameter]
+    public DataExplorerError? Error { get; set; }
+
+    [Parameter]
+    public string Message { get; set; } = "Unable to complete the requested operation.";
+}

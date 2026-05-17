@@ -12,7 +12,10 @@ public static class MetadataRefreshServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.AddLogging();
         services.AddOptions<MetadataAggregationOptions>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IProviderErrorMapper, NullProviderErrorMapper>());
+        services.TryAddSingleton<IErrorHandler, ErrorHandler>();
         services.TryAddSingleton<IMetadataCache, InMemoryMetadataCache>();
         services.TryAddSingleton<IMetadataAggregationService, MetadataAggregationService>();
         services.TryAddSingleton<IMetadataRefreshService, MetadataRefreshService>();

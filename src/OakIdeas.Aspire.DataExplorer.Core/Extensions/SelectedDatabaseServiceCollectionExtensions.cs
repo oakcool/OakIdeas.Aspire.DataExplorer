@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Services;
 
@@ -10,6 +11,9 @@ public static class SelectedDatabaseServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.AddLogging();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IProviderErrorMapper, NullProviderErrorMapper>());
+        services.TryAddSingleton<IErrorHandler, ErrorHandler>();
         services.AddScoped<ISelectedDatabaseService, SelectedDatabaseService>();
         return services;
     }

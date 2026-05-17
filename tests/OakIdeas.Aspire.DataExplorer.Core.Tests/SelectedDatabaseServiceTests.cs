@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Services;
@@ -40,7 +41,7 @@ public sealed class SelectedDatabaseServiceTests
         var selected = await service.GetSelectedDatabaseAsync(CancellationToken.None);
 
         response.Succeeded.Should().BeFalse();
-        response.ErrorMessage.Should().Contain("missing-resource").And.Contain("not found");
+        response.ErrorMessage.Should().Contain("missing-resource").And.Contain("could not be found");
         selected.Should().NotBeNull();
         selected!.Resource.ResourceId.Should().Be("sql-main");
     }
@@ -107,7 +108,10 @@ public sealed class SelectedDatabaseServiceTests
     }
 
     private static ISelectedDatabaseService CreateService(IReadOnlyList<DiscoveredDatabaseResource> resources)
-        => new SelectedDatabaseService(new StubAspireResourceDiscovery(resources));
+        => new SelectedDatabaseService(new StubAspireResourceDiscovery(resources), CreateErrorHandler());
+
+    private static IErrorHandler CreateErrorHandler()
+        => new ErrorHandler(NullLogger<ErrorHandler>.Instance, []);
 
     private static DiscoveredDatabaseResource CreateResource(
         string resourceId,

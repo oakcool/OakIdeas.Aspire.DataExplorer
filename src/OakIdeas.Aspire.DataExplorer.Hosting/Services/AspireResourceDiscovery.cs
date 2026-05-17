@@ -18,17 +18,20 @@ internal sealed class AspireResourceDiscovery : IAspireResourceDiscovery
     private readonly IHostEnvironment hostEnvironment;
     private readonly IOptions<DataExplorerOptions> options;
     private readonly DiscoveredDatabaseResourceProjector projector;
+    private readonly IErrorHandler errorHandler;
 
     internal AspireResourceDiscovery(
         DistributedApplicationModel distributedApplicationModel,
         IHostEnvironment hostEnvironment,
         IOptions<DataExplorerOptions> options,
-        DiscoveredDatabaseResourceProjector projector)
+        DiscoveredDatabaseResourceProjector projector,
+        IErrorHandler errorHandler)
     {
         this.distributedApplicationModel = distributedApplicationModel;
         this.hostEnvironment = hostEnvironment;
         this.options = options;
         this.projector = projector;
+        this.errorHandler = errorHandler;
     }
 
     public Task<DiscoverResourcesResponse> DiscoverResourcesAsync(
@@ -45,20 +48,27 @@ internal sealed class AspireResourceDiscovery : IAspireResourceDiscovery
             return Task.FromResult(new DiscoverResourcesResponse([]));
         }
 
-        var descriptors = distributedApplicationModel.Resources
-            .OfType<SqlServerDatabaseResource>()
-            .Select(CreateDescriptor)
-            .ToArray();
+        try
+        {
+            var descriptors = distributedApplicationModel.Resources
+                .OfType<SqlServerDatabaseResource>()
+                .Select(CreateDescriptor)
+                .ToArray();
 
-        var includeUnavailableResources = request.IncludeUnavailableResources
-            ?? options.Value.IncludeUnavailableResources;
+            var includeUnavailableResources = request.IncludeUnavailableResources
+                ?? options.Value.IncludeUnavailableResources;
 
-        var response = projector.Project(
-            descriptors,
-            DateTimeOffset.UtcNow,
-            includeUnavailableResources);
+            var response = projector.Project(
+                descriptors,
+                DateTimeOffset.UtcNow,
+                includeUnavailableResources);
 
-        return Task.FromResult(response);
+            return Task.FromResult(response);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            throw errorHandler.CreateException(ex, new ErrorContext("discover-resources"));
+        }
     }
 
     private static DiscoveredDatabaseResourceDescriptor CreateDescriptor(SqlServerDatabaseResource resource)

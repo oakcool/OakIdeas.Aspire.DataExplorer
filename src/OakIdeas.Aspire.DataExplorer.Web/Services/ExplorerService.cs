@@ -2,6 +2,8 @@ using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Web.Abstractions;
+using DataExplorerOperationException = OakIdeas.Aspire.DataExplorer.Core.Models.DataExplorerOperationException;
+using ErrorContext = OakIdeas.Aspire.DataExplorer.Core.Models.ErrorContext;
 using SelectedDatabaseContext = OakIdeas.Aspire.DataExplorer.Core.Models.SelectedDatabaseContext;
 
 namespace OakIdeas.Aspire.DataExplorer.Web.Services;
@@ -11,23 +13,37 @@ public sealed class ExplorerService(
     ISelectedDatabaseService selectedDatabaseService,
     IMetadataAggregationService metadataAggregationService,
     IMetadataRefreshService metadataRefreshService,
-    IProviderFactory providerFactory) : IExplorerService
+    IProviderFactory providerFactory,
+    IErrorHandler errorHandler) : IExplorerService
 {
     private readonly IAspireResourceDiscovery _resourceDiscovery = resourceDiscovery;
     private readonly ISelectedDatabaseService _selectedDatabaseService = selectedDatabaseService;
     private readonly IMetadataAggregationService _metadataAggregationService = metadataAggregationService;
     private readonly IMetadataRefreshService _metadataRefreshService = metadataRefreshService;
     private readonly IProviderFactory _providerFactory = providerFactory;
+    private readonly IErrorHandler _errorHandler = errorHandler;
 
     public async Task<GetAvailableDatabasesResponse> GetAvailableDatabasesAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var discovered = await _resourceDiscovery.DiscoverResourcesAsync(
-            new DiscoverResourcesRequest(IncludeUnavailableResources: true),
-            cancellationToken);
+        try
+        {
+            var discovered = await _resourceDiscovery.DiscoverResourcesAsync(
+                new DiscoverResourcesRequest(IncludeUnavailableResources: true),
+                cancellationToken);
 
-        return new GetAvailableDatabasesResponse(discovered.Resources);
+            return new GetAvailableDatabasesResponse(discovered.Resources);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            var error = ResolveError(ex, new ErrorContext("discover-resources"));
+            return new GetAvailableDatabasesResponse([], error);
+        }
     }
 
     public async Task<SelectDatabaseResponse> SelectDatabaseAsync(string resourceId, CancellationToken cancellationToken)
@@ -47,7 +63,8 @@ public sealed class ExplorerService(
         return new SelectDatabaseResponse(
             Succeeded: response.Succeeded,
             Selection: response.Context is null ? null : MapSelection(response.Context),
-            ValidationErrors: response.ErrorMessage is null ? [] : [response.ErrorMessage]);
+            ValidationErrors: response.ErrorMessage is null ? [] : [response.ErrorMessage],
+            Error: response.Error);
     }
 
     public async Task<GetSelectedDatabaseResponse> GetSelectedDatabaseAsync(CancellationToken cancellationToken)
@@ -70,7 +87,12 @@ public sealed class ExplorerService(
                 AggregatedMetadata: null,
                 CollectionStatus: MetadataCollectionStatus.Failed,
                 FailureDetails: [],
-                Errors: ["Select an available database before loading metadata."]);
+                Errors: ["Select an available database before loading metadata."],
+                Error: _errorHandler.CreateError(
+                    ErrorCategory.ResourceNotFound,
+                    "Select an available database before loading metadata.",
+                    "Choose a database from Object Explorer and try again.",
+                    new ErrorContext("load-metadata")));
         }
 
         if (!selected.IsValid)
@@ -80,7 +102,12 @@ public sealed class ExplorerService(
                 AggregatedMetadata: null,
                 CollectionStatus: MetadataCollectionStatus.Failed,
                 FailureDetails: [],
-                Errors: [selected.ValidationMessage ?? "The selected database is not valid."]);
+                Errors: [selected.ValidationMessage ?? "The selected database is not valid."],
+                Error: _errorHandler.CreateError(
+                    ErrorCategory.ConnectionFailed,
+                    selected.ValidationMessage ?? "The selected database is not valid.",
+                    "Select a different database resource and try again.",
+                    new ErrorContext("load-metadata", selected.Resource.DatabaseName, selected.Resource.ProviderType)));
         }
 
         try
@@ -92,20 +119,23 @@ public sealed class ExplorerService(
                 AggregatedMetadata: response.AggregatedMetadata,
                 CollectionStatus: response.CollectionStatus,
                 FailureDetails: response.FailureDetails ?? [],
-                Errors: []);
+                Errors: response.Error is null ? [] : [response.Error.Message],
+                Error: response.Error);
         }
         catch (OperationCanceledException)
         {
             throw;
         }
-        catch
+        catch (Exception ex)
         {
+            var error = ResolveError(ex, new ErrorContext("load-metadata", selected.Resource.DatabaseName, selected.Resource.ProviderType));
             return new GetDatabaseMetadataResponse(
                 Metadata: null,
                 AggregatedMetadata: null,
                 CollectionStatus: MetadataCollectionStatus.Failed,
                 FailureDetails: [],
-                Errors: ["Unable to load metadata for the selected database."]);
+                Errors: [error.Message],
+                Error: error);
         }
     }
 
@@ -123,7 +153,12 @@ public sealed class ExplorerService(
                 CompletedAt: now,
                 Errors: ["Select an available database before refreshing metadata."],
                 IsPartialSuccess: false,
-                Metadata: null);
+                Metadata: null,
+                Error: _errorHandler.CreateError(
+                    ErrorCategory.ResourceNotFound,
+                    "Select an available database before refreshing metadata.",
+                    "Choose a database from Object Explorer and try again.",
+                    new ErrorContext("refresh-metadata")));
         }
 
         if (!selected.IsValid)
@@ -135,7 +170,12 @@ public sealed class ExplorerService(
                 CompletedAt: now,
                 Errors: [selected.ValidationMessage ?? "The selected database is not valid."],
                 IsPartialSuccess: false,
-                Metadata: null);
+                Metadata: null,
+                Error: _errorHandler.CreateError(
+                    ErrorCategory.ConnectionFailed,
+                    selected.ValidationMessage ?? "The selected database is not valid.",
+                    "Select a different database resource and try again.",
+                    new ErrorContext("refresh-metadata", selected.Resource.DatabaseName, selected.Resource.ProviderType)));
         }
 
         try
@@ -146,16 +186,18 @@ public sealed class ExplorerService(
         {
             throw;
         }
-        catch
+        catch (Exception ex)
         {
             var now = DateTimeOffset.UtcNow;
+            var error = ResolveError(ex, new ErrorContext("refresh-metadata", selected.Resource.DatabaseName, selected.Resource.ProviderType));
             return new RefreshMetadataResponse(
                 Status: RefreshStatus.Failed,
                 StartedAt: now,
                 CompletedAt: now,
-                Errors: ["Unable to refresh metadata for the selected database."],
+                Errors: [error.Message],
                 IsPartialSuccess: false,
-                Metadata: null);
+                Metadata: null,
+                Error: error);
         }
     }
 
@@ -174,7 +216,12 @@ public sealed class ExplorerService(
                 Definition: null,
                 IsAvailable: false,
                 UnavailableReason: "Object ID is required.",
-                Errors: ["Object ID is required."]);
+                Errors: ["Object ID is required."],
+                Error: _errorHandler.CreateError(
+                    ErrorCategory.ResourceNotFound,
+                    "Object ID is required.",
+                    "Select an object from Object Explorer and try again.",
+                    new ErrorContext("load-definition")));
         }
 
         if (objectType is DatabaseObjectType.Unknown)
@@ -185,7 +232,12 @@ public sealed class ExplorerService(
                 Definition: null,
                 IsAvailable: false,
                 UnavailableReason: "A supported object type is required.",
-                Errors: ["A supported object type is required."]);
+                Errors: ["A supported object type is required."],
+                Error: _errorHandler.CreateError(
+                    ErrorCategory.ProviderError,
+                    "A supported object type is required.",
+                    "Select a supported database object and try again.",
+                    new ErrorContext("load-definition")));
         }
 
         var selected = await _selectedDatabaseService.GetSelectedDatabaseAsync(cancellationToken);
@@ -197,7 +249,12 @@ public sealed class ExplorerService(
                 Definition: null,
                 IsAvailable: false,
                 UnavailableReason: "No database is selected.",
-                Errors: ["Select an available database before requesting object definitions."]);
+                Errors: ["Select an available database before requesting object definitions."],
+                Error: _errorHandler.CreateError(
+                    ErrorCategory.ResourceNotFound,
+                    "Select an available database before requesting object definitions.",
+                    "Choose a database from Object Explorer and try again.",
+                    new ErrorContext("load-definition")));
         }
 
         if (!selected.IsValid)
@@ -208,7 +265,12 @@ public sealed class ExplorerService(
                 Definition: null,
                 IsAvailable: false,
                 UnavailableReason: selected.ValidationMessage ?? "The selected database is not valid.",
-                Errors: [selected.ValidationMessage ?? "The selected database is not valid."]);
+                Errors: [selected.ValidationMessage ?? "The selected database is not valid."],
+                Error: _errorHandler.CreateError(
+                    ErrorCategory.ConnectionFailed,
+                    selected.ValidationMessage ?? "The selected database is not valid.",
+                    "Select a different database resource and try again.",
+                    new ErrorContext("load-definition", objectId.Trim(), selected.Resource.ProviderType)));
         }
 
         try
@@ -222,7 +284,12 @@ public sealed class ExplorerService(
                     Definition: null,
                     IsAvailable: false,
                     UnavailableReason: $"The provider '{selected.Resource.ProviderType}' does not support object definitions.",
-                    Errors: []);
+                    Errors: [],
+                    Error: _errorHandler.CreateError(
+                        ErrorCategory.ProviderError,
+                        "The selected provider does not support object definitions.",
+                        "Choose a different object or database resource and try again.",
+                        new ErrorContext("load-definition", objectId.Trim(), selected.Resource.ProviderType)));
             }
 
             var request = new ObjectDefinitionRequest(
@@ -246,17 +313,24 @@ public sealed class ExplorerService(
         {
             throw;
         }
-        catch
+        catch (Exception ex)
         {
+            var error = ResolveError(ex, new ErrorContext("load-definition", objectId.Trim(), selected.Resource.ProviderType));
             return new GetObjectDefinitionResponse(
                 ObjectId: objectId.Trim(),
                 ObjectType: objectType,
                 Definition: null,
                 IsAvailable: false,
-                UnavailableReason: "Unable to retrieve the requested object definition.",
-                Errors: ["Unable to retrieve the requested object definition."]);
+                UnavailableReason: error.Message,
+                Errors: [error.Message],
+                Error: error);
         }
     }
+
+    private DataExplorerError ResolveError(Exception exception, ErrorContext context)
+        => exception is DataExplorerOperationException dataExplorerException
+            ? dataExplorerException.Error
+            : _errorHandler.MapException(exception, context);
 
     private static ExplorerDatabaseSelection MapSelection(SelectedDatabaseContext context)
         => new(

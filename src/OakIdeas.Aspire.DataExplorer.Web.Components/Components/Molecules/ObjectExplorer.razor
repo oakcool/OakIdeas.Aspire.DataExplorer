@@ -58,7 +58,7 @@
                     }
                     else if (!string.IsNullOrWhiteSpace(ErrorMessage))
                     {
-                        <ExplorerError ErrorMessage="@ErrorMessage" />
+                        <ExplorerError ErrorMessage="@ErrorMessage" Error="@Error" />
                     }
                     else if (!HasObjects)
                     {
@@ -120,6 +120,9 @@
 
     [Parameter]
     public string? ErrorMessage { get; set; }
+
+    [Parameter]
+    public DataExplorerError? Error { get; set; }
 
     [Parameter]
     public EventCallback<string> OnConnectionSelect { get; set; }

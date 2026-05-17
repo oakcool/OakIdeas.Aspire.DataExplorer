@@ -38,6 +38,14 @@ Metadata discovery uses provider-agnostic contracts in `Contracts/Models/Databas
 - `InMemoryMetadataCache` stores `DatabaseMetadataRoot` by `(resourceId, databaseName)` with configurable TTL via `MetadataAggregationOptions.CacheTtlMinutes`.
 - Cache invalidation is exposed through `IMetadataCache.InvalidateAsync` for refresh and future invalidation workflows.
 
+## Error handling and diagnostics
+
+Error categorization and sanitized diagnostics are documented in `docs/architecture/error-handling.md`.
+
+- `IErrorHandler` creates safe `DataExplorerError` payloads for UI-facing responses.
+- Provider-specific exception mapping remains in provider projects through `IProviderErrorMapper`.
+- UI components surface recovery suggestions and optional diagnostic metadata without exposing secrets.
+
 ## Solution virtual folder layout
 
 | Folder | Projects |
