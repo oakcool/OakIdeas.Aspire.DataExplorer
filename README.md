@@ -66,6 +66,12 @@ Current SQL Server MVP metadata types:
 - Triggers
 - Object definitions (when available)
 
+## E2E validation status
+
+- Integration E2E coverage is in `tests/OakIdeas.Aspire.DataExplorer.IntegrationTests/EndToEndValidationIntegrationTests.cs`
+- Sample validation database setup script: `docs/samples/test-database-setup.sql`
+- Validation workflow checklist: `docs/samples/e2e-validation-checklist.md`
+
 ## Troubleshooting
 
 - [Troubleshooting common errors](docs/troubleshooting/error-handling.md)
