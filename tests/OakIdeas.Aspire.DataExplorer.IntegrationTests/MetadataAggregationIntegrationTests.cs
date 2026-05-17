@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Configuration;
@@ -49,9 +50,12 @@ public sealed class MetadataAggregationIntegrationTests
     private static AsyncServiceScope CreateScope(SampleAggregationProvider provider)
     {
         var services = new ServiceCollection();
+        services.AddLogging();
         services.AddSingleton<IMetadataCache, InMemoryMetadataCache>();
         services.AddSingleton<IMetadataAggregationService, MetadataAggregationService>();
         services.AddSingleton<IProviderFactory>(new StubProviderFactory(provider));
+        services.AddSingleton<IProviderErrorMapper, NoOpProviderErrorMapper>();
+        services.AddSingleton<IErrorHandler>(_ => new ErrorHandler(NullLogger<ErrorHandler>.Instance, []));
         services.AddOptions<MetadataAggregationOptions>()
             .Configure(options =>
             {
@@ -88,6 +92,17 @@ public sealed class MetadataAggregationIntegrationTests
         {
             provider = _provider;
             return true;
+        }
+    }
+
+    private sealed class NoOpProviderErrorMapper : IProviderErrorMapper
+    {
+        public DatabaseProviderType ProviderType => DatabaseProviderType.Unknown;
+
+        public bool TryMap(Exception exception, ErrorContext context, out DataExplorerError error)
+        {
+            error = null!;
+            return false;
         }
     }
 

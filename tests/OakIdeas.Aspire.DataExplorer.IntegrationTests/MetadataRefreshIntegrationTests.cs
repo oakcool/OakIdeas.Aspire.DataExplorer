@@ -70,7 +70,8 @@ public sealed class MetadataRefreshIntegrationTests
 
         response.Status.Should().Be(RefreshStatus.Failed);
         response.Errors.Should().ContainSingle();
-        response.Errors[0].Should().Contain("connection refused");
+        response.Errors[0].Should().Contain("provider reported an error");
+        response.Error.Should().NotBeNull();
         response.Metadata.Should().BeNull();
         response.CompletedAt.Should().NotBeNull();
     }
