@@ -8,7 +8,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="bunit" Version="1.39.5" />
     <PackageReference Include="coverlet.collector" Version="10.0.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -24,11 +23,10 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
-    <Using Include="FluentAssertions" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\OakIdeas.Aspire.DataExplorer.Web.Components\OakIdeas.Aspire.DataExplorer.Web.Components.csproj" />
+    <ProjectReference Include="..\..\OakIdeas.Aspire.DataExplorer.SqlServer\OakIdeas.Aspire.DataExplorer.SqlServer.csproj" />
   </ItemGroup>
 
 </Project>

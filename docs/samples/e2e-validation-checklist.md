@@ -19,7 +19,7 @@
 Run:
 
 ```bash
-dotnet test tests/OakIdeas.Aspire.DataExplorer.IntegrationTests/OakIdeas.Aspire.DataExplorer.IntegrationTests.csproj
+dotnet test src/tests/OakIdeas.Aspire.DataExplorer.IntegrationTests/OakIdeas.Aspire.DataExplorer.IntegrationTests.csproj
 ```
 
 ## Manual end-to-end walkthrough (Aspire sample + DataExplorer)

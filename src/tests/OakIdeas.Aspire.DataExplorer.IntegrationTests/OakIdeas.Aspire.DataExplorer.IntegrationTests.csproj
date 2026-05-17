@@ -23,11 +23,12 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
-    <Using Include="FluentAssertions" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\samples\OakIdeas.Aspire.DataExplorer.Sample.Web.Components\OakIdeas.Aspire.DataExplorer.Sample.Web.Components.csproj" />
+    <ProjectReference Include="..\..\OakIdeas.Aspire.DataExplorer.AppHost\OakIdeas.Aspire.DataExplorer.AppHost.csproj" />
+    <ProjectReference Include="..\..\OakIdeas.Aspire.DataExplorer.SqlServer\OakIdeas.Aspire.DataExplorer.SqlServer.csproj" />
+    <ProjectReference Include="..\..\OakIdeas.Aspire.DataExplorer.Web\OakIdeas.Aspire.DataExplorer.Web.csproj" />
   </ItemGroup>
 
 </Project>

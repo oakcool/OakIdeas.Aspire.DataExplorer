@@ -29,15 +29,15 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OakIdeas.Aspire.DataExplore
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OakIdeas.Aspire.DataExplorer.AppHost", "src\OakIdeas.Aspire.DataExplorer.AppHost\OakIdeas.Aspire.DataExplorer.AppHost.csproj", "{C1DE7BF8-9425-4077-A152-766C556E3D48}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OakIdeas.Aspire.DataExplorer.SqlServer.Tests", "tests\OakIdeas.Aspire.DataExplorer.SqlServer.Tests\OakIdeas.Aspire.DataExplorer.SqlServer.Tests.csproj", "{9E6CEC6B-3C8E-4929-B110-34B5E7D5F4F7}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OakIdeas.Aspire.DataExplorer.SqlServer.Tests", "src\tests\OakIdeas.Aspire.DataExplorer.SqlServer.Tests\OakIdeas.Aspire.DataExplorer.SqlServer.Tests.csproj", "{9E6CEC6B-3C8E-4929-B110-34B5E7D5F4F7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OakIdeas.Aspire.DataExplorer.Core.Tests", "tests\OakIdeas.Aspire.DataExplorer.Core.Tests\OakIdeas.Aspire.DataExplorer.Core.Tests.csproj", "{F0D8E7D7-31B3-4306-BF2B-D229078AE50E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OakIdeas.Aspire.DataExplorer.Core.Tests", "src\tests\OakIdeas.Aspire.DataExplorer.Core.Tests\OakIdeas.Aspire.DataExplorer.Core.Tests.csproj", "{F0D8E7D7-31B3-4306-BF2B-D229078AE50E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OakIdeas.Aspire.DataExplorer.Web.Tests", "tests\OakIdeas.Aspire.DataExplorer.Web.Tests\OakIdeas.Aspire.DataExplorer.Web.Tests.csproj", "{D8DD2C6B-AAFE-446A-B401-319C190F6289}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OakIdeas.Aspire.DataExplorer.Web.Tests", "src\tests\OakIdeas.Aspire.DataExplorer.Web.Tests\OakIdeas.Aspire.DataExplorer.Web.Tests.csproj", "{D8DD2C6B-AAFE-446A-B401-319C190F6289}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OakIdeas.Aspire.DataExplorer.Data.Tests", "tests\OakIdeas.Aspire.DataExplorer.Data.Tests\OakIdeas.Aspire.DataExplorer.Data.Tests.csproj", "{3154E216-4C15-44D9-AB47-0817FE8880F1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OakIdeas.Aspire.DataExplorer.Data.Tests", "src\tests\OakIdeas.Aspire.DataExplorer.Data.Tests\OakIdeas.Aspire.DataExplorer.Data.Tests.csproj", "{3154E216-4C15-44D9-AB47-0817FE8880F1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OakIdeas.Aspire.DataExplorer.IntegrationTests", "tests\OakIdeas.Aspire.DataExplorer.IntegrationTests\OakIdeas.Aspire.DataExplorer.IntegrationTests.csproj", "{B30DBA04-6625-4E11-BAA6-D3C5A5CB2875}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OakIdeas.Aspire.DataExplorer.IntegrationTests", "src\tests\OakIdeas.Aspire.DataExplorer.IntegrationTests\OakIdeas.Aspire.DataExplorer.IntegrationTests.csproj", "{B30DBA04-6625-4E11-BAA6-D3C5A5CB2875}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OakIdeas.Aspire.DataExplorer.Sample.AppHost", "samples\OakIdeas.Aspire.DataExplorer.Sample.AppHost\OakIdeas.Aspire.DataExplorer.Sample.AppHost.csproj", "{94F7BAB4-4183-4CA9-9940-D2F4BCDA4EF6}"
 EndProject
@@ -53,15 +53,17 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{DB9F9C8A
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{C8AE0528-6137-42A8-8192-1C8FE059E2E0}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{6C3A8300-ADE2-4B9C-8992-3A07892FA38D}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OakIdeas.Aspire.DataExplorer.Web.Components", "src\OakIdeas.Aspire.DataExplorer.Web.Components\OakIdeas.Aspire.DataExplorer.Web.Components.csproj", "{89A36BBE-CA48-4778-BFCF-A85C81BA9D82}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OakIdeas.Aspire.DataExplorer.Sample.Web.Components", "samples\OakIdeas.Aspire.DataExplorer.Sample.Web.Components\OakIdeas.Aspire.DataExplorer.Sample.Web.Components.csproj", "{E984511B-B974-4C2B-A251-12CA715EED80}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OakIdeas.Aspire.DataExplorer.Web.Components.Tests", "tests\OakIdeas.Aspire.DataExplorer.Web.Components.Tests\OakIdeas.Aspire.DataExplorer.Web.Components.Tests.csproj", "{8250D5A4-B6C5-4CC6-B867-0781953D6F74}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OakIdeas.Aspire.DataExplorer.Web.Components.Tests", "src\tests\OakIdeas.Aspire.DataExplorer.Web.Components.Tests\OakIdeas.Aspire.DataExplorer.Web.Components.Tests.csproj", "{8250D5A4-B6C5-4CC6-B867-0781953D6F74}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{A7C4F6B2-D923-4E91-8C31-9B47FD821354}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OakIdeas.Aspire.DataExplorer.Sample.Web.Components.Tests", "tests\OakIdeas.Aspire.DataExplorer.Sample.Web.Components.Tests\OakIdeas.Aspire.DataExplorer.Sample.Web.Components.Tests.csproj", "{1BAE5E9D-284F-4D21-95B0-FE4F5A66D904}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OakIdeas.Aspire.DataExplorer.Sample.Web.Components.Tests", "src\tests\OakIdeas.Aspire.DataExplorer.Sample.Web.Components.Tests\OakIdeas.Aspire.DataExplorer.Sample.Web.Components.Tests.csproj", "{1BAE5E9D-284F-4D21-95B0-FE4F5A66D904}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -309,13 +311,13 @@ Global
 		{31255116-7156-4828-8DE3-3CE1A92DF1C5} = {5396D0B8-04A5-4A5D-9E6A-84E62F0A5E13}
 		{9C5CFC96-8FA3-4538-B5CC-1CE127A72B6D} = {0F7D3D40-0174-4AA2-8D8B-3D9EA2A8229A}
 		{89F23B8C-1701-4B4E-87F6-FB6B3FD1B04A} = {48D0382B-98A7-4D9E-B2AC-BD1EF444A6D8}
-		{2AFE2F2B-CA0A-4B1F-857E-032EBF961ABA} = {48D0382B-98A7-4D9E-B2AC-BD1EF444A6D8}
+		{2AFE2F2B-CA0A-4B1F-857E-032EBF961ABA} = {5E6E3425-FA66-45FB-A4DA-0F233D332B90}
 		{A6DBA6B4-B549-41C5-9015-0F159DB7F72F} = {0F7D3D40-0174-4AA2-8D8B-3D9EA2A8229A}
 		{635144AB-6C95-4464-BC8A-C49B431BB5AA} = {48D0382B-98A7-4D9E-B2AC-BD1EF444A6D8}
 		{C1DE7BF8-9425-4077-A152-766C556E3D48} = {F9B8DFCD-EEAB-4BDC-80BC-610F6B4C0669}
 		{9E6CEC6B-3C8E-4929-B110-34B5E7D5F4F7} = {DB9F9C8A-C8CA-4797-A520-44E438090AAE}
 		{F0D8E7D7-31B3-4306-BF2B-D229078AE50E} = {C8AE0528-6137-42A8-8192-1C8FE059E2E0}
-		{D8DD2C6B-AAFE-446A-B401-319C190F6289} = {8565F58C-9BB5-4A6A-88E0-D61824D82265}
+		{D8DD2C6B-AAFE-446A-B401-319C190F6289} = {6C3A8300-ADE2-4B9C-8992-3A07892FA38D}
 		{3154E216-4C15-44D9-AB47-0817FE8880F1} = {DB9F9C8A-C8CA-4797-A520-44E438090AAE}
 		{B30DBA04-6625-4E11-BAA6-D3C5A5CB2875} = {4C0BC547-53D6-4AC8-B53D-BE84D846D15A}
 		{94F7BAB4-4183-4CA9-9940-D2F4BCDA4EF6} = {FF527707-D2C4-4582-92D5-C35731E66663}
@@ -324,6 +326,7 @@ Global
 		{8565F58C-9BB5-4A6A-88E0-D61824D82265} = {48D0382B-98A7-4D9E-B2AC-BD1EF444A6D8}
 		{DB9F9C8A-C8CA-4797-A520-44E438090AAE} = {0F7D3D40-0174-4AA2-8D8B-3D9EA2A8229A}
 		{C8AE0528-6137-42A8-8192-1C8FE059E2E0} = {5396D0B8-04A5-4A5D-9E6A-84E62F0A5E13}
+		{6C3A8300-ADE2-4B9C-8992-3A07892FA38D} = {5E6E3425-FA66-45FB-A4DA-0F233D332B90}
 		{89A36BBE-CA48-4778-BFCF-A85C81BA9D82} = {48D0382B-98A7-4D9E-B2AC-BD1EF444A6D8}
 		{E984511B-B974-4C2B-A251-12CA715EED80} = {FF527707-D2C4-4582-92D5-C35731E66663}
 		{8250D5A4-B6C5-4CC6-B867-0781953D6F74} = {8565F58C-9BB5-4A6A-88E0-D61824D82265}
