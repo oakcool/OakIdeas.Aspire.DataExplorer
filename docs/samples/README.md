@@ -1,21 +1,38 @@
 # Sample Application
 
-The `samples/` folder contains a self-contained Aspire application that demonstrates how to integrate OakIdeas.Aspire.DataExplorer into your own project.
+The `samples/` folder contains a self-contained Aspire solution that demonstrates Data Explorer against a realistic EF Core + SQL Server schema.
 
 ## Projects
 
 | Project | Description |
 |---|---|
-| `OakIdeas.Aspire.DataExplorer.Sample.AppHost` | Aspire AppHost — orchestrates all services |
-| `OakIdeas.Aspire.DataExplorer.Sample.Api` | Minimal API with EF Core SQL Server and migrations |
-| `OakIdeas.Aspire.DataExplorer.Sample.Web` | Blazor Server app consuming the API |
+| `OakIdeas.Aspire.DataExplorer.Sample.AppHost` | Aspire AppHost — provisions SQL Server, API, and web UI |
+| `OakIdeas.Aspire.DataExplorer.Sample.Api` | Minimal API + EF Core model, migrations, and deterministic seed data |
+| `OakIdeas.Aspire.DataExplorer.Sample.Web` | Blazor Server app with forms, filters, detail views, and comment workflows |
 
-## What it demonstrates
+## Sample schema goals
 
-- How to call `AddDataExplorer()` in the AppHost
-- A running SQL Server with EF Core migrations applied on startup
-- A Blazor frontend managing `TodoItems` via a REST API
-- How the sample AppHost runs side-by-side with the main DataExplorer AppHost
+The sample database intentionally exercises metadata discovery scenarios in Data Explorer:
+
+- Primary/foreign keys
+- Many-to-many (`TodoItemTag`)
+- Lookup/reference tables (`TodoStatus`, `TodoPriority`)
+- Nullable + non-nullable columns
+- Default values and check constraints
+- Unique indexes (`Name` columns on lookup tables)
+- Date/time, boolean, and text fields
+- Seeded relational data with comments and tags
+
+Main entities:
+
+- `TodoItem`
+- `TodoList`
+- `TodoCategory`
+- `TodoTag`
+- `TodoItemTag`
+- `TodoPriority`
+- `TodoStatus`
+- `TodoComment`
 
 ## Running the sample
 
@@ -23,16 +40,35 @@ The `samples/` folder contains a self-contained Aspire application that demonstr
 dotnet run --project samples/OakIdeas.Aspire.DataExplorer.Sample.AppHost
 ```
 
-The Aspire dashboard opens automatically at `http://localhost:15888`.
+The Aspire dashboard opens automatically (`http://localhost:15888`). Open `sample-web` and navigate to `/todos`.
 
-Navigate to:
-- **sample-web** — the Blazor frontend
+## Migrations and seed data
 
-To run the DataExplorer tool at the same time, start the main AppHost in a second terminal:
+The API applies EF Core migrations automatically on startup:
+
+- Migration assembly: `samples/OakIdeas.Aspire.DataExplorer.Sample.Api/Migrations`
+- Startup migration call: `db.Database.MigrateAsync()` in `Sample.Api/Program.cs`
+
+To create a new migration after model changes:
 
 ```bash
-dotnet run --project src/OakIdeas.Aspire.DataExplorer.AppHost
+dotnet ef migrations add <MigrationName> \
+  --project samples/OakIdeas.Aspire.DataExplorer.Sample.Api \
+  --startup-project samples/OakIdeas.Aspire.DataExplorer.Sample.Api
 ```
+
+Seed data is configured in `SampleDbContext.OnModelCreating(...)` and is deterministic so screenshots and metadata checks remain stable.
+
+## Validating with Data Explorer
+
+1. Start the sample AppHost.
+2. Start the main DataExplorer AppHost in another terminal:
+   ```bash
+   dotnet run --project src/OakIdeas.Aspire.DataExplorer.AppHost
+   ```
+3. In Data Explorer, connect to `sampledb`.
+4. Inspect tables and metadata for keys, constraints, indexes, and relationships.
+5. Use `sample-web` to create/edit/delete/complete/reopen tasks and add comments, then refresh metadata views.
 
 ## E2E validation assets
 
