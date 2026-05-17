@@ -10,12 +10,14 @@ public sealed record ExplorerDatabaseSelection(
     string? ValidationMessage);
 
 public sealed record GetAvailableDatabasesResponse(
-    IReadOnlyList<DiscoveredDatabaseResource> Resources);
+    IReadOnlyList<DiscoveredDatabaseResource> Resources,
+    DataExplorerError? Error = null);
 
 public sealed record SelectDatabaseResponse(
     bool Succeeded,
     ExplorerDatabaseSelection? Selection,
-    IReadOnlyList<string> ValidationErrors);
+    IReadOnlyList<string> ValidationErrors,
+    DataExplorerError? Error = null);
 
 public sealed record GetSelectedDatabaseResponse(
     ExplorerDatabaseSelection? Selection);
@@ -25,7 +27,8 @@ public sealed record GetDatabaseMetadataResponse(
     DatabaseMetadata? AggregatedMetadata,
     MetadataCollectionStatus CollectionStatus,
     IReadOnlyList<MetadataCollectionFailure> FailureDetails,
-    IReadOnlyList<string> Errors);
+    IReadOnlyList<string> Errors,
+    DataExplorerError? Error = null);
 
 public sealed record GetObjectDefinitionResponse(
     string ObjectId,
@@ -33,4 +36,5 @@ public sealed record GetObjectDefinitionResponse(
     string? Definition,
     bool IsAvailable,
     string? UnavailableReason,
-    IReadOnlyList<string> Errors);
+    IReadOnlyList<string> Errors,
+    DataExplorerError? Error = null);

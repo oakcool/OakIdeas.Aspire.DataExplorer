@@ -10,11 +10,13 @@ namespace OakIdeas.Aspire.DataExplorer.Core.Services;
 public sealed class MetadataAggregationService(
     IProviderFactory providerFactory,
     IMetadataCache metadataCache,
-    IOptions<MetadataAggregationOptions> options) : IMetadataAggregationService
+    IOptions<MetadataAggregationOptions> options,
+    IErrorHandler errorHandler) : IMetadataAggregationService
 {
     private readonly IProviderFactory _providerFactory = providerFactory;
     private readonly IMetadataCache _metadataCache = metadataCache;
     private readonly MetadataAggregationOptions _options = options.Value;
+    private readonly IErrorHandler _errorHandler = errorHandler;
 
     public async Task<DiscoverDatabaseMetadataResponse> GetDatabaseMetadataAsync(
         SelectedDatabaseContext selectedDbContext,
@@ -38,6 +40,7 @@ public sealed class MetadataAggregationService(
         var operationToken = timeoutSource.Token;
 
         var failures = new List<MetadataCollectionFailure>();
+        var context = new ErrorContext("load-metadata", databaseName, providerType);
 
         try
         {
@@ -66,7 +69,8 @@ public sealed class MetadataAggregationService(
                 null,
                 token => schemaProvider.DiscoverSchemasAsync(resource, new DiscoverSchemasRequest(), token),
                 failures,
-                operationToken);
+                operationToken,
+                context);
 
             var tablesTask = DiscoverOptionalAsync(
                 "tables",
@@ -74,14 +78,16 @@ public sealed class MetadataAggregationService(
                 token => tableProvider.DiscoverTablesAsync(resource, new DiscoverTablesRequest(), token),
                 () => new DiscoverTablesResponse([]),
                 failures,
-                operationToken);
+                operationToken,
+                context);
             var viewsTask = DiscoverOptionalAsync(
                 "views",
                 null,
                 token => viewProvider.DiscoverViewsAsync(resource, new DiscoverViewsRequest(), token),
                 () => new DiscoverViewsResponse([]),
                 failures,
-                operationToken);
+                operationToken,
+                context);
             var proceduresTask = DiscoverOptionalAsync(
                 "procedures",
                 null,
@@ -90,7 +96,8 @@ public sealed class MetadataAggregationService(
                     : procedureProvider.DiscoverStoredProceduresAsync(resource, new DiscoverStoredProceduresRequest(), token),
                 () => new DiscoverStoredProceduresResponse(new Dictionary<string, IReadOnlyList<StoredProcedureMetadata>>(StringComparer.OrdinalIgnoreCase)),
                 failures,
-                operationToken);
+                operationToken,
+                context);
             var functionsTask = DiscoverOptionalAsync(
                 "functions",
                 null,
@@ -99,7 +106,8 @@ public sealed class MetadataAggregationService(
                     : functionProvider.DiscoverFunctionsAsync(resource, new DiscoverFunctionsRequest(), token),
                 () => new DiscoverFunctionsResponse(new Dictionary<string, IReadOnlyDictionary<FunctionType, IReadOnlyList<FunctionMetadata>>>(StringComparer.OrdinalIgnoreCase)),
                 failures,
-                operationToken);
+                operationToken,
+                context);
             var triggersTask = DiscoverOptionalAsync(
                 "triggers",
                 null,
@@ -108,7 +116,8 @@ public sealed class MetadataAggregationService(
                     : triggerProvider.DiscoverTriggersAsync(resource, new DiscoverTriggersRequest(), token),
                 () => new DiscoverTriggersResponse([]),
                 failures,
-                operationToken);
+                operationToken,
+                context);
 
             await Task.WhenAll(tablesTask, viewsTask, proceduresTask, functionsTask, triggersTask);
 
@@ -124,13 +133,15 @@ public sealed class MetadataAggregationService(
                 indexProvider,
                 constraintProvider,
                 failures,
-                operationToken)).ToArray();
+                operationToken,
+                context)).ToArray();
             var viewDiscoveryTasks = views.Select(view => DiscoverViewDetailsAsync(
                 resource,
                 view,
                 columnProvider,
                 failures,
-                operationToken)).ToArray();
+                operationToken,
+                context)).ToArray();
 
             await Task.WhenAll(tableDiscoveryTasks);
             await Task.WhenAll(viewDiscoveryTasks);
@@ -220,11 +231,18 @@ public sealed class MetadataAggregationService(
                 Metadata: root,
                 AggregatedMetadata: aggregateMetadata,
                 CollectionStatus: status,
-                FailureDetails: failures);
+                FailureDetails: failures,
+                Error: failures.Count == 0 ? null : CreateAggregateError(failures, context));
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            failures.Add(new MetadataCollectionFailure("aggregation", null, "Metadata aggregation timed out."));
+            var error = _errorHandler.CreateError(
+                ErrorCategory.QueryTimeout,
+                "Metadata aggregation timed out before discovery completed.",
+                "Retry the operation after the database workload settles.",
+                context,
+                diagnosticCode: "aggregation-timeout");
+            failures.Add(new MetadataCollectionFailure("aggregation", null, error.Message));
 
             return new DiscoverDatabaseMetadataResponse(
                 Metadata: new DatabaseMetadataRoot(
@@ -234,7 +252,28 @@ public sealed class MetadataAggregationService(
                     metadataCollectionTime: DateTimeOffset.UtcNow),
                 AggregatedMetadata: null,
                 CollectionStatus: MetadataCollectionStatus.Failed,
-                FailureDetails: failures);
+                FailureDetails: failures,
+                Error: error);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            var error = _errorHandler.MapException(ex, context);
+            failures.Add(new MetadataCollectionFailure("aggregation", databaseName, error.Message));
+
+            return new DiscoverDatabaseMetadataResponse(
+                Metadata: new DatabaseMetadataRoot(
+                    databaseName: databaseName,
+                    providerType: providerType,
+                    resourceId: resourceId,
+                    metadataCollectionTime: DateTimeOffset.UtcNow),
+                AggregatedMetadata: null,
+                CollectionStatus: MetadataCollectionStatus.Failed,
+                FailureDetails: failures,
+                Error: error);
         }
     }
 
@@ -247,7 +286,8 @@ public sealed class MetadataAggregationService(
         IIndexDiscoveryProvider? indexProvider,
         IConstraintDiscoveryProvider? constraintProvider,
         List<MetadataCollectionFailure> failures,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ErrorContext context)
     {
         var key = table.FullyQualifiedName;
         var columnsTask = DiscoverOptionalAsync(
@@ -259,7 +299,8 @@ public sealed class MetadataAggregationService(
                 token),
             () => new DiscoverColumnsResponse([]),
             failures,
-            cancellationToken);
+            cancellationToken,
+            context);
 
         var primaryKeysTask = DiscoverOptionalAsync(
             "primary-keys",
@@ -272,7 +313,8 @@ public sealed class MetadataAggregationService(
                     token),
             () => new DiscoverPrimaryKeysResponse([]),
             failures,
-            cancellationToken);
+            cancellationToken,
+            context);
 
         var foreignKeysTask = DiscoverOptionalAsync(
             "foreign-keys",
@@ -285,7 +327,8 @@ public sealed class MetadataAggregationService(
                     token),
             () => new DiscoverForeignKeysResponse([]),
             failures,
-            cancellationToken);
+            cancellationToken,
+            context);
 
         var indexesTask = DiscoverOptionalAsync(
             "indexes",
@@ -298,7 +341,8 @@ public sealed class MetadataAggregationService(
                     token),
             () => new DiscoverIndexesResponse([]),
             failures,
-            cancellationToken);
+            cancellationToken,
+            context);
 
         var constraintsTask = DiscoverOptionalAsync(
             "constraints",
@@ -311,7 +355,8 @@ public sealed class MetadataAggregationService(
                     token),
             () => new DiscoverConstraintsResponse([]),
             failures,
-            cancellationToken);
+            cancellationToken,
+            context);
 
         await Task.WhenAll(columnsTask, primaryKeysTask, foreignKeysTask, indexesTask, constraintsTask);
 
@@ -329,7 +374,8 @@ public sealed class MetadataAggregationService(
         ViewObject view,
         IColumnDiscoveryProvider columnProvider,
         List<MetadataCollectionFailure> failures,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ErrorContext context)
     {
         var key = view.FullyQualifiedName;
         var columns = await DiscoverOptionalAsync(
@@ -341,7 +387,8 @@ public sealed class MetadataAggregationService(
                 token),
             () => new DiscoverColumnsResponse([]),
             failures,
-            cancellationToken);
+            cancellationToken,
+            context);
 
         return new ViewDiscoveryDetails(
             Key: key,
@@ -353,7 +400,8 @@ public sealed class MetadataAggregationService(
         string? target,
         Func<CancellationToken, Task<T>> discover,
         List<MetadataCollectionFailure> failures,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ErrorContext context)
     {
         try
         {
@@ -361,7 +409,8 @@ public sealed class MetadataAggregationService(
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            failures.Add(new MetadataCollectionFailure(operation, target, ex.Message));
+            var error = _errorHandler.MapException(ex, context with { Operation = operation, Target = target ?? context.Target });
+            failures.Add(new MetadataCollectionFailure(operation, target, error.Message));
             throw;
         }
     }
@@ -372,7 +421,8 @@ public sealed class MetadataAggregationService(
         Func<CancellationToken, Task<T>> discover,
         Func<T> onFailure,
         List<MetadataCollectionFailure> failures,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ErrorContext context)
     {
         try
         {
@@ -380,9 +430,23 @@ public sealed class MetadataAggregationService(
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            failures.Add(new MetadataCollectionFailure(operation, target, ex.Message));
+            var error = _errorHandler.MapException(ex, context with { Operation = operation, Target = target ?? context.Target });
+            failures.Add(new MetadataCollectionFailure(operation, target, error.Message));
             return onFailure();
         }
+    }
+
+    private DataExplorerError CreateAggregateError(
+        IReadOnlyList<MetadataCollectionFailure> failures,
+        ErrorContext context)
+    {
+        var firstFailure = failures[0];
+        return _errorHandler.CreateError(
+            ErrorCategory.ProviderError,
+            firstFailure.Message,
+            "Review the diagnostic details and retry the operation if needed.",
+            context with { Operation = firstFailure.Operation, Target = firstFailure.Target ?? context.Target },
+            diagnosticCode: "metadata-partial-failure");
     }
 
     private async Task<T> ExecuteWithRetryAsync<T>(

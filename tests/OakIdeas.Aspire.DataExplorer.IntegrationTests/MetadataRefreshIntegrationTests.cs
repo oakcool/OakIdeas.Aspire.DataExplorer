@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Extensions;
@@ -43,7 +44,7 @@ public sealed class MetadataRefreshIntegrationTests
         var aggregation = new SequentialMetadataAggregationService([firstMetadata, secondMetadata]);
         var cache = new InMemoryMetadataCache();
 
-        using var service = new MetadataRefreshService(aggregation, cache);
+        using var service = new MetadataRefreshService(aggregation, cache, CreateErrorHandler());
         var context = CreateSelectedDatabaseContext("sql-main", "applicationdb");
 
         var firstResponse = await service.RefreshDatabaseMetadataAsync(context, CancellationToken.None);
@@ -62,14 +63,15 @@ public sealed class MetadataRefreshIntegrationTests
     {
         var aggregation = new FailingMetadataAggregationService("Provider unavailable: connection refused");
         var cache = new InMemoryMetadataCache();
-        using var service = new MetadataRefreshService(aggregation, cache);
+        using var service = new MetadataRefreshService(aggregation, cache, CreateErrorHandler());
         var context = CreateSelectedDatabaseContext("sql-main", "applicationdb");
 
         var response = await service.RefreshDatabaseMetadataAsync(context, CancellationToken.None);
 
         response.Status.Should().Be(RefreshStatus.Failed);
         response.Errors.Should().ContainSingle();
-        response.Errors[0].Should().Contain("connection refused");
+        response.Errors[0].Should().Contain("provider reported an error");
+        response.Error.Should().NotBeNull();
         response.Metadata.Should().BeNull();
         response.CompletedAt.Should().NotBeNull();
     }
@@ -80,7 +82,7 @@ public sealed class MetadataRefreshIntegrationTests
         var barrier = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var aggregation = new BlockingMetadataAggregationService(barrier.Task);
         var cache = new InMemoryMetadataCache();
-        using var service = new MetadataRefreshService(aggregation, cache);
+        using var service = new MetadataRefreshService(aggregation, cache, CreateErrorHandler());
         var context = CreateSelectedDatabaseContext("sql-main", "applicationdb");
 
         var firstRefresh = service.RefreshDatabaseMetadataAsync(context, CancellationToken.None);
@@ -139,7 +141,7 @@ public sealed class MetadataRefreshIntegrationTests
 
         var aggregation = new SequentialMetadataAggregationService([firstMetadata, secondMetadata]);
         var cache = new InMemoryMetadataCache();
-        using var service = new MetadataRefreshService(aggregation, cache);
+        using var service = new MetadataRefreshService(aggregation, cache, CreateErrorHandler());
         var context = CreateSelectedDatabaseContext("sql-main", "applicationdb");
 
         await service.RefreshDatabaseMetadataAsync(context, CancellationToken.None);
@@ -165,6 +167,9 @@ public sealed class MetadataRefreshIntegrationTests
                 DiscoveredAt: DateTimeOffset.UtcNow),
             IsValid: true,
             ValidationMessage: null);
+
+    private static IErrorHandler CreateErrorHandler()
+        => new ErrorHandler(NullLogger<ErrorHandler>.Instance, []);
 
     private sealed class SequentialMetadataAggregationService(IReadOnlyList<DatabaseMetadataRoot> sequence)
         : IMetadataAggregationService

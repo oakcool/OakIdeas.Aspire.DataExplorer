@@ -13,4 +13,5 @@ public sealed record SelectDatabaseRequest(
 public sealed record SelectDatabaseResponse(
     bool Succeeded,
     SelectedDatabaseContext? Context,
-    string? ErrorMessage);
+    string? ErrorMessage,
+    DataExplorerError? Error = null);

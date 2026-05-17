@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Models;
@@ -14,7 +15,7 @@ public sealed class MetadataRefreshServiceTests
         var expectedMetadata = CreateMetadataRoot("applicationdb", "sql-main");
         var aggregation = new StubMetadataAggregationService(expectedMetadata);
         var cache = new SpyMetadataCache();
-        using var service = new MetadataRefreshService(aggregation, cache);
+        using var service = new MetadataRefreshService(aggregation, cache, CreateErrorHandler());
         var context = CreateSelectedDatabaseContext("sql-main", "applicationdb");
 
         var response = await service.RefreshDatabaseMetadataAsync(context, CancellationToken.None);
@@ -33,7 +34,7 @@ public sealed class MetadataRefreshServiceTests
         var expectedMetadata = CreateMetadataRoot("applicationdb", "sql-main");
         var aggregation = new StubMetadataAggregationService(expectedMetadata);
         var cache = new SpyMetadataCache();
-        using var service = new MetadataRefreshService(aggregation, cache);
+        using var service = new MetadataRefreshService(aggregation, cache, CreateErrorHandler());
         var context = CreateSelectedDatabaseContext("sql-main", "applicationdb");
 
         await service.RefreshDatabaseMetadataAsync(context, CancellationToken.None);
@@ -50,7 +51,7 @@ public sealed class MetadataRefreshServiceTests
         var expectedMetadata = CreateMetadataRoot("applicationdb", "sql-main");
         var aggregation = new StubMetadataAggregationService(expectedMetadata);
         var cache = new SpyMetadataCache();
-        using var service = new MetadataRefreshService(aggregation, cache);
+        using var service = new MetadataRefreshService(aggregation, cache, CreateErrorHandler());
         var context = CreateSelectedDatabaseContext("sql-main", "applicationdb");
 
         await service.RefreshDatabaseMetadataAsync(context, CancellationToken.None);
@@ -65,7 +66,7 @@ public sealed class MetadataRefreshServiceTests
         var barrier = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var aggregation = new BlockingMetadataAggregationService(barrier.Task);
         var cache = new SpyMetadataCache();
-        using var service = new MetadataRefreshService(aggregation, cache);
+        using var service = new MetadataRefreshService(aggregation, cache, CreateErrorHandler());
         var context = CreateSelectedDatabaseContext("sql-main", "applicationdb");
 
         var firstRefresh = service.RefreshDatabaseMetadataAsync(context, CancellationToken.None);
@@ -86,7 +87,7 @@ public sealed class MetadataRefreshServiceTests
         var barrier = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var aggregation = new BlockingMetadataAggregationService(barrier.Task);
         var cache = new SpyMetadataCache();
-        using var service = new MetadataRefreshService(aggregation, cache);
+        using var service = new MetadataRefreshService(aggregation, cache, CreateErrorHandler());
         var context = CreateSelectedDatabaseContext("sql-main", "applicationdb");
 
         using var cts = new CancellationTokenSource();
@@ -108,13 +109,14 @@ public sealed class MetadataRefreshServiceTests
     {
         var aggregation = new FailingMetadataAggregationService("Connection timeout");
         var cache = new SpyMetadataCache();
-        using var service = new MetadataRefreshService(aggregation, cache);
+        using var service = new MetadataRefreshService(aggregation, cache, CreateErrorHandler());
         var context = CreateSelectedDatabaseContext("sql-main", "applicationdb");
 
         var response = await service.RefreshDatabaseMetadataAsync(context, CancellationToken.None);
 
         response.Status.Should().Be(RefreshStatus.Failed);
-        response.Errors.Should().ContainSingle().Which.Should().Contain("Connection timeout");
+        response.Errors.Should().ContainSingle().Which.Should().Contain("provider reported an error");
+        response.Error.Should().NotBeNull();
         response.CompletedAt.Should().NotBeNull();
         response.Metadata.Should().BeNull();
     }
@@ -124,14 +126,14 @@ public sealed class MetadataRefreshServiceTests
     {
         var failingAggregation = new FailingMetadataAggregationService("error");
         var cache = new SpyMetadataCache();
-        using var service = new MetadataRefreshService(failingAggregation, cache);
+        using var service = new MetadataRefreshService(failingAggregation, cache, CreateErrorHandler());
         var context = CreateSelectedDatabaseContext("sql-main", "applicationdb");
 
         await service.RefreshDatabaseMetadataAsync(context, CancellationToken.None);
 
         var expectedMetadata = CreateMetadataRoot("applicationdb", "sql-main");
         var successAggregation = new StubMetadataAggregationService(expectedMetadata);
-        using var service2 = new MetadataRefreshService(successAggregation, cache);
+        using var service2 = new MetadataRefreshService(successAggregation, cache, CreateErrorHandler());
 
         var response = await service2.RefreshDatabaseMetadataAsync(context, CancellationToken.None);
 
@@ -143,7 +145,8 @@ public sealed class MetadataRefreshServiceTests
     {
         using var service = new MetadataRefreshService(
             new StubMetadataAggregationService(CreateMetadataRoot("db", "res")),
-            new SpyMetadataCache());
+            new SpyMetadataCache(),
+            CreateErrorHandler());
 
         var status = await service.GetRefreshStatusAsync(CancellationToken.None);
 
@@ -156,7 +159,8 @@ public sealed class MetadataRefreshServiceTests
         var metadata = CreateMetadataRoot("applicationdb", "sql-main");
         using var service = new MetadataRefreshService(
             new StubMetadataAggregationService(metadata),
-            new SpyMetadataCache());
+            new SpyMetadataCache(),
+            CreateErrorHandler());
         var context = CreateSelectedDatabaseContext("sql-main", "applicationdb");
 
         await service.RefreshDatabaseMetadataAsync(context, CancellationToken.None);
@@ -171,7 +175,8 @@ public sealed class MetadataRefreshServiceTests
     {
         using var service = new MetadataRefreshService(
             new StubMetadataAggregationService(CreateMetadataRoot("db", "res")),
-            new SpyMetadataCache());
+            new SpyMetadataCache(),
+            CreateErrorHandler());
 
         var act = async () => await service.RefreshDatabaseMetadataAsync(null!, CancellationToken.None);
 
@@ -183,7 +188,8 @@ public sealed class MetadataRefreshServiceTests
     {
         using var service = new MetadataRefreshService(
             new StubMetadataAggregationService(CreateMetadataRoot("db", "res")),
-            new SpyMetadataCache());
+            new SpyMetadataCache(),
+            CreateErrorHandler());
         var context = CreateSelectedDatabaseContext("sql-main", "applicationdb");
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync();
@@ -199,6 +205,9 @@ public sealed class MetadataRefreshServiceTests
             providerType: DatabaseProviderType.SqlServer,
             resourceId: resourceId,
             metadataCollectionTime: DateTimeOffset.UtcNow);
+
+    private static IErrorHandler CreateErrorHandler()
+        => new ErrorHandler(NullLogger<ErrorHandler>.Instance, []);
 
     private static SelectedDatabaseContext CreateSelectedDatabaseContext(
         string resourceId,

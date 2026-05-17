@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
@@ -100,8 +101,12 @@ public sealed class MetadataAggregationServiceTests
         return new MetadataAggregationService(
             new StubProviderFactory(provider),
             cache,
-            options ?? Options.Create(new MetadataAggregationOptions()));
+            options ?? Options.Create(new MetadataAggregationOptions()),
+            CreateErrorHandler());
     }
+
+    private static IErrorHandler CreateErrorHandler()
+        => new ErrorHandler(NullLogger<ErrorHandler>.Instance, []);
 
     private static SelectedDatabaseContext CreateSelectedDatabaseContext()
         => new(

@@ -350,7 +350,8 @@ public sealed record DiscoverDatabaseMetadataResponse(
     DatabaseMetadataRoot Metadata,
     DatabaseMetadata? AggregatedMetadata = null,
     MetadataCollectionStatus CollectionStatus = MetadataCollectionStatus.Success,
-    IReadOnlyList<MetadataCollectionFailure>? FailureDetails = null);
+    IReadOnlyList<MetadataCollectionFailure>? FailureDetails = null,
+    DataExplorerError? Error = null);
 
 public sealed record DiscoverSchemasRequest(
     bool IncludeSystemSchemas = false);

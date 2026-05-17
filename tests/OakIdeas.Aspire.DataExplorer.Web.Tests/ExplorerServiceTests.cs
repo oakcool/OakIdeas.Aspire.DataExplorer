@@ -1,7 +1,9 @@
 ﻿using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Models;
+using OakIdeas.Aspire.DataExplorer.Core.Services;
 using OakIdeas.Aspire.DataExplorer.Web.Services;
 
 namespace OakIdeas.Aspire.DataExplorer.Web.Tests;
@@ -18,6 +20,18 @@ public sealed class ExplorerServiceTests
 
         response.Resources.Should().ContainSingle();
         response.Resources[0].ResourceId.Should().Be("sql-main");
+    }
+
+    [Fact]
+    public async Task GetAvailableDatabasesAsync_WhenDiscoveryFails_ReturnsSanitizedError()
+    {
+        var service = CreateService(resourceDiscovery: new ThrowingResourceDiscovery(new InvalidOperationException("Server=secret;Database=app")));
+
+        var response = await service.GetAvailableDatabasesAsync(CancellationToken.None);
+
+        response.Resources.Should().BeEmpty();
+        response.Error.Should().NotBeNull();
+        response.Error!.Message.Should().NotContain("Server=secret");
     }
 
     [Fact]
@@ -41,6 +55,20 @@ public sealed class ExplorerServiceTests
 
         response.Metadata.Should().BeNull();
         response.Errors.Should().ContainSingle().Which.Should().Contain("Select an available database");
+    }
+
+    [Fact]
+    public async Task GetDatabaseMetadataAsync_WhenAggregationThrows_ReturnsMappedError()
+    {
+        var service = CreateService(
+            metadataAggregationService: new ThrowingMetadataAggregationService(new TimeoutException("Server=secret")));
+
+        var response = await service.GetDatabaseMetadataAsync(CancellationToken.None);
+
+        response.CollectionStatus.Should().Be(MetadataCollectionStatus.Failed);
+        response.Error.Should().NotBeNull();
+        response.Error!.Category.Should().Be(ErrorCategory.QueryTimeout);
+        response.Errors.Should().ContainSingle().Which.Should().NotContain("Server=secret");
     }
 
     [Fact]
@@ -98,7 +126,8 @@ public sealed class ExplorerServiceTests
             selectedDatabaseService ?? new StubSelectedDatabaseService(CreateSelectedContext("sql-main", "applicationdb")),
             metadataAggregationService ?? new StubMetadataAggregationService(),
             metadataRefreshService ?? new StubMetadataRefreshService(),
-            providerFactory ?? new StubProviderFactory(new DefinitionProvider("SELECT 1;")));
+            providerFactory ?? new StubProviderFactory(new DefinitionProvider("SELECT 1;")),
+            new ErrorHandler(NullLogger<ErrorHandler>.Instance, []));
 
     private static DiscoveredDatabaseResource CreateResource(string resourceId)
         => new(
@@ -134,6 +163,16 @@ public sealed class ExplorerServiceTests
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(new DiscoverResourcesResponse(_resources));
         }
+    }
+
+    private sealed class ThrowingResourceDiscovery(Exception exception) : IAspireResourceDiscovery
+    {
+        private readonly Exception _exception = exception;
+
+        public Task<DiscoverResourcesResponse> DiscoverResourcesAsync(
+            DiscoverResourcesRequest request,
+            CancellationToken cancellationToken)
+            => throw _exception;
     }
 
     private sealed class StubSelectedDatabaseService(SelectedDatabaseContext? selectedContext) : ISelectedDatabaseService
@@ -189,6 +228,16 @@ public sealed class ExplorerServiceTests
                     resourceId: selectedDbContext.Resource.ResourceId,
                     metadataCollectionTime: DateTimeOffset.UtcNow)));
         }
+    }
+
+    private sealed class ThrowingMetadataAggregationService(Exception exception) : IMetadataAggregationService
+    {
+        private readonly Exception _exception = exception;
+
+        public Task<DiscoverDatabaseMetadataResponse> GetDatabaseMetadataAsync(
+            SelectedDatabaseContext selectedDbContext,
+            CancellationToken cancellationToken)
+            => throw _exception;
     }
 
     private sealed class StubMetadataRefreshService : IMetadataRefreshService

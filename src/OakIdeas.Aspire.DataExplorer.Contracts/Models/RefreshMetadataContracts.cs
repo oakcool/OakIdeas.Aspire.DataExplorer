@@ -18,4 +18,5 @@ public sealed record RefreshMetadataResponse(
     DateTimeOffset? CompletedAt,
     IReadOnlyList<string> Errors,
     bool IsPartialSuccess,
-    DatabaseMetadataRoot? Metadata);
+    DatabaseMetadataRoot? Metadata,
+    DataExplorerError? Error = null);

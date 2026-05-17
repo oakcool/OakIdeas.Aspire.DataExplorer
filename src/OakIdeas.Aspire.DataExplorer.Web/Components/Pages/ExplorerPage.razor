@@ -2,6 +2,7 @@
 @using OakIdeas.Aspire.DataExplorer.Contracts.Models
 @using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer
 @using OakIdeas.Aspire.DataExplorer.Web.Abstractions
+@using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Atoms
 @implements IDisposable
 @inject IExplorerService ExplorerService
 
@@ -25,12 +26,40 @@
         </div>
 
         <div class="de-explorer-body">
-            <ObjectDetails @key="_selection?.ObjectId"
-                           Selection="_selection"
-                           Metadata="_objectMetadata"
-                           Definition="_definitionModel"
-                           IsLoading="_isLoading"
-                           IsDefinitionLoading="_isDefinitionLoading" />
+            @if (_metadataError is not null)
+            {
+                <div class="explorer-state-stack">
+                    <ErrorAlert Error="@_metadataError" />
+                    <ErrorRecovery Error="@_metadataError" />
+                    <DiagnosticInfo Error="@_metadataError" />
+                </div>
+            }
+
+            @if (_definitionError is not null)
+            {
+                <div class="explorer-state-stack">
+                    <ErrorAlert Error="@_definitionError" />
+                    <ErrorRecovery Error="@_definitionError" />
+                    <DiagnosticInfo Error="@_definitionError" />
+                </div>
+            }
+
+            <ErrorBoundary>
+                <ChildContent>
+                    <ObjectDetails @key="_selection?.ObjectId"
+                                   Selection="_selection"
+                                   Metadata="_objectMetadata"
+                                   Definition="_definitionModel"
+                                   IsLoading="_isLoading"
+                                   IsDefinitionLoading="_isDefinitionLoading" />
+                </ChildContent>
+                <ErrorContent>
+                    <div class="explorer-state-stack">
+                        <ErrorAlert Message="An unexpected UI error occurred while rendering object details." />
+                        <ErrorRecovery Suggestion="Refresh the page and select the object again." />
+                    </div>
+                </ErrorContent>
+            </ErrorBoundary>
         </div>
     </div>
 </div>
@@ -57,6 +86,8 @@
     private ObjectDetails.ObjectModel? _selection;
     private ObjectDetails.ObjectMetadata? _objectMetadata;
     private ObjectDetails.DefinitionModel? _definitionModel;
+    private DataExplorerError? _metadataError;
+    private DataExplorerError? _definitionError;
     private bool _isLoading;
     private bool _isDefinitionLoading;
     private CancellationTokenSource? _loadCts;
@@ -85,6 +116,8 @@
             _selection = null;
             _objectMetadata = null;
             _definitionModel = null;
+            _metadataError = null;
+            _definitionError = null;
             return;
         }
 
@@ -102,6 +135,8 @@
             Kind: kind.Value);
         _objectMetadata = null;
         _definitionModel = null;
+        _metadataError = null;
+        _definitionError = null;
         _isLoading = true;
         _isDefinitionLoading = true;
 
@@ -127,6 +162,7 @@
     private async Task LoadMetadataAsync(CancellationToken cancellationToken)
     {
         var metadataResponse = await ExplorerService.GetDatabaseMetadataAsync(cancellationToken);
+        _metadataError = metadataResponse.Error;
         var aggregated = metadataResponse.AggregatedMetadata;
 
         if (aggregated is null || _selection is null)
@@ -278,6 +314,7 @@
         };
 
         var response = await ExplorerService.GetObjectDefinitionAsync(ObjectId, contractType, cancellationToken);
+        _definitionError = response.Error;
 
         _definitionModel = new ObjectDetails.DefinitionModel(
             Definition: response.Definition,
@@ -330,4 +367,3 @@
         _loadCts?.Dispose();
     }
 }
-

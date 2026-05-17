@@ -5,6 +5,7 @@
 @using OakIdeas.Aspire.DataExplorer.Contracts.Models
 @using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer
 @using OakIdeas.Aspire.DataExplorer.Web.Abstractions
+@using OakIdeas.Aspire.DataExplorer.Core.Models
 @using Microsoft.AspNetCore.Components.Web
 @inject NavigationManager NavigationManager
 @inject IExplorerService ExplorerService
@@ -44,6 +45,7 @@
                style="--explorer-width: @ExplorerWidthPx;">
             <ObjectExplorer IsLoading="@_isExplorerLoading"
                             ErrorMessage="@_explorerErrorMessage"
+                            Error="@_explorerError"
                             Connections="@_connections"
                             SelectedObject="@_selectedObject"
                             OnConnectionSelect="HandleConnectionSelect"
@@ -84,6 +86,7 @@
     private bool _isResizingSidebar;
     private bool _isExplorerLoading;
     private string? _explorerErrorMessage;
+    private DataExplorerError? _explorerError;
     private ObjectExplorer.ObjectSelection? _selectedObject;
     private CancellationTokenSource? _explorerLoadCts;
 
@@ -143,11 +146,20 @@
 
         _isExplorerLoading = true;
         _explorerErrorMessage = null;
+        _explorerError = null;
 
         try
         {
             var token = loadCts.Token;
             var available = await ExplorerService.GetAvailableDatabasesAsync(token);
+            if (available.Error is not null)
+            {
+                _explorerError = available.Error;
+                _explorerErrorMessage = available.Error.Message;
+                _connections.Clear();
+                return;
+            }
+
             var selected = await EnsureSelectedDatabaseAsync(available, token);
             if (selected is null)
             {
@@ -160,6 +172,7 @@
                 var refreshResponse = await ExplorerService.RefreshDatabaseMetadataAsync(token);
                 if (refreshResponse.Status is RefreshStatus.Failed && refreshResponse.Errors.Any())
                 {
+                    _explorerError = refreshResponse.Error;
                     _explorerErrorMessage = refreshResponse.Errors[0];
                     _connections.Clear();
                     return;
@@ -169,6 +182,7 @@
             var metadataResponse = await ExplorerService.GetDatabaseMetadataAsync(token);
             if (metadataResponse.Errors.Any())
             {
+                _explorerError = metadataResponse.Error;
                 _explorerErrorMessage = string.Join(" ", metadataResponse.Errors);
                 _connections.Clear();
                 return;
@@ -187,9 +201,12 @@
         catch (OperationCanceledException) when (loadCts.IsCancellationRequested)
         {
         }
-        catch
+        catch (Exception ex)
         {
-            _explorerErrorMessage = "Unable to load metadata for Object Explorer.";
+            _explorerError = ex is DataExplorerOperationException dataExplorerException
+                ? dataExplorerException.Error
+                : null;
+            _explorerErrorMessage = _explorerError?.Message ?? "Unable to load metadata for Object Explorer.";
             _connections.Clear();
         }
         finally
@@ -249,6 +266,7 @@
         var selectionResponse = await ExplorerService.SelectDatabaseAsync(target.ResourceId, cancellationToken);
         if (!selectionResponse.Succeeded || selectionResponse.Selection is null)
         {
+            _explorerError = selectionResponse.Error;
             _explorerErrorMessage = selectionResponse.ValidationErrors.FirstOrDefault()
                 ?? "Unable to select a database resource for metadata loading.";
             return null;

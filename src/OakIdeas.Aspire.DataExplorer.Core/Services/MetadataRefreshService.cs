@@ -6,10 +6,12 @@ namespace OakIdeas.Aspire.DataExplorer.Core.Services;
 
 public sealed class MetadataRefreshService(
     IMetadataAggregationService aggregationService,
-    IMetadataCache metadataCache) : IMetadataRefreshService, IDisposable
+    IMetadataCache metadataCache,
+    IErrorHandler errorHandler) : IMetadataRefreshService, IDisposable
 {
     private readonly IMetadataAggregationService _aggregationService = aggregationService;
     private readonly IMetadataCache _metadataCache = metadataCache;
+    private readonly IErrorHandler _errorHandler = errorHandler;
     private readonly SemaphoreSlim _semaphore = new(1, 1);
     private RefreshMetadataResponse? _lastRefreshStatus;
     private bool _disposed;
@@ -73,7 +75,8 @@ public sealed class MetadataRefreshService(
                 CompletedAt: DateTimeOffset.UtcNow,
                 Errors: [],
                 IsPartialSuccess: false,
-                Metadata: aggregationResponse.Metadata);
+                Metadata: aggregationResponse.Metadata,
+                Error: aggregationResponse.Error);
 
             _lastRefreshStatus = completedResponse;
             return completedResponse;
@@ -93,13 +96,20 @@ public sealed class MetadataRefreshService(
         }
         catch (Exception ex)
         {
+            var error = _errorHandler.MapException(
+                ex,
+                new ErrorContext(
+                    "refresh-metadata",
+                    selectedDbContext.Resource.DatabaseName,
+                    selectedDbContext.Resource.ProviderType));
             var failedResponse = new RefreshMetadataResponse(
                 Status: RefreshStatus.Failed,
                 StartedAt: startedAt,
                 CompletedAt: DateTimeOffset.UtcNow,
-                Errors: [ex.Message],
+                Errors: [error.Message],
                 IsPartialSuccess: false,
-                Metadata: null);
+                Metadata: null,
+                Error: error);
 
             _lastRefreshStatus = failedResponse;
             return failedResponse;

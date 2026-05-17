@@ -1,11 +1,15 @@
-<div class="explorer-state explorer-state--error" role="alert">
-    <span class="explorer-state__icon" aria-hidden="true">
-        <HeroIcon Kind="HeroIconKind.ExclamationTriangle" Size="18" />
-    </span>
-    <span>@ErrorMessage</span>
+@using OakIdeas.Aspire.DataExplorer.Contracts.Models
+
+<div class="explorer-state-stack">
+    <ErrorAlert Error="@Error" Message="@ErrorMessage" />
+    <ErrorRecovery Error="@Error" />
+    <DiagnosticInfo Error="@Error" />
 </div>
 
 @code {
     [Parameter]
     public string ErrorMessage { get; set; } = "Unable to load database metadata.";
+
+    [Parameter]
+    public DataExplorerError? Error { get; set; }
 }
