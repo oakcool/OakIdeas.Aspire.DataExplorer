@@ -1,10 +1,56 @@
 # Usage Quickstart
 
-1. Run the AppHost.
-2. Open the DataExplorer web app from Aspire dashboard.
-3. Resolve `IExplorerService` and call `GetAvailableDatabasesAsync(cancellationToken)` to list discovered database resources.
-4. Call `SelectDatabaseAsync(resourceId, cancellationToken)` and then `GetDatabaseMetadataAsync(cancellationToken)` to populate explorer metadata.
-5. Use `RefreshDatabaseMetadataAsync(cancellationToken)` and `GetObjectDefinitionAsync(objectId, objectType, cancellationToken)` for refresh and definition workflows.
-6. In the Object Explorer pane, browse metadata as a tree grouped by `Schema -> Tables/Views/Procedures/Functions/Triggers -> Objects` and use the refresh button to reload metadata.
-7. Object nodes include type icons (table, view, procedure, function, trigger) and support selection for detail navigation workflows.
-8. Use Dashboard, Explorer, Table, and Query pages against the selected database context.
+## Metadata discovery walkthrough
+
+1. Run the AppHost:
+
+   ```bash
+   dotnet run --project src/OakIdeas.Aspire.DataExplorer.AppHost
+   ```
+
+2. Open the DataExplorer web app from the Aspire dashboard.
+3. Resolve `IExplorerService` and list databases:
+
+   ```csharp
+   var available = await explorerService.GetAvailableDatabasesAsync(cancellationToken);
+   var first = available.Resources.FirstOrDefault();
+   if (first is null)
+   {
+       return;
+   }
+
+   var selected = await explorerService.SelectDatabaseAsync(first.ResourceId, cancellationToken);
+   if (!selected.Succeeded)
+   {
+       return;
+   }
+
+   var metadata = await explorerService.GetDatabaseMetadataAsync(cancellationToken);
+   var refresh = await explorerService.RefreshDatabaseMetadataAsync(cancellationToken);
+   ```
+
+4. In Object Explorer, browse metadata by:
+   - `Schema`
+   - `Tables`
+   - `Views`
+   - `Procedures`
+   - `Functions`
+   - `Triggers`
+5. Select an object to load object details and (when supported) definition text.
+
+## Running the sample with metadata exploration
+
+Run sample AppHost to validate a consuming app workflow:
+
+```bash
+dotnet run --project samples/OakIdeas.Aspire.DataExplorer.Sample.AppHost
+```
+
+Use the Aspire dashboard to open the sample web app and verify metadata tree navigation and refresh behavior.
+
+## Troubleshooting
+
+- If databases are missing, wait for resources to become healthy, then refresh.
+- If refresh is already running, wait for completion and retry.
+- If metadata load fails, use the diagnostics code and follow recovery guidance in the UI.
+- For categorized error guidance, see [Troubleshooting common errors](../troubleshooting/error-handling.md).

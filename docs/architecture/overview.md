@@ -3,48 +3,52 @@
 OakIdeas.Aspire.DataExplorer is split into UI, orchestration, contracts, and provider layers.
 
 - `Web` hosts the Blazor Server UI.
-- `Core` contains abstractions and domain models.
+- `Core` contains abstractions and domain services.
 - `Contracts` contains request/response DTOs.
 - `Data` contains provider-independent data helpers.
-- `SqlServer` provides SQL Server-specific behavior.
-- `Hosting` contains Aspire integration extensions.
+- `SqlServer` contains SQL Server provider logic.
+- `Hosting` contains Aspire integration extensions and resource discovery.
 - `AppHost` orchestrates local development resources.
 
-## Selected database context service
+```mermaid
+flowchart TD
+    UI[Web UI + ExplorerService]
+    CORE[Core services\nSelection + Aggregation + Refresh + Error handling]
+    HOST[Hosting\nAspire resource discovery]
+    FACTORY[Provider factory]
+    PROVIDERS[Provider projects\nSQL Server MVP]
+    CONTRACTS[Contracts]
+    UI --> CORE
+    CORE --> HOST
+    CORE --> FACTORY
+    FACTORY --> PROVIDERS
+    UI --> CONTRACTS
+    CORE --> CONTRACTS
+    PROVIDERS --> CONTRACTS
+```
 
-Database targeting is handled by `ISelectedDatabaseService` in `Core`:
+## Metadata discovery components
 
-- Stores the in-memory selected `DiscoveredDatabaseResource` as `SelectedDatabaseContext` per scoped session.
-- Validates selections against `IAspireResourceDiscovery` before switching context.
-- Exposes async APIs (`SelectDatabaseAsync`, `GetSelectedDatabaseAsync`, `ClearSelectionAsync`, `IsSelectedAsync`) and a `SelectionChanged` notification event for reactive UI flows.
+- `IAspireResourceDiscovery` (Hosting) discovers database resources.
+- `ISelectedDatabaseService` (Core) manages scoped selected-database context.
+- `IMetadataAggregationService` (Core) coordinates provider discovery and normalization.
+- `IMetadataCache` (Core) stores metadata snapshots by resource/database key.
+- `IMetadataRefreshService` (Core) invalidates cache and orchestrates refresh.
+- `IProviderFactory` (Core) resolves concrete providers registered via options.
 
-## Metadata root contracts
-
-Metadata discovery uses provider-agnostic contracts in `Contracts/Models/DatabaseMetadataContracts.cs`:
-
-- `DatabaseMetadataRoot` captures database-level metadata (`DatabaseName`, `ProviderType`, `ResourceId`, collection timestamp, and grouped object maps).
-- `DatabaseObject` is the normalized base type (`ObjectId`, `ObjectName`, `FullyQualifiedName`, `ObjectType`, `Description`, `ProviderMetadata`, and `Relationships`).
-- Derived object types (`SchemaObject`, `TableObject`, `ViewObject`, `ProcedureObject`, `FunctionObject`, `TriggerObject`) keep a consistent schema-qualified naming model.
-
-`ProviderMetadata` is intentionally a flexible key/value bag (`IReadOnlyDictionary<string, object?>`) so provider projects can add provider-specific values (for example SQL Server object identifiers) without changing shared contracts.
-
-## Metadata aggregation service
-
-`IMetadataAggregationService` in `Core` composes provider discovery operations into a single snapshot for the selected database:
-
-- Schemas are discovered first.
-- Tables/views, programmable objects, and table-level details are collected with async parallel fan-out.
-- Aggregation tracks `MetadataCollectionStatus` (`Success`, `PartialSuccess`, `Failed`) and per-operation failure details.
-- `InMemoryMetadataCache` stores `DatabaseMetadataRoot` by `(resourceId, databaseName)` with configurable TTL via `MetadataAggregationOptions.CacheTtlMinutes`.
-- Cache invalidation is exposed through `IMetadataCache.InvalidateAsync` for refresh and future invalidation workflows.
+See [Metadata discovery architecture](./metadata-discovery.md) for detailed flow and contracts.
 
 ## Error handling and diagnostics
 
-Error categorization and sanitized diagnostics are documented in `docs/architecture/error-handling.md`.
+Error categorization and sanitized diagnostics are documented in [error-handling](./error-handling.md).
 
-- `IErrorHandler` creates safe `DataExplorerError` payloads for UI-facing responses.
-- Provider-specific exception mapping remains in provider projects through `IProviderErrorMapper`.
-- UI components surface recovery suggestions and optional diagnostic metadata without exposing secrets.
+- `IErrorHandler` creates safe `DataExplorerError` payloads.
+- Provider-specific exception mapping stays in provider projects through `IProviderErrorMapper`.
+- UI surfaces recovery suggestions and optional diagnostic metadata without exposing secrets.
+
+## Development-only boundary
+
+DataExplorer is intentionally development-only. Runtime and hosting guards are documented in [development-only-boundary](./development-only-boundary.md).
 
 ## Solution virtual folder layout
 

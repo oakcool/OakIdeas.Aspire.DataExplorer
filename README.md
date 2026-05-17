@@ -7,7 +7,7 @@ OakIdeas.Aspire.DataExplorer is a development-time-only Aspire add-on for inspec
 - Local development tool
 - Aspire AppHost add-on
 - SQL Server-first database explorer
-- Query and table workflow foundation
+- Query and metadata workflow foundation
 
 ## What it is not
 
@@ -32,6 +32,45 @@ To run both AppHosts side-by-side during development:
 - Start `src/OakIdeas.Aspire.DataExplorer.AppHost` for DataExplorer development
 - Start `samples/OakIdeas.Aspire.DataExplorer.Sample.AppHost` for the sample consuming DataExplorer
 - In Visual Studio, use the `DataExplorer + Sample` solution launch profile
+
+## Metadata discovery overview
+
+Metadata discovery is provider-driven and aggregated in `Core` services:
+
+1. Discover resources from Aspire hosting context.
+2. Select a database resource in scoped UI context.
+3. Aggregate metadata through provider discovery interfaces.
+4. Cache metadata snapshots by `(resourceId, databaseName)`.
+5. Refresh via explicit cache invalidation + re-aggregation.
+
+See:
+
+- [Architecture overview](docs/architecture/overview.md)
+- [Metadata discovery architecture](docs/architecture/metadata-discovery.md)
+- [Usage quickstart](docs/usage/quickstart.md)
+
+## Metadata feature completeness (current)
+
+Current SQL Server MVP metadata types:
+
+- Schemas
+- Tables
+- Views
+- Columns
+- Primary keys
+- Foreign keys
+- Indexes
+- Constraints
+- Stored procedures
+- Functions
+- Triggers
+- Object definitions (when available)
+
+## Troubleshooting
+
+- [Troubleshooting common errors](docs/troubleshooting/error-handling.md)
+- [Error handling architecture](docs/architecture/error-handling.md)
+- [Local development setup](docs/setup/local-development.md)
 
 ## Solution layout
 
@@ -60,7 +99,3 @@ To run both AppHosts side-by-side during development:
 - Web runtime startup throws outside `Development`
 - Hosting extension startup throws outside `Development`
 - UI includes persistent warning banner
-
-## Current milestone status
-
-This commit establishes the initial solution structure and baseline projects for Milestone 1.
