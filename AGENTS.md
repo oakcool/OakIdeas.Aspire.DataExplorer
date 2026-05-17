@@ -29,7 +29,9 @@ OakIdeas.Aspire.DataExplorer is a development-time-only Aspire add-on for explor
 - Use TDD for new metadata discoverers where feasible: define request/response contract behavior first, then implement provider discovery.
 - For new providers/discovery services, test contract mapping, normalization/projection, and error mapping paths.
 - Place project-specific test projects under the matching solution section's `Tests` virtual folder.
+- Keep test project directories under `src/tests`.
 - Keep `07 - Tests` reserved for solution-wide test coverage (for example, integration and usability suites).
+- Keep sample projects and sample tests grouped under `08 - Samples` and separate from non-sample solution folder rules.
 - Validate build and tests before completing work.
 
 ## Error Handling Expectations

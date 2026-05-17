@@ -55,13 +55,17 @@ DataExplorer is intentionally development-only. Runtime and hosting guards are d
 
 | Folder | Projects |
 |---|---|
-| `01 - Packages` | Hosting, Web, Contracts |
-| `02 - Services` | _(reserved)_ |
+| `01 - Packages` | Hosting, Contracts, Web.Components |
+| `02 - Services` | Web |
 | `03 - Data` | Data, SqlServer |
 | `04 - Core` | Core |
-| `01 - Packages/Tests` | Web.Tests |
+| `01 - Packages/Tests` | Web.Components.Tests |
+| `02 - Services/Tests` | Web.Tests |
 | `03 - Data/Tests` | Data.Tests, SqlServer.Tests |
 | `04 - Core/Tests` | Core.Tests |
 | `06 - Orchestration` | AppHost |
 | `07 - Tests` | Solution-wide tests (for example: IntegrationTests) |
-| `08 - Samples` | Sample.AppHost, Sample.Api, Sample.Web |
+| `08 - Samples` | Sample.AppHost, Sample.Api, Sample.Web, Sample.Web.Components |
+| `08 - Samples/Tests` | Sample.Web.Components.Tests |
+
+Sample projects remain grouped under `08 - Samples` and do not need to follow the numbered non-sample folder organization.

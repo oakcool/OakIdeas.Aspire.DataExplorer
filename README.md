@@ -69,7 +69,7 @@ Current SQL Server MVP metadata types:
 
 ## E2E validation status
 
-- Integration E2E coverage is in `tests/OakIdeas.Aspire.DataExplorer.IntegrationTests/EndToEndValidationIntegrationTests.cs`
+- Integration E2E coverage is in `src/tests/OakIdeas.Aspire.DataExplorer.IntegrationTests/EndToEndValidationIntegrationTests.cs`
 - Sample validation database setup script: `docs/samples/test-database-setup.sql`
 - Validation workflow checklist: `docs/samples/e2e-validation-checklist.md`
 
@@ -82,7 +82,7 @@ Current SQL Server MVP metadata types:
 ## Solution layout
 
 - `src/` application and libraries
-- `tests/` test projects
+- `src/tests/` test projects
 - `samples/` sample app
 - `docs/` architecture, decisions, setup, provider, usage guidance
 
@@ -90,16 +90,20 @@ Current SQL Server MVP metadata types:
 
 | Folder | Projects |
 |---|---|
-| `01 - Packages` | Hosting, Web, Contracts |
-| `02 - Services` | _(reserved)_ |
+| `01 - Packages` | Hosting, Contracts, Web.Components |
+| `02 - Services` | Web |
 | `03 - Data` | Data, SqlServer |
 | `04 - Core` | Core |
-| `01 - Packages/Tests` | Web.Tests |
+| `01 - Packages/Tests` | Web.Components.Tests |
+| `02 - Services/Tests` | Web.Tests |
 | `03 - Data/Tests` | Data.Tests, SqlServer.Tests |
 | `04 - Core/Tests` | Core.Tests |
 | `06 - Orchestration` | AppHost |
 | `07 - Tests` | Solution-wide tests (for example: IntegrationTests) |
-| `08 - Samples` | Sample.AppHost, Sample.Api, Sample.Web |
+| `08 - Samples` | Sample.AppHost, Sample.Api, Sample.Web, Sample.Web.Components |
+| `08 - Samples/Tests` | Sample.Web.Components.Tests |
+
+Sample projects remain organized under `08 - Samples` and are kept separate from the numbered non-sample sections.
 
 ## Development-only guardrails
 
