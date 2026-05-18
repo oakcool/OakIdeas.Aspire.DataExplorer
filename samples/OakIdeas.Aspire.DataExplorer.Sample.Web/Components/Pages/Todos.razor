@@ -1,102 +1,536 @@
 @page "/todos"
 @rendermode InteractiveServer
 @inject TodoApiClient Api
+@inject IJSRuntime JS
+@using System.ComponentModel.DataAnnotations
 
 <PageTitle>Todos — DataExplorer Sample</PageTitle>
 
 <div class="todos-page">
     <div class="todos-header">
         <div>
-            <h1 class="todos-header__title">Todo Items</h1>
-            <p class="todos-header__sub">Manage your tasks. Every change is reflected live in the DataExplorer.</p>
+            <h1 class="todos-header__title">Task Management Demo</h1>
+            <p class="todos-header__sub">Full CRUD, relational lookups, and seeded data designed for Data Explorer inspection.</p>
         </div>
         @if (_todos is not null)
         {
             <div class="todos-header__stats">
                 <StatWidget Label="Total" Value="@_todos.Count.ToString()" Icon="📋" IconBg="#dbeafe" />
-                <StatWidget Label="Completed" Value="@_todos.Count(t => t.IsCompleted).ToString()" Icon="✅" IconBg="#d1fae5" />
-                <StatWidget Label="Pending" Value="@_todos.Count(t => !t.IsCompleted).ToString()" Icon="⏳" IconBg="#fef3c7" />
+                <StatWidget Label="Open" Value="@_todos.Count(x => !x.IsCompleted).ToString()" Icon="⏳" IconBg="#fef3c7" />
+                <StatWidget Label="Completed" Value="@_todos.Count(x => x.IsCompleted).ToString()" Icon="✅" IconBg="#d1fae5" />
             </div>
         }
     </div>
 
-    <Card Title="Add a new todo" Icon="➕" Variant="accent">
-        <form @onsubmit="AddTodo" class="todo-add-form">
-            <input class="todo-input"
-                   type="text"
-                   placeholder="What needs to be done?"
-                   @bind="_newTitle"
-                   @bind:event="oninput"
-                   maxlength="200" />
-            <button class="btn btn-primary" type="submit" disabled="@string.IsNullOrWhiteSpace(_newTitle)">
-                Add Todo
-            </button>
-        </form>
-    </Card>
-
-    @if (_todos is null)
+    @if (!string.IsNullOrWhiteSpace(_errorMessage))
     {
-        <LoadingState Label="Loading todos…" />
+        <div class="todos-error">@_errorMessage</div>
     }
-    else if (!_todos.Any())
+
+    @if (_lookups is null || _todos is null)
     {
-        <div class="todos-empty">
-            <span class="todos-empty__icon">🎉</span>
-            <p>All done! Add a new todo above to get started.</p>
-        </div>
+        <LoadingState Label="Loading todo workspace…" />
     }
     else
     {
-        <div class="todo-list">
-            @foreach (var todo in _todos.OrderBy(t => t.IsCompleted).ThenByDescending(t => t.CreatedAt))
-            {
-                <div class="todo-item @(todo.IsCompleted ? "todo-item--done" : "")">
-                    <label class="todo-item__check-wrap">
-                        <input type="checkbox"
-                               class="todo-item__checkbox"
-                               checked="@todo.IsCompleted"
-                               @onchange="() => ToggleTodo(todo)" />
+        <Card Title="Filters" Icon="🔎" Variant="accent">
+            <div class="todos-filters">
+                <select class="todo-select" @bind="_selectedListId">
+                    <option value="">All lists</option>
+                    @foreach (var list in _lookups.Lists)
+                    {
+                        <option value="@list.Id">@list.Name</option>
+                    }
+                </select>
+
+                <select class="todo-select" @bind="_selectedCategoryId">
+                    <option value="">All categories</option>
+                    @foreach (var category in _lookups.Categories)
+                    {
+                        <option value="@category.Id">@category.Name</option>
+                    }
+                </select>
+
+                <select class="todo-select" @bind="_selectedStatusId">
+                    <option value="">All statuses</option>
+                    @foreach (var status in _lookups.Statuses)
+                    {
+                        <option value="@status.Id">@status.Name</option>
+                    }
+                </select>
+
+                <input class="todo-input" type="search" placeholder="Search title or description" @bind="_search" @bind:event="oninput" />
+                <button class="btn btn-outline" @onclick="RefreshTodosAsync">Apply</button>
+            </div>
+        </Card>
+
+        <Card Title="@(_editingTodoId.HasValue ? "Edit todo" : "Create todo")" Icon="📝" Variant="success">
+            <EditForm Model="_editor" OnValidSubmit="SaveTodoAsync" class="todo-form">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <label class="todo-field">
+                    <span>Title</span>
+                    <InputText class="todo-input" @bind-Value="_editor.Title" maxlength="200" />
+                </label>
+
+                <label class="todo-field">
+                    <span>Description</span>
+                    <InputTextArea class="todo-textarea" @bind-Value="_editor.Description" maxlength="2000" />
+                </label>
+
+                <div class="todo-form-grid">
+                    <label class="todo-field">
+                        <span>List</span>
+                        <InputSelect class="todo-select" @bind-Value="_editor.TodoListId">
+                            @foreach (var list in _lookups.Lists)
+                            {
+                                <option value="@list.Id">@list.Name</option>
+                            }
+                        </InputSelect>
                     </label>
-                    <div class="todo-item__content">
-                        <span class="todo-item__title">@todo.Title</span>
-                        <span class="todo-item__date">@todo.CreatedAt.ToString("MMM dd, yyyy · h:mm tt")</span>
-                    </div>
-                    <Badge Text="@(todo.IsCompleted ? "Done" : "Pending")"
-                           Variant="@(todo.IsCompleted ? "success" : "warning")" />
-                    <button class="todo-item__delete"
-                            title="Delete"
-                            @onclick="() => DeleteTodo(todo.Id)">✕</button>
+
+                    <label class="todo-field">
+                        <span>Category</span>
+                        <InputSelect class="todo-select" @bind-Value="_editor.TodoCategoryIdText">
+                            <option value="">None</option>
+                            @foreach (var category in _lookups.Categories)
+                            {
+                                <option value="@category.Id">@category.Name</option>
+                            }
+                        </InputSelect>
+                    </label>
+
+                    <label class="todo-field">
+                        <span>Status</span>
+                        <InputSelect class="todo-select" @bind-Value="_editor.TodoStatusId">
+                            @foreach (var status in _lookups.Statuses)
+                            {
+                                <option value="@status.Id">@status.Name</option>
+                            }
+                        </InputSelect>
+                    </label>
+
+                    <label class="todo-field">
+                        <span>Priority</span>
+                        <InputSelect class="todo-select" @bind-Value="_editor.TodoPriorityId">
+                            @foreach (var priority in _lookups.Priorities)
+                            {
+                                <option value="@priority.Id">@priority.Name</option>
+                            }
+                        </InputSelect>
+                    </label>
+
+                    <label class="todo-field">
+                        <span>Due date</span>
+                        <input class="todo-input"
+                               type="datetime-local"
+                               value="@(_editor.DueAtLocal ?? string.Empty)"
+                               @onchange="OnDueAtChanged" />
+                    </label>
                 </div>
-            }
-        </div>
+
+                <div class="todo-tags">
+                    @foreach (var tag in _lookups.Tags)
+                    {
+                        <label class="todo-tag-option">
+                            <input type="checkbox"
+                                   checked="@_editor.TagIds.Contains(tag.Id)"
+                                   @onchange="(args) => ToggleTag(tag.Id, (bool?)args.Value == true)" />
+                            <span>@tag.Name</span>
+                        </label>
+                    }
+                </div>
+
+                <div class="todo-form-actions">
+                    <button type="submit" class="btn btn-primary">@(_editingTodoId.HasValue ? "Save changes" : "Create todo")</button>
+                    @if (_editingTodoId.HasValue)
+                    {
+                        <button type="button" class="btn btn-outline" @onclick="ResetEditor">Cancel</button>
+                    }
+                </div>
+            </EditForm>
+        </Card>
+
+        @if (_todos.Count == 0)
+        {
+            <div class="todos-empty">
+                <span class="todos-empty__icon">🧹</span>
+                <p>No todos match this filter. Create one above to populate the sample schema.</p>
+            </div>
+        }
+        else
+        {
+            <div class="todo-list">
+                @foreach (var todo in _todos)
+                {
+                    <div class="todo-item @(todo.IsCompleted ? "todo-item--done" : "")">
+                        <div class="todo-item__content" @onclick="() => SelectTodoAsync(todo.Id)">
+                            <span class="todo-item__title">@todo.Title</span>
+                            <span class="todo-item__meta">@todo.ListName · @todo.StatusName · @todo.PriorityName</span>
+                            @if (!string.IsNullOrWhiteSpace(todo.Description))
+                            {
+                                <span class="todo-item__desc">@todo.Description</span>
+                            }
+                            <div class="todo-item__tags">
+                                @foreach (var tag in todo.Tags)
+                                {
+                                    <Badge Text="@tag" Variant="accent" />
+                                }
+                            </div>
+                        </div>
+                        <div class="todo-item__actions">
+                            <button class="btn btn-outline" @onclick="() => StartEditingAsync(todo.Id)">Edit</button>
+                            <button class="btn btn-outline" @onclick="() => SelectTodoAsync(todo.Id)">Details</button>
+                            <button class="btn btn-outline" @onclick="() => SetCompletionAsync(todo)">@(todo.IsCompleted ? "Reopen" : "Complete")</button>
+                            <button class="btn btn-outline" @onclick="() => DeleteTodoAsync(todo.Id)">Delete</button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        @if (_selectedTodo is not null)
+        {
+            <Card Title="Todo details" Icon="📌" Variant="accent">
+                <div class="todo-details">
+                    <h3>@_selectedTodo.Title</h3>
+                    <p>@(_selectedTodo.Description ?? "No description")</p>
+                    <p><strong>Created:</strong> @_selectedTodo.CreatedAt.ToString("MMM dd, yyyy h:mm tt")</p>
+                    @if (_selectedTodo.DueAt.HasValue)
+                    {
+                        <p><strong>Due:</strong> @_selectedTodo.DueAt.Value.ToString("MMM dd, yyyy h:mm tt")</p>
+                    }
+                    <p><strong>Status:</strong> @_selectedTodo.Status.Name</p>
+                    <p><strong>Priority:</strong> @_selectedTodo.Priority.Name</p>
+
+                    <h4>Comments</h4>
+                    @if (_selectedTodo.Comments.Count == 0)
+                    {
+                        <p class="todo-details__empty">No comments yet.</p>
+                    }
+                    else
+                    {
+                        <ul class="todo-comments">
+                            @foreach (var comment in _selectedTodo.Comments)
+                            {
+                                <li>
+                                    <strong>@comment.AuthorName</strong>
+                                    <span>@comment.CreatedAt.ToString("MMM dd · h:mm tt")</span>
+                                    <p>@comment.Body</p>
+                                </li>
+                            }
+                        </ul>
+                    }
+
+                    <EditForm Model="_commentEditor" OnValidSubmit="AddCommentAsync" class="todo-comment-form">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+                        <InputText class="todo-input" @bind-Value="_commentEditor.AuthorName" maxlength="80" placeholder="Your name" />
+                        <InputTextArea class="todo-textarea" @bind-Value="_commentEditor.Body" maxlength="1000" placeholder="Add a comment" />
+                        <button class="btn btn-primary" type="submit">Add comment</button>
+                    </EditForm>
+                </div>
+            </Card>
+        }
     }
 </div>
 
 @code {
-    private List<TodoItem>? _todos;
-    private string _newTitle = string.Empty;
+    private TodoLookupData? _lookups;
+    private List<TodoSummary>? _todos;
+    private TodoDetail? _selectedTodo;
+    private string? _errorMessage;
+
+    private int? _selectedListId;
+    private int? _selectedCategoryId;
+    private byte? _selectedStatusId;
+    private string? _search;
+
+    private TodoEditorModel _editor = new();
+    private CommentEditorModel _commentEditor = new();
+    private int? _editingTodoId;
 
     protected override async Task OnInitializedAsync()
-        => _todos = await Api.GetTodosAsync();
-
-    private async Task AddTodo()
     {
-        if (string.IsNullOrWhiteSpace(_newTitle)) return;
-        await Api.CreateTodoAsync(_newTitle);
-        _newTitle = string.Empty;
-        _todos = await Api.GetTodosAsync();
+        await LoadLookupsAsync();
+        await RefreshTodosAsync();
     }
 
-    private async Task ToggleTodo(TodoItem todo)
+    private async Task LoadLookupsAsync()
     {
-        await Api.ToggleTodoAsync(todo);
-        _todos = await Api.GetTodosAsync();
+        try
+        {
+            _lookups = await Api.GetLookupsAsync();
+            var defaultListId = GetDefaultListId(_lookups);
+            var defaultPriorityId = GetDefaultPriorityId(_lookups);
+            var defaultStatusId = GetDefaultStatusId(_lookups);
+
+            _editor = new TodoEditorModel
+            {
+                TodoListId = defaultListId,
+                TodoPriorityId = defaultPriorityId,
+                TodoStatusId = defaultStatusId
+            };
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
     }
 
-    private async Task DeleteTodo(int id)
+    private async Task RefreshTodosAsync()
     {
-        await Api.DeleteTodoAsync(id);
-        _todos = await Api.GetTodosAsync();
+        if (_lookups is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _errorMessage = null;
+            _todos = await Api.GetTodosAsync(new TodoFilter(_selectedListId, _selectedCategoryId, _selectedStatusId, _search));
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private async Task SaveTodoAsync()
+    {
+        if (_lookups is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var request = _editor.ToRequest();
+            if (_editingTodoId.HasValue)
+            {
+                await Api.UpdateTodoAsync(_editingTodoId.Value, request);
+            }
+            else
+            {
+                await Api.CreateTodoAsync(request);
+            }
+
+            ResetEditor();
+            await RefreshTodosAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private async Task StartEditingAsync(int id)
+    {
+        try
+        {
+            var todo = await Api.GetTodoAsync(id);
+            if (todo is null)
+            {
+                _errorMessage = "Todo not found.";
+                return;
+            }
+
+            _editingTodoId = id;
+            _editor = TodoEditorModel.From(todo);
+            _selectedTodo = todo;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private void ResetEditor()
+    {
+        if (_lookups is null)
+        {
+            _editor = new TodoEditorModel();
+            _editingTodoId = null;
+            return;
+        }
+
+        _editingTodoId = null;
+        _editor = new TodoEditorModel
+        {
+            TodoListId = GetDefaultListId(_lookups),
+            TodoPriorityId = GetDefaultPriorityId(_lookups),
+            TodoStatusId = GetDefaultStatusId(_lookups)
+        };
+    }
+
+    private async Task SelectTodoAsync(int id)
+    {
+        try
+        {
+            _selectedTodo = await Api.GetTodoAsync(id);
+            _commentEditor = new CommentEditorModel();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private async Task SetCompletionAsync(TodoSummary todo)
+    {
+        try
+        {
+            if (todo.IsCompleted)
+            {
+                await Api.ReopenTodoAsync(todo.Id);
+            }
+            else
+            {
+                await Api.CompleteTodoAsync(todo.Id);
+            }
+
+            await RefreshTodosAsync();
+            if (_selectedTodo?.Id == todo.Id)
+            {
+                await SelectTodoAsync(todo.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private async Task DeleteTodoAsync(int id)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", "Delete this todo?");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            await Api.DeleteTodoAsync(id);
+            if (_selectedTodo?.Id == id)
+            {
+                _selectedTodo = null;
+            }
+
+            await RefreshTodosAsync();
+            ResetEditor();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private async Task AddCommentAsync()
+    {
+        if (_selectedTodo is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await Api.AddCommentAsync(_selectedTodo.Id, new CreateTodoCommentRequest(_commentEditor.AuthorName.Trim(), _commentEditor.Body.Trim()));
+            _commentEditor = new CommentEditorModel();
+            await SelectTodoAsync(_selectedTodo.Id);
+            await RefreshTodosAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private void ToggleTag(int tagId, bool selected)
+    {
+        if (selected)
+        {
+            _editor.TagIds.Add(tagId);
+        }
+        else
+        {
+            _editor.TagIds.Remove(tagId);
+        }
+    }
+
+    private void OnDueAtChanged(ChangeEventArgs args)
+        => _editor.DueAtLocal = args.Value?.ToString();
+
+    private static int GetDefaultListId(TodoLookupData lookups)
+        => lookups.Lists.FirstOrDefault()?.Id ?? 1;
+
+    private static byte GetDefaultPriorityId(TodoLookupData lookups)
+        => lookups.Priorities.FirstOrDefault(x => x.IsDefault)?.Id
+            ?? lookups.Priorities.FirstOrDefault()?.Id
+            ?? 1;
+
+    private static byte GetDefaultStatusId(TodoLookupData lookups)
+        => lookups.Statuses.FirstOrDefault(x => !x.IsClosed)?.Id
+            ?? lookups.Statuses.FirstOrDefault()?.Id
+            ?? 1;
+
+    private sealed class TodoEditorModel
+    {
+        [Required, StringLength(200)]
+        public string Title { get; set; } = string.Empty;
+
+        [StringLength(2000)]
+        public string? Description { get; set; }
+
+        [Range(1, int.MaxValue)]
+        public int TodoListId { get; set; }
+
+        public string TodoCategoryIdText { get; set; } = string.Empty;
+
+        [Range(1, byte.MaxValue)]
+        public byte TodoPriorityId { get; set; }
+
+        [Range(1, byte.MaxValue)]
+        public byte TodoStatusId { get; set; }
+
+        public string? DueAtLocal { get; set; }
+
+        public HashSet<int> TagIds { get; set; } = [];
+
+        public UpsertTodoRequest ToRequest()
+            => new(
+                Title,
+                TodoListId,
+                int.TryParse(TodoCategoryIdText, out var categoryId) ? categoryId : null,
+                TodoPriorityId,
+                TodoStatusId,
+                string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
+                DateTimeOffset.TryParse(DueAtLocal, out var dueAt)
+                    ? dueAt.ToUniversalTime()
+                    : null,
+                TagIds.OrderBy(x => x).ToArray());
+
+        public static TodoEditorModel From(TodoDetail detail)
+            => new()
+            {
+                Title = detail.Title,
+                Description = detail.Description,
+                TodoListId = detail.List.Id,
+                TodoCategoryIdText = detail.Category?.Id.ToString() ?? string.Empty,
+                TodoPriorityId = detail.Priority.Id,
+                TodoStatusId = detail.Status.Id,
+                DueAtLocal = detail.DueAt?.ToString("yyyy-MM-ddTHH:mm"),
+                TagIds = detail.Tags.Select(x => x.Id).ToHashSet()
+            };
+    }
+
+    private sealed class CommentEditorModel
+    {
+        [Required, StringLength(80)]
+        public string AuthorName { get; set; } = "Demo User";
+
+        [Required, StringLength(1000)]
+        public string Body { get; set; } = string.Empty;
     }
 }
-
