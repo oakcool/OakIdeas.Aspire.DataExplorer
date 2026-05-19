@@ -258,13 +258,55 @@
                 return;
             }
 
-            if (metadataResponse.Metadata is null)
+            if (metadataResponse.CollectionStatus is MetadataCollectionStatus.Failed)
+            {
+                _explorerError = metadataResponse.Error;
+                _explorerErrorMessage = metadataResponse.Error?.Message
+                    ?? "Metadata discovery did not complete successfully. Refresh and try again.";
+                _connections.Clear();
+                return;
+            }
+
+            var metadata = ResolveMetadataForExplorer(metadataResponse);
+            if ((!HasDiscoverableObjects(metadata)) && !forceRefresh)
+            {
+                var refreshResponse = await ExplorerService.RefreshDatabaseMetadataAsync(token);
+                if (refreshResponse.Status is RefreshStatus.Failed && refreshResponse.Errors.Any())
+                {
+                    _explorerError = refreshResponse.Error;
+                    _explorerErrorMessage = refreshResponse.Errors[0];
+                    _connections.Clear();
+                    return;
+                }
+
+                metadataResponse = await ExplorerService.GetDatabaseMetadataAsync(token);
+                if (metadataResponse.Errors.Any())
+                {
+                    _explorerError = metadataResponse.Error;
+                    _explorerErrorMessage = string.Join(" ", metadataResponse.Errors);
+                    _connections.Clear();
+                    return;
+                }
+
+                if (metadataResponse.CollectionStatus is MetadataCollectionStatus.Failed)
+                {
+                    _explorerError = metadataResponse.Error;
+                    _explorerErrorMessage = metadataResponse.Error?.Message
+                        ?? "Metadata discovery did not complete successfully. Refresh and try again.";
+                    _connections.Clear();
+                    return;
+                }
+
+                metadata = ResolveMetadataForExplorer(metadataResponse);
+            }
+
+            if (metadata is null)
             {
                 _connections.Clear();
                 return;
             }
 
-            var connectionNode = BuildConnectionNode(selected, metadataResponse.Metadata);
+            var connectionNode = BuildConnectionNode(selected, metadata);
             _connections.Clear();
             _connections.Add(connectionNode);
         }
@@ -361,6 +403,98 @@
                     selected.DatabaseName,
                     BuildSchemaNodes(metadata))
             ]);
+
+    private static DatabaseMetadataRoot? ResolveMetadataForExplorer(GetDatabaseMetadataResponse response)
+    {
+        if (HasDiscoverableObjects(response.Metadata))
+        {
+            return response.Metadata;
+        }
+
+        if (response.AggregatedMetadata is null)
+        {
+            return response.Metadata;
+        }
+
+        return BuildRootMetadata(response.AggregatedMetadata);
+    }
+
+    private static bool HasDiscoverableObjects(DatabaseMetadataRoot? metadata)
+    {
+        if (metadata is null)
+        {
+            return false;
+        }
+
+        return metadata.Objects.TryGetValue(DatabaseObjectType.Table, out var tables) && tables.Count > 0
+            || metadata.Objects.TryGetValue(DatabaseObjectType.View, out var views) && views.Count > 0
+            || metadata.Objects.TryGetValue(DatabaseObjectType.Procedure, out var procedures) && procedures.Count > 0
+            || metadata.Objects.TryGetValue(DatabaseObjectType.Function, out var functions) && functions.Count > 0
+            || metadata.Objects.TryGetValue(DatabaseObjectType.Trigger, out var triggers) && triggers.Count > 0;
+    }
+
+    private static DatabaseMetadataRoot BuildRootMetadata(DatabaseMetadata aggregated)
+    {
+        var objects = new Dictionary<DatabaseObjectType, IReadOnlyDictionary<string, DatabaseObject>>();
+
+        objects[DatabaseObjectType.Schema] = aggregated.Schemas.ToDictionary(
+            schema => schema.ObjectName,
+            schema => (DatabaseObject)schema,
+            StringComparer.OrdinalIgnoreCase);
+
+        objects[DatabaseObjectType.Table] = aggregated.Tables.ToDictionary(
+            table => table.FullyQualifiedName,
+            table => (DatabaseObject)table,
+            StringComparer.OrdinalIgnoreCase);
+
+        objects[DatabaseObjectType.View] = aggregated.Views.ToDictionary(
+            view => view.FullyQualifiedName,
+            view => (DatabaseObject)view,
+            StringComparer.OrdinalIgnoreCase);
+
+        var procedures = aggregated.ProceduresBySchema
+            .SelectMany(group => group.Value)
+            .Select(procedure => new ProcedureObject(
+                objectId: procedure.ObjectId,
+                schemaName: procedure.SchemaName,
+                objectName: procedure.ProcedureName))
+            .ToArray();
+        objects[DatabaseObjectType.Procedure] = procedures.ToDictionary(
+            procedure => procedure.FullyQualifiedName,
+            procedure => (DatabaseObject)procedure,
+            StringComparer.OrdinalIgnoreCase);
+
+        var functions = aggregated.FunctionsBySchema
+            .SelectMany(group => group.Value.Values)
+            .SelectMany(list => list)
+            .Select(function => new FunctionObject(
+                objectId: function.ObjectId,
+                schemaName: function.SchemaName,
+                objectName: function.FunctionName))
+            .ToArray();
+        objects[DatabaseObjectType.Function] = functions.ToDictionary(
+            function => function.FullyQualifiedName,
+            function => (DatabaseObject)function,
+            StringComparer.OrdinalIgnoreCase);
+
+        var triggers = aggregated.Triggers
+            .Select(trigger => new TriggerObject(
+                objectId: trigger.ObjectId,
+                schemaName: trigger.SchemaName,
+                objectName: trigger.TriggerName))
+            .ToArray();
+        objects[DatabaseObjectType.Trigger] = triggers.ToDictionary(
+            trigger => trigger.FullyQualifiedName,
+            trigger => (DatabaseObject)trigger,
+            StringComparer.OrdinalIgnoreCase);
+
+        return new DatabaseMetadataRoot(
+            databaseName: aggregated.DatabaseName,
+            providerType: aggregated.ProviderType,
+            resourceId: aggregated.ResourceId,
+            metadataCollectionTime: aggregated.MetadataCollectionTime,
+            objects: objects);
+    }
 
     private static IReadOnlyList<ObjectExplorer.SchemaNode> BuildSchemaNodes(DatabaseMetadataRoot metadata)
     {

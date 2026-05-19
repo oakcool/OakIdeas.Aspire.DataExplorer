@@ -10,7 +10,23 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<SampleDbContext>();
+    var logger = scope.ServiceProvider
+        .GetRequiredService<ILoggerFactory>()
+        .CreateLogger("Startup.DatabaseMigrations");
+
+    var appliedMigrations = await db.Database.GetAppliedMigrationsAsync();
+    var pendingMigrations = (await db.Database.GetPendingMigrationsAsync()).ToArray();
+
+    logger.LogInformation(
+        "EF migration diagnostics. Applied={AppliedCount} Pending={PendingCount} AppliedList={AppliedList} PendingList={PendingList}",
+        appliedMigrations.Count(),
+        pendingMigrations.Length,
+        string.Join(", ", appliedMigrations),
+        pendingMigrations.Length == 0 ? "(none)" : string.Join(", ", pendingMigrations));
+
     await db.Database.MigrateAsync();
+
+    logger.LogInformation("EF MigrateAsync completed successfully.");
 }
 
 app.MapGet("/todoitems/lookups", async (SampleDbContext db, CancellationToken cancellationToken) =>

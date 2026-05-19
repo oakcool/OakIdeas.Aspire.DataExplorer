@@ -36,6 +36,45 @@ public sealed class MainLayoutDatabasePickerTests : TestContext
         });
     }
 
+    [Fact]
+    public void ObjectExplorer_UsesAggregatedMetadata_WhenRootMetadataHasNoObjects()
+    {
+        var service = new FakeExplorerService
+        {
+            ReturnEmptyRootMetadata = true,
+            IncludeAggregatedMetadata = true,
+        };
+        Services.AddSingleton<IExplorerService>(service);
+
+        var component = RenderComponent<MainLayout>();
+
+        component.WaitForAssertion(() =>
+        {
+            component.Markup.Should().Contain("applicationdb");
+            component.Markup.Should().Contain("Users");
+            component.Markup.Should().NotContain("No database objects were discovered.");
+        });
+    }
+
+    [Fact]
+    public void ObjectExplorer_AutoRefreshesOnce_WhenInitialMetadataHasNoObjects()
+    {
+        var service = new FakeExplorerService
+        {
+            ReturnEmptyRootMetadataOnFirstCallOnly = true,
+        };
+        Services.AddSingleton<IExplorerService>(service);
+
+        var component = RenderComponent<MainLayout>();
+
+        component.WaitForAssertion(() =>
+        {
+            component.Markup.Should().Contain("applicationdb");
+            component.Markup.Should().Contain("Users");
+            service.RefreshCallCount.Should().Be(1);
+        });
+    }
+
     private sealed class FakeExplorerService : IExplorerService
     {
         private readonly List<DiscoveredDatabaseResource> _resources =
@@ -44,7 +83,13 @@ public sealed class MainLayoutDatabasePickerTests : TestContext
             CreateResource("sql-analytics", "analyticsdb"),
         ];
 
+        private int _metadataCallCount;
+
         public string CurrentResourceId { get; private set; } = "sql-main";
+        public int RefreshCallCount { get; private set; }
+        public bool ReturnEmptyRootMetadata { get; init; }
+        public bool IncludeAggregatedMetadata { get; init; }
+        public bool ReturnEmptyRootMetadataOnFirstCallOnly { get; init; }
 
         public Task<GetAvailableDatabasesResponse> GetAvailableDatabasesAsync(CancellationToken cancellationToken)
         {
@@ -87,6 +132,8 @@ public sealed class MainLayoutDatabasePickerTests : TestContext
         public Task<GetDatabaseMetadataResponse> GetDatabaseMetadataAsync(CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            _metadataCallCount++;
+
             var resource = _resources.First(candidate =>
                 string.Equals(candidate.ResourceId, CurrentResourceId, StringComparison.OrdinalIgnoreCase));
 
@@ -94,25 +141,58 @@ public sealed class MainLayoutDatabasePickerTests : TestContext
                 ? "Users"
                 : "Events";
 
+            var shouldReturnEmptyRoot = ReturnEmptyRootMetadata
+                || (ReturnEmptyRootMetadataOnFirstCallOnly && _metadataCallCount == 1);
+
             var metadata = new DatabaseMetadataRoot(
                 databaseName: resource.DatabaseName,
                 providerType: resource.ProviderType,
                 resourceId: resource.ResourceId,
                 metadataCollectionTime: DateTimeOffset.UtcNow,
-                objects: new Dictionary<DatabaseObjectType, IReadOnlyDictionary<string, DatabaseObject>>
-                {
-                    [DatabaseObjectType.Table] = new Dictionary<string, DatabaseObject>(StringComparer.OrdinalIgnoreCase)
+                objects: shouldReturnEmptyRoot
+                    ? new Dictionary<DatabaseObjectType, IReadOnlyDictionary<string, DatabaseObject>>()
+                    : new Dictionary<DatabaseObjectType, IReadOnlyDictionary<string, DatabaseObject>>
                     {
-                        [$"dbo.{objectName}"] = new TableObject(
-                            objectId: $"dbo.{objectName}",
-                            schemaName: "dbo",
-                            objectName: objectName),
-                    },
-                });
+                        [DatabaseObjectType.Table] = new Dictionary<string, DatabaseObject>(StringComparer.OrdinalIgnoreCase)
+                        {
+                            [$"dbo.{objectName}"] = new TableObject(
+                                objectId: $"dbo.{objectName}",
+                                schemaName: "dbo",
+                                objectName: objectName),
+                        },
+                    });
+
+            DatabaseMetadata? aggregatedMetadata = null;
+            if (IncludeAggregatedMetadata)
+            {
+                var table = new TableObject(
+                    objectId: $"dbo.{objectName}",
+                    schemaName: "dbo",
+                    objectName: objectName);
+
+                aggregatedMetadata = new DatabaseMetadata(
+                    DatabaseName: resource.DatabaseName,
+                    ProviderType: resource.ProviderType,
+                    ResourceId: resource.ResourceId,
+                    Schemas: [new SchemaObject("dbo", "dbo")],
+                    Tables: [table],
+                    Views: [],
+                    ProceduresBySchema: new Dictionary<string, IReadOnlyList<StoredProcedureMetadata>>(StringComparer.OrdinalIgnoreCase),
+                    FunctionsBySchema: new Dictionary<string, IReadOnlyDictionary<FunctionType, IReadOnlyList<FunctionMetadata>>>(StringComparer.OrdinalIgnoreCase),
+                    Triggers: [],
+                    Constraints: [],
+                    ColumnsByObject: new Dictionary<string, IReadOnlyList<ColumnMetadata>>(StringComparer.OrdinalIgnoreCase),
+                    PrimaryKeysByTable: new Dictionary<string, IReadOnlyList<PrimaryKeyConstraint>>(StringComparer.OrdinalIgnoreCase),
+                    ForeignKeysByTable: new Dictionary<string, IReadOnlyList<ForeignKeyConstraint>>(StringComparer.OrdinalIgnoreCase),
+                    IndexesByTable: new Dictionary<string, IReadOnlyList<IndexMetadata>>(StringComparer.OrdinalIgnoreCase),
+                    MetadataCollectionTime: DateTimeOffset.UtcNow,
+                    CollectionStatus: MetadataCollectionStatus.Success,
+                    FailureDetails: []);
+            }
 
             return Task.FromResult(new GetDatabaseMetadataResponse(
                 Metadata: metadata,
-                AggregatedMetadata: null,
+                AggregatedMetadata: aggregatedMetadata,
                 CollectionStatus: MetadataCollectionStatus.Success,
                 FailureDetails: [],
                 Errors: []));
@@ -121,6 +201,7 @@ public sealed class MainLayoutDatabasePickerTests : TestContext
         public Task<RefreshMetadataResponse> RefreshDatabaseMetadataAsync(CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            RefreshCallCount++;
             var now = DateTimeOffset.UtcNow;
 
             return Task.FromResult(new RefreshMetadataResponse(

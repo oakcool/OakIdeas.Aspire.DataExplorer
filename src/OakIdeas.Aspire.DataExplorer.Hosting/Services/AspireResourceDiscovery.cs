@@ -20,7 +20,7 @@ internal sealed class AspireResourceDiscovery : IAspireResourceDiscovery
     private readonly DiscoveredDatabaseResourceProjector projector;
     private readonly IErrorHandler errorHandler;
 
-    internal AspireResourceDiscovery(
+    public AspireResourceDiscovery(
         DistributedApplicationModel distributedApplicationModel,
         IHostEnvironment hostEnvironment,
         IOptions<DataExplorerOptions> options,

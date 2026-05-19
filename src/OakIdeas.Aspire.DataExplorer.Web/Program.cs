@@ -5,7 +5,6 @@ using OakIdeas.Aspire.DataExplorer.Core.Extensions;
 using OakIdeas.Aspire.DataExplorer.Core.Services;
 using OakIdeas.Aspire.DataExplorer.SqlServer.Diagnostics;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
-using OakIdeas.Aspire.DataExplorer.Hosting.Extensions;
 using OakIdeas.Aspire.DataExplorer.SqlServer.Providers;
 using OakIdeas.Aspire.DataExplorer.Web.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Web.Components;
@@ -32,7 +31,12 @@ builder.Services.AddScoped<IExplorerService, ExplorerService>();
 var app = builder.Build();
 
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
-app.UseHttpsRedirection();
+
+if (HasHttpsEndpoint(builder.Configuration))
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseAntiforgery();
 
 app.MapStaticAssets();
@@ -40,3 +44,9 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
+
+static bool HasHttpsEndpoint(IConfiguration configuration)
+{
+    return !string.IsNullOrWhiteSpace(configuration["ASPNETCORE_HTTPS_PORT"])
+        || !string.IsNullOrWhiteSpace(configuration["HTTPS_PORTS"]);
+}

@@ -61,14 +61,16 @@ Seed data is configured in `SampleDbContext.OnModelCreating(...)` and is determi
 
 ## Validating with Data Explorer
 
-1. Start the sample AppHost.
-2. Start the main DataExplorer AppHost in another terminal:
-   ```bash
-   dotnet run --project src/OakIdeas.Aspire.DataExplorer.AppHost
-   ```
-3. In Data Explorer, connect to `sampledb`.
+1. Start the sample AppHost only:
+  ```bash
+  dotnet run --project samples/OakIdeas.Aspire.DataExplorer.Sample.AppHost
+  ```
+2. Open `sample-data-explorer` from the Aspire dashboard.
+3. Confirm the discovered database is `sampledb`.
 4. Inspect tables and metadata for keys, constraints, indexes, and relationships.
 5. Use `sample-web` to create/edit/delete/complete/reopen tasks and add comments, then refresh metadata views.
+
+The sample intentionally runs Data Explorer as a consumer-style setup: the AppHost enables discovery with `builder.AddDataExplorer()` and hosts the Data Explorer web resource alongside sample resources.
 
 ## E2E validation assets
 

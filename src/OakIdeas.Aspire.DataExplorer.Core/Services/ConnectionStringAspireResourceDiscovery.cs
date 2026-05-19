@@ -7,9 +7,8 @@ using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Configuration;
 using OakIdeas.Aspire.DataExplorer.Core.Guards;
 using OakIdeas.Aspire.DataExplorer.Core.Models;
-using OakIdeas.Aspire.DataExplorer.Core.Services;
 
-namespace OakIdeas.Aspire.DataExplorer.Hosting.Services;
+namespace OakIdeas.Aspire.DataExplorer.Core.Services;
 
 internal sealed class ConnectionStringAspireResourceDiscovery : IAspireResourceDiscovery
 {

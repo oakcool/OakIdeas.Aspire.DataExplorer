@@ -1,11 +1,15 @@
 using System;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using OakIdeas.Aspire.DataExplorer.Sample.Api.Data;
 
 #nullable disable
 
 namespace OakIdeas.Aspire.DataExplorer.Sample.Api.Migrations;
 
 /// <inheritdoc />
+[DbContext(typeof(SampleDbContext))]
+[Migration("20240101000000_InitialCreate")]
 public partial class InitialCreate : Migration
 {
     /// <inheritdoc />
