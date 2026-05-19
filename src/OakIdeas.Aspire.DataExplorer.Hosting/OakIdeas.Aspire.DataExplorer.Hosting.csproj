@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <DataExplorerPublishedAppDir>$(MSBuildProjectDirectory)\DataExplorerWeb\publish\</DataExplorerPublishedAppDir>
   </PropertyGroup>
 
   <ItemGroup>
@@ -13,6 +14,30 @@
 
   <ItemGroup>
     <ProjectReference Include="..\OakIdeas.Aspire.DataExplorer.Core\OakIdeas.Aspire.DataExplorer.Core.csproj" />
+    <ProjectReference Include="..\OakIdeas.Aspire.DataExplorer.Web\OakIdeas.Aspire.DataExplorer.Web.csproj"
+                      PrivateAssets="all"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Include="buildTransitive\OakIdeas.Aspire.DataExplorer.Hosting.targets"
+          Pack="true"
+          PackagePath="buildTransitive\OakIdeas.Aspire.DataExplorer.Hosting.targets" />
+  </ItemGroup>
+
+  <Target Name="PublishDataExplorerWebApp"
+      BeforeTargets="GetCopyToOutputDirectoryItems;GenerateNuspec">
+    <MSBuild Projects="..\OakIdeas.Aspire.DataExplorer.Web\OakIdeas.Aspire.DataExplorer.Web.csproj"
+             Targets="Publish"
+             Properties="Configuration=$(Configuration);TargetFramework=net10.0;PublishDir=$(DataExplorerPublishedAppDir);NpmBuildEnabled=false" />
+
+    <ItemGroup>
+      <Content Include="$(DataExplorerPublishedAppDir)**\*.*">
+        <Pack>true</Pack>
+        <PackagePath>buildTransitive\data-explorer-web\%(RecursiveDir)%(Filename)%(Extension)</PackagePath>
+        <Visible>false</Visible>
+      </Content>
+    </ItemGroup>
+  </Target>
 
 </Project>

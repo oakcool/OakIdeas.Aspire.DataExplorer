@@ -3,9 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Configuration;
 using OakIdeas.Aspire.DataExplorer.Core.Services;
-using OakIdeas.Aspire.DataExplorer.Hosting.Services;
 
-namespace OakIdeas.Aspire.DataExplorer.Hosting.Extensions;
+namespace OakIdeas.Aspire.DataExplorer.Core.Extensions;
 
 public static class DataExplorerServiceCollectionExtensions
 {

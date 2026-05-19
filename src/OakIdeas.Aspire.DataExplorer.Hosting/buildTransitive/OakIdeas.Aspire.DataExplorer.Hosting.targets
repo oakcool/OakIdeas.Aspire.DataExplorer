@@ -1,0 +1,14 @@
+<Project>
+  <ItemGroup>
+    <_DataExplorerPackagedFiles Include="$(MSBuildThisFileDirectory)data-explorer-web\**\*" />
+  </ItemGroup>
+
+  <Target Name="CopyPackagedDataExplorerWebApp"
+          AfterTargets="Build"
+          Condition="'@(_DataExplorerPackagedFiles)' != ''">
+    <Copy SourceFiles="@(_DataExplorerPackagedFiles)"
+      DestinationFiles="@(_DataExplorerPackagedFiles->'$(TargetDir)data-explorer-web\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          ContinueOnError="WarnAndContinue" />
+  </Target>
+</Project>

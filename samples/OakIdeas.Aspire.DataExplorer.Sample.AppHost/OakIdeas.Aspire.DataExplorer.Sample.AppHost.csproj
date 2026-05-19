@@ -13,11 +13,28 @@
     <PackageReference Include="Aspire.Hosting.SqlServer" Version="13.3.2" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <DataExplorerLocalPublishedAppDir>$(MSBuildProjectDirectory)\..\..\src\OakIdeas.Aspire.DataExplorer.Hosting\DataExplorerWeb\publish\</DataExplorerLocalPublishedAppDir>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\src\OakIdeas.Aspire.DataExplorer.Hosting\OakIdeas.Aspire.DataExplorer.Hosting.csproj" IsAspireProjectResource="false" />
-    <ProjectReference Include="..\..\src\OakIdeas.Aspire.DataExplorer.Web\OakIdeas.Aspire.DataExplorer.Web.csproj" />
     <ProjectReference Include="..\OakIdeas.Aspire.DataExplorer.Sample.Api\OakIdeas.Aspire.DataExplorer.Sample.Api.csproj" />
     <ProjectReference Include="..\OakIdeas.Aspire.DataExplorer.Sample.Web\OakIdeas.Aspire.DataExplorer.Sample.Web.csproj" />
   </ItemGroup>
+
+  <Target Name="CopyLocalDataExplorerWebApp"
+          AfterTargets="Build"
+          Condition="Exists('$(DataExplorerLocalPublishedAppDir)')">
+    <ItemGroup>
+    <_LocalDataExplorerPublishedFiles Include="$(DataExplorerLocalPublishedAppDir)**\*.*"
+                 Exclude="$(DataExplorerLocalPublishedAppDir)**\*.br;$(DataExplorerLocalPublishedAppDir)**\*.gz" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(_LocalDataExplorerPublishedFiles)"
+          DestinationFiles="@(_LocalDataExplorerPublishedFiles->'$(TargetDir)data-explorer-web\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          ContinueOnError="WarnAndContinue" />
+  </Target>
 
 </Project>

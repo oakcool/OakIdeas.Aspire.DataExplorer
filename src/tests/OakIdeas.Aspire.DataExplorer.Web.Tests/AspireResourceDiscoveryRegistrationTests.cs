@@ -6,7 +6,6 @@ using Microsoft.Extensions.Hosting;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Extensions;
-using OakIdeas.Aspire.DataExplorer.Hosting.Extensions;
 
 namespace OakIdeas.Aspire.DataExplorer.Web.Tests;
 

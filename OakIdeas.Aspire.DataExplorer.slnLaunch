@@ -1,12 +1,7 @@
 [
   {
-    "Name": "DataExplorer + Sample (Development Debug)",
+    "Name": "Sample AppHost (Development Debug)",
     "Projects": [
-      {
-        "Path": "src/OakIdeas.Aspire.DataExplorer.AppHost/OakIdeas.Aspire.DataExplorer.AppHost.csproj",
-        "Action": "Start",
-        "LaunchProfile": "https"
-      },
       {
         "Path": "samples/OakIdeas.Aspire.DataExplorer.Sample.AppHost/OakIdeas.Aspire.DataExplorer.Sample.AppHost.csproj",
         "Action": "Start",
