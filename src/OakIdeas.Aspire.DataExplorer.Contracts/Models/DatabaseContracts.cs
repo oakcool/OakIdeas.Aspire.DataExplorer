@@ -57,4 +57,5 @@ public sealed record TableMetadataResponse(
 public sealed record ExecuteQueryRequest(
     string ConnectionName,
     string Sql,
-    int MaxRows);
+    int MaxRows,
+    bool ConfirmDestructiveExecution = false);

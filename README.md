@@ -67,6 +67,27 @@ Current SQL Server MVP metadata types:
 - Triggers
 - Object definitions (when available)
 
+## Query Window (SQL Server MVP)
+
+- Query page executes ad-hoc SQL against the currently selected database resource.
+- Uses async execution with cancellation (`Ctrl+Enter` or Execute button, Cancel button while running).
+- Shows execution duration, returned row count, and affected row count (when provided by SQL Server).
+- Applies max-row limits (default from `OakIdeas:Aspire:DataExplorer:MaxQueryRows`) and shows truncation status.
+- Includes development guardrails:
+  - Development-only warning banner
+  - Optional destructive statement confirmation
+  - Optional write-operation blocking via `EnableWriteOperations`
+- Maintains in-memory query history for the current session.
+
+### Query-related configuration
+
+`OakIdeas:Aspire:DataExplorer` options relevant to querying:
+
+- `EnableAdHocQueries` (default: `true`)
+- `EnableWriteOperations` (default: `true`)
+- `QueryTimeoutSeconds` (default: `30`)
+- `MaxQueryRows` (default: `1000`)
+
 ## E2E validation status
 
 - Integration E2E coverage is in `src/tests/OakIdeas.Aspire.DataExplorer.IntegrationTests/EndToEndValidationIntegrationTests.cs`

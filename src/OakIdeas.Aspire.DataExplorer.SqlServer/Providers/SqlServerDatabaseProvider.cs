@@ -1,8 +1,11 @@
 using System.Data;
+using System.Diagnostics;
 using System.Globalization;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Options;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
+using OakIdeas.Aspire.DataExplorer.Core.Configuration;
 using OakIdeas.Aspire.DataExplorer.Core.Models;
 using ColumnMetadataModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.ColumnMetadata;
 using ConstraintMetadataModel = OakIdeas.Aspire.DataExplorer.Contracts.Models.ConstraintMetadata;
@@ -17,6 +20,7 @@ namespace OakIdeas.Aspire.DataExplorer.SqlServer.Providers;
 
 public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscoveryProvider, IForeignKeyDiscoveryProvider, IColumnDiscoveryProvider, IIndexDiscoveryProvider, IPrimaryKeyDiscoveryProvider, ITableDiscoveryProvider, IViewDiscoveryProvider, IStoredProcedureDiscoveryProvider, IFunctionDiscoveryProvider, ITriggerDiscoveryProvider, IConstraintDiscoveryProvider, IObjectDefinitionProvider
 {
+    private readonly DataExplorerOptions _options;
     private const string DiscoverSchemasSql = """
         SELECT schema_id, name
         FROM sys.schemas
@@ -27,6 +31,11 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
           )
         ORDER BY name;
         """;
+
+    public SqlServerDatabaseProvider(IOptions<DataExplorerOptions>? dataExplorerOptions = null)
+    {
+        _options = dataExplorerOptions?.Value ?? new DataExplorerOptions();
+    }
 
     private const string DiscoverTablesSql = """
         SELECT
@@ -416,16 +425,63 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         }
     }
 
-    public Task<QueryResult> ExecuteQueryAsync(
+    public async Task<QueryResult> ExecuteQueryAsync(
         DatabaseResource resource,
         ExecuteQueryRequest request,
         CancellationToken cancellationToken)
-        => Task.FromResult(
-            new QueryResult(
-                Columns: Array.Empty<string>(),
-                Rows: Array.Empty<IReadOnlyDictionary<string, object?>>(),
-                RowCount: 0,
-                Duration: TimeSpan.Zero));
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentNullException.ThrowIfNull(request);
+
+        var stopwatch = Stopwatch.StartNew();
+        var maxRows = request.MaxRows > 0
+            ? Math.Min(request.MaxRows, _options.MaxQueryRows)
+            : _options.MaxQueryRows;
+
+        await using var connection = new SqlConnection(resource.ConnectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = CreateExecuteQueryCommand(connection, request, _options);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        var columns = Enumerable.Range(0, reader.FieldCount)
+            .Select(reader.GetName)
+            .ToArray();
+        var rows = new List<IReadOnlyDictionary<string, object?>>();
+        var isTruncated = false;
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            if (rows.Count >= maxRows)
+            {
+                isTruncated = true;
+                break;
+            }
+
+            var row = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+            for (var index = 0; index < reader.FieldCount; index++)
+            {
+                var value = reader.IsDBNull(index) ? null : reader.GetValue(index);
+                row[columns[index]] = value;
+            }
+
+            rows.Add(row);
+        }
+
+        while (await reader.NextResultAsync(cancellationToken))
+        {
+        }
+
+        stopwatch.Stop();
+        int? affectedRowCount = reader.RecordsAffected >= 0 ? reader.RecordsAffected : null;
+        return new QueryResult(
+            Columns: columns,
+            Rows: rows,
+            RowCount: rows.Count,
+            Duration: stopwatch.Elapsed,
+            AffectedRowCount: affectedRowCount,
+            IsTruncated: isTruncated);
+    }
 
     public async Task<DiscoverForeignKeysResponse> DiscoverForeignKeysAsync(
         DatabaseResource resource,
@@ -935,6 +991,24 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
 
         var command = new SqlCommand(DiscoverSchemasSql, connection);
         command.Parameters.Add("@IncludeSystemSchemas", SqlDbType.Bit).Value = includeSystemSchemas;
+        return command;
+    }
+
+    internal static SqlCommand CreateExecuteQueryCommand(
+        SqlConnection connection,
+        ExecuteQueryRequest request,
+        DataExplorerOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(options);
+
+        var command = new SqlCommand(request.Sql, connection)
+        {
+            CommandType = CommandType.Text,
+            CommandTimeout = options.QueryTimeoutSeconds,
+        };
+
         return command;
     }
 

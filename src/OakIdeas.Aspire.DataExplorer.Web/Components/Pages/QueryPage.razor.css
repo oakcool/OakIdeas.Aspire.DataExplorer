@@ -6,6 +6,17 @@
     background-color: #0d1117;
 }
 
+.de-query-banner {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.75rem;
+    color: #f7c95c;
+    background-color: #2d230c;
+    border-bottom: 1px solid #564318;
+}
+
 .de-query-pane {
     display: flex;
     flex-direction: column;
@@ -45,4 +56,107 @@
 
 .de-query-divider:hover {
     background-color: #388bfd;
+}
+
+.de-query-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.4rem 0.75rem;
+    border-top: 1px solid #21262d;
+    background-color: #11161e;
+}
+
+.de-query-actions__option {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.75rem;
+    color: #8b949e;
+}
+
+.de-query-actions__max-rows {
+    width: 5.5rem;
+    font-size: 0.75rem;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    background-color: #0d1117;
+    color: #c9d1d9;
+    padding: 0.15rem 0.35rem;
+}
+
+.de-query-actions__button {
+    margin-left: auto;
+    border: 1px solid #30363d;
+    background-color: #161b22;
+    color: #c9d1d9;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    padding: 0.2rem 0.45rem;
+}
+
+.de-query-actions__button:disabled {
+    opacity: 0.55;
+}
+
+.de-query-status {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.3rem 0.75rem;
+    border-bottom: 1px solid #21262d;
+    background-color: #11161e;
+    font-size: 0.75rem;
+    color: #8b949e;
+}
+
+.de-query-status__warning {
+    color: #f7c95c;
+}
+
+.de-query-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    padding: 0.4rem 0.75rem 0.5rem 0.75rem;
+    border-top: 1px solid #21262d;
+    background-color: #0f141b;
+}
+
+.de-query-suggestion-chip {
+    border: 1px solid #30363d;
+    background-color: #161b22;
+    color: #8b949e;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    padding: 0.12rem 0.45rem;
+}
+
+.de-query-history {
+    border-top: 1px solid #21262d;
+    background-color: #0f141b;
+    padding: 0.5rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.de-query-history__title {
+    color: #8b949e;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.de-query-history__item {
+    display: grid;
+    grid-template-columns: 4.5rem 1fr 5.5rem 4.5rem;
+    gap: 0.4rem;
+    border: 1px solid #21262d;
+    background-color: #11161e;
+    color: #c9d1d9;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    text-align: left;
+    padding: 0.22rem 0.4rem;
 }

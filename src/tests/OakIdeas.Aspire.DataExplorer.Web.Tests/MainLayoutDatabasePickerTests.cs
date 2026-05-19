@@ -148,6 +148,19 @@ public sealed class MainLayoutDatabasePickerTests : TestContext
                 Errors: []));
         }
 
+        public Task<ExecuteQueryResponse> ExecuteQueryAsync(ExecuteQueryRequest request, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(new ExecuteQueryResponse(
+                Columns: [],
+                Rows: [],
+                RowCount: 0,
+                AffectedRowCount: null,
+                Duration: TimeSpan.Zero,
+                IsTruncated: false,
+                Errors: []));
+        }
+
         private static ExplorerDatabaseSelection Map(DiscoveredDatabaseResource resource)
             => new(
                 ResourceId: resource.ResourceId,

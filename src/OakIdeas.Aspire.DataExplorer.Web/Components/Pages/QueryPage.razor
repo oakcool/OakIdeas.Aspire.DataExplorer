@@ -1,8 +1,17 @@
 @page "/query/{connectionName?}"
+@using OakIdeas.Aspire.DataExplorer.Contracts.Models
+@using OakIdeas.Aspire.DataExplorer.Web.Abstractions
+@implements IDisposable
+@inject IExplorerService ExplorerService
 
 <PageTitle>Query — Data Explorer</PageTitle>
 
 <div class="de-query-page">
+    <div class="de-query-banner">
+        <HeroIcon Kind="HeroIconKind.ExclamationTriangle" Size="14" />
+        <span>Development-only query surface. Review statements before execution.</span>
+    </div>
+
     <div class="de-query-pane de-query-pane--editor">
         <div class="de-query-pane__label">
             <HeroIcon Kind="HeroIconKind.CodeBracket" Size="15" Class="de-query-pane__label-icon" />
@@ -11,7 +20,28 @@
         <QueryPanel ConnectionName="@(ConnectionName ?? string.Empty)"
                     @bind-Sql="_sql"
                     IsExecuting="_running"
-                    OnExecute="RunQuery" />
+                    OnExecute="RunQuery"
+                    OnCancel="CancelQuery" />
+        <div class="de-query-actions">
+            <label class="de-query-actions__option">
+                <input type="checkbox" @bind="_confirmDestructiveExecution" />
+                <span>Allow destructive statements</span>
+            </label>
+            <label class="de-query-actions__option">
+                <span>Max rows:</span>
+                <input class="de-query-actions__max-rows" type="number" min="1" max="5000" @bind="_maxRows" />
+            </label>
+            <button class="de-query-actions__button" @onclick="ClearQueryHistory" disabled="@(_history.Count == 0)">Clear history</button>
+        </div>
+        @if (_autocompleteSuggestions.Count > 0)
+        {
+            <div class="de-query-suggestions">
+                @foreach (var suggestion in _autocompleteSuggestions.Take(10))
+                {
+                    <button class="de-query-suggestion-chip" @onclick="() => ApplySuggestion(suggestion)">@suggestion</button>
+                }
+            </div>
+        }
     </div>
 
     <div class="de-query-divider" aria-hidden="true"></div>
@@ -21,10 +51,40 @@
             <HeroIcon Kind="HeroIconKind.TableCells" Size="15" Class="de-query-pane__label-icon" />
             <span>Results</span>
         </div>
+        <div class="de-query-status">
+            <span>@_status</span>
+            @if (_duration is not null)
+            {
+                <span>@_duration.Value.TotalMilliseconds:0 ms</span>
+            }
+            @if (_affectedRowCount is not null)
+            {
+                <span>@_affectedRowCount affected</span>
+            }
+            @if (_isTruncated)
+            {
+                <span class="de-query-status__warning">Truncated at @_lastMaxRows rows</span>
+            }
+        </div>
         <ResultsTable Columns="@_columns"
                       Rows="@_rows"
                       IsLoading="_running"
                       ErrorMessage="@_error" />
+        @if (_history.Count > 0)
+        {
+            <div class="de-query-history">
+                <div class="de-query-history__title">History</div>
+                @foreach (var item in _history.Take(10))
+                {
+                    <button class="de-query-history__item" @onclick="() => RestoreHistory(item)">
+                        <span>@item.ExecutedAt.LocalDateTime:HH:mm:ss</span>
+                        <span>@item.DatabaseName</span>
+                        <span>@item.RowCount row(s)</span>
+                        <span>@item.Duration.TotalMilliseconds:0 ms</span>
+                    </button>
+                }
+            </div>
+        }
     </div>
 </div>
 
@@ -35,25 +95,182 @@
     private string _sql = string.Empty;
     private bool _running;
     private string _error = string.Empty;
+    private string _status = "Ready";
     private IReadOnlyList<string> _columns = [];
     private IReadOnlyList<IReadOnlyList<string?>> _rows = [];
+    private TimeSpan? _duration;
+    private int? _affectedRowCount;
+    private bool _isTruncated;
+    private bool _confirmDestructiveExecution;
+    private int _maxRows = 1000;
+    private int _lastMaxRows = 1000;
+    private CancellationTokenSource? _queryCts;
+    private List<string> _autocompleteSuggestions = [];
+    private readonly List<QueryHistoryItem> _history = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAutocompleteSuggestionsAsync();
+    }
 
     private async Task RunQuery(string sql)
     {
+        _queryCts?.Cancel();
+        _queryCts?.Dispose();
+        var queryCts = new CancellationTokenSource();
+        _queryCts = queryCts;
+
         _running = true;
+        _status = "Running query…";
         _error = string.Empty;
         _columns = [];
         _rows = [];
-        StateHasChanged();
+        _duration = null;
+        _affectedRowCount = null;
+        _isTruncated = false;
+        _lastMaxRows = _maxRows;
 
-        // Simulate async query execution (real implementation added in follow-up)
-        await Task.Delay(400);
-        _columns = ["Id", "Name", "Value", "CreatedAt"];
-        _rows = [
-            ["1", "Sample Row", "42", "2025-01-01"],
-            ["2", "Another Row", "99", "2025-01-02"]
-        ];
-        _running = false;
+        try
+        {
+            var response = await ExplorerService.ExecuteQueryAsync(
+                new ExecuteQueryRequest(
+                    ConnectionName ?? string.Empty,
+                    sql,
+                    _maxRows,
+                    _confirmDestructiveExecution),
+                queryCts.Token);
+
+            _columns = response.Columns;
+            _rows = response.Rows;
+            _duration = response.Duration;
+            _affectedRowCount = response.AffectedRowCount;
+            _isTruncated = response.IsTruncated;
+            _error = response.Errors.FirstOrDefault() ?? string.Empty;
+            _status = string.IsNullOrEmpty(_error)
+                ? $"Completed: {response.RowCount} row(s)."
+                : "Query failed.";
+
+            if (string.IsNullOrEmpty(_error))
+            {
+                _history.Insert(0, new QueryHistoryItem(
+                    sql,
+                    ConnectionName ?? "selected",
+                    response.Duration,
+                    response.RowCount,
+                    DateTimeOffset.UtcNow));
+            }
+        }
+        catch (OperationCanceledException) when (queryCts.IsCancellationRequested)
+        {
+            _status = "Cancelled.";
+            _error = string.Empty;
+        }
+        finally
+        {
+            if (ReferenceEquals(_queryCts, queryCts))
+            {
+                _running = false;
+            }
+        }
     }
-}
 
+    private void CancelQuery()
+    {
+        _queryCts?.Cancel();
+    }
+
+    private void ClearQueryHistory()
+    {
+        _history.Clear();
+    }
+
+    private void RestoreHistory(QueryHistoryItem item)
+    {
+        _sql = item.Sql;
+    }
+
+    private void ApplySuggestion(string suggestion)
+    {
+        if (string.IsNullOrWhiteSpace(_sql))
+        {
+            _sql = suggestion;
+            return;
+        }
+
+        _sql = $"{_sql.TrimEnd()} {suggestion}";
+    }
+
+    private void ClearQuery()
+    {
+        _sql = string.Empty;
+        _columns = [];
+        _rows = [];
+        _error = string.Empty;
+        _status = "Ready";
+        _duration = null;
+        _affectedRowCount = null;
+        _isTruncated = false;
+    }
+
+    private async Task LoadAutocompleteSuggestionsAsync()
+    {
+        var suggestions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "SELECT",
+            "TOP",
+            "FROM",
+            "WHERE",
+            "ORDER BY",
+            "GROUP BY",
+            "INSERT",
+            "UPDATE",
+            "DELETE",
+            "EXEC",
+        };
+
+        var metadataResponse = await ExplorerService.GetDatabaseMetadataAsync(CancellationToken.None);
+        var metadata = metadataResponse.AggregatedMetadata;
+        if (metadata is not null)
+        {
+            foreach (var schema in metadata.Schemas)
+            {
+                suggestions.Add(schema.ObjectName);
+            }
+
+            foreach (var table in metadata.Tables)
+            {
+                suggestions.Add($"{table.SchemaName}.{table.ObjectName}");
+            }
+
+            foreach (var view in metadata.Views)
+            {
+                suggestions.Add($"{view.SchemaName}.{view.ObjectName}");
+            }
+
+            foreach (var objectColumns in metadata.ColumnsByObject.Values)
+            {
+                foreach (var column in objectColumns)
+                {
+                    suggestions.Add(column.Name);
+                }
+            }
+        }
+
+        _autocompleteSuggestions = suggestions
+            .OrderBy(item => item, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    public void Dispose()
+    {
+        _queryCts?.Cancel();
+        _queryCts?.Dispose();
+    }
+
+    private sealed record QueryHistoryItem(
+        string Sql,
+        string DatabaseName,
+        TimeSpan Duration,
+        int RowCount,
+        DateTimeOffset ExecutedAt);
+}

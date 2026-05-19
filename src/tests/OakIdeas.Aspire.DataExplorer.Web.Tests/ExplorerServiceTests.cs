@@ -1,7 +1,9 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
+using OakIdeas.Aspire.DataExplorer.Core.Configuration;
 using OakIdeas.Aspire.DataExplorer.Core.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Services;
 using OakIdeas.Aspire.DataExplorer.Web.Services;
@@ -163,19 +165,98 @@ public sealed class ExplorerServiceTests
         response.Errors.Should().ContainSingle().Which.Should().Contain("Object ID is required");
     }
 
+    [Fact]
+    public async Task ExecuteQueryAsync_WhenSelectQuery_ReturnsRowsAndMetrics()
+    {
+        var selected = CreateSelectedContext("sql-main", "applicationdb");
+        var queryProvider = new QueryProvider(new QueryResult(
+            Columns: ["Id", "Name"],
+            Rows:
+            [
+                new Dictionary<string, object?> { ["Id"] = 1, ["Name"] = "First" },
+                new Dictionary<string, object?> { ["Id"] = 2, ["Name"] = "Second" },
+            ],
+            RowCount: 2,
+            Duration: TimeSpan.FromMilliseconds(25),
+            AffectedRowCount: null,
+            IsTruncated: false));
+        var service = CreateService(
+            selectedDatabaseService: new StubSelectedDatabaseService(selected),
+            providerFactory: new StubProviderFactory(queryProvider));
+
+        var response = await service.ExecuteQueryAsync(
+            new ExecuteQueryRequest("ignored", "select * from dbo.Users", 100),
+            CancellationToken.None);
+
+        response.Errors.Should().BeEmpty();
+        response.Columns.Should().ContainInOrder("Id", "Name");
+        response.Rows.Should().HaveCount(2);
+        response.Rows[0][0].Should().Be("1");
+        response.Rows[0][1].Should().Be("First");
+        response.RowCount.Should().Be(2);
+        response.Duration.Should().Be(TimeSpan.FromMilliseconds(25));
+    }
+
+    [Fact]
+    public async Task ExecuteQueryAsync_WhenDestructiveWithoutConfirmation_ReturnsValidationError()
+    {
+        var service = CreateService();
+
+        var response = await service.ExecuteQueryAsync(
+            new ExecuteQueryRequest("ignored", "DELETE FROM dbo.Users", 100),
+            CancellationToken.None);
+
+        response.Rows.Should().BeEmpty();
+        response.Errors.Should().ContainSingle().Which.Should().Contain("requires explicit confirmation");
+    }
+
+    [Fact]
+    public async Task ExecuteQueryAsync_WhenWriteOperationsDisabled_BlocksDestructiveQuery()
+    {
+        var service = CreateService(dataExplorerOptions: new DataExplorerOptions
+        {
+            EnableWriteOperations = false,
+        });
+
+        var response = await service.ExecuteQueryAsync(
+            new ExecuteQueryRequest("ignored", "UPDATE dbo.Users SET Name = 'x'", 100, ConfirmDestructiveExecution: true),
+            CancellationToken.None);
+
+        response.Errors.Should().ContainSingle().Which.Should().Contain("disabled");
+        response.Error.Should().NotBeNull();
+        response.Error!.Category.Should().Be(ErrorCategory.PermissionDenied);
+    }
+
+    [Fact]
+    public async Task ExecuteQueryAsync_WhenProviderThrows_ReturnsSanitizedError()
+    {
+        var service = CreateService(
+            providerFactory: new StubProviderFactory(new ThrowingQueryProvider(new TimeoutException("Server=secret"))));
+
+        var response = await service.ExecuteQueryAsync(
+            new ExecuteQueryRequest("ignored", "select 1", 100),
+            CancellationToken.None);
+
+        response.Error.Should().NotBeNull();
+        response.Error!.Category.Should().Be(ErrorCategory.QueryTimeout);
+        response.Errors.Should().ContainSingle().Which.Should().NotContain("Server=secret");
+    }
+
     private static ExplorerService CreateService(
         IAspireResourceDiscovery? resourceDiscovery = null,
         ISelectedDatabaseService? selectedDatabaseService = null,
         IMetadataAggregationService? metadataAggregationService = null,
         IMetadataRefreshService? metadataRefreshService = null,
-        IProviderFactory? providerFactory = null)
+        IProviderFactory? providerFactory = null,
+        DataExplorerOptions? dataExplorerOptions = null)
         => new(
             resourceDiscovery ?? new StubResourceDiscovery([]),
             selectedDatabaseService ?? new StubSelectedDatabaseService(CreateSelectedContext("sql-main", "applicationdb")),
             metadataAggregationService ?? new StubMetadataAggregationService(),
             metadataRefreshService ?? new StubMetadataRefreshService(),
             providerFactory ?? new StubProviderFactory(new DefinitionProvider("SELECT 1;")),
-            new ErrorHandler(NullLogger<ErrorHandler>.Instance, []));
+            new ErrorHandler(NullLogger<ErrorHandler>.Instance, []),
+            Options.Create(dataExplorerOptions ?? new DataExplorerOptions()));
 
     private static DiscoveredDatabaseResource CreateResource(string resourceId, string databaseName = "applicationdb")
         => new(
@@ -363,5 +444,35 @@ public sealed class ExplorerServiceTests
                 Definition: _definition,
                 IsAvailable: true,
                 UnavailableReason: null));
+    }
+
+    private sealed class QueryProvider(QueryResult result) : IMetadataProvider
+    {
+        private readonly QueryResult _result = result;
+
+        public DatabaseProviderType ProviderType => DatabaseProviderType.SqlServer;
+
+        public ProviderCapabilities Capabilities => new();
+
+        public Task<IReadOnlyList<SchemaMetadata>> GetSchemasAsync(DatabaseResource resource, CancellationToken cancellationToken)
+            => Task.FromResult<IReadOnlyList<SchemaMetadata>>([]);
+
+        public Task<QueryResult> ExecuteQueryAsync(DatabaseResource resource, ExecuteQueryRequest request, CancellationToken cancellationToken)
+            => Task.FromResult(_result);
+    }
+
+    private sealed class ThrowingQueryProvider(Exception exception) : IMetadataProvider
+    {
+        private readonly Exception _exception = exception;
+
+        public DatabaseProviderType ProviderType => DatabaseProviderType.SqlServer;
+
+        public ProviderCapabilities Capabilities => new();
+
+        public Task<IReadOnlyList<SchemaMetadata>> GetSchemasAsync(DatabaseResource resource, CancellationToken cancellationToken)
+            => Task.FromResult<IReadOnlyList<SchemaMetadata>>([]);
+
+        public Task<QueryResult> ExecuteQueryAsync(DatabaseResource resource, ExecuteQueryRequest request, CancellationToken cancellationToken)
+            => throw _exception;
     }
 }

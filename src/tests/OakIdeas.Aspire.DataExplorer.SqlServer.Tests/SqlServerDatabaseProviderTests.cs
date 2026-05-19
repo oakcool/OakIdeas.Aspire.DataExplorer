@@ -52,17 +52,20 @@ public sealed class SqlServerDatabaseProviderTests
     }
 
     [Fact]
-    public async Task ExecuteQueryAsync_ReturnsEmptyResult()
+    public void CreateExecuteQueryCommand_UsesRequestSqlAndConfiguredTimeout()
     {
-        var sut = new SqlServerDatabaseProvider();
-        var resource = CreateResource("sqlserver");
-        var request = new ExecuteQueryRequest("db", "select 1", 10);
+        using var connection = new SqlConnection();
+        var request = new ExecuteQueryRequest("db", "select top 1 * from dbo.Users", 100);
+        var options = new OakIdeas.Aspire.DataExplorer.Core.Configuration.DataExplorerOptions
+        {
+            QueryTimeoutSeconds = 42,
+        };
 
-        QueryResult result = await sut.ExecuteQueryAsync(resource, request, CancellationToken.None);
+        using var command = SqlServerDatabaseProvider.CreateExecuteQueryCommand(connection, request, options);
 
-        result.Columns.Should().BeEmpty();
-        result.Rows.Should().BeEmpty();
-        result.RowCount.Should().Be(0);
+        command.CommandType.Should().Be(System.Data.CommandType.Text);
+        command.CommandText.Should().Be(request.Sql);
+        command.CommandTimeout.Should().Be(42);
     }
 
     [Fact]

@@ -39,6 +39,13 @@ flowchart TD
 
 See [Metadata discovery architecture](./metadata-discovery.md) for detailed flow and contracts.
 
+## Query execution components
+
+- `QueryPage` (Web) hosts the development query editor, status, history, and results surface.
+- `IExplorerService.ExecuteQueryAsync` validates selected database context and applies guardrails (query enabled, write safety, row limits).
+- `IMetadataProvider.ExecuteQueryAsync` keeps provider SQL execution behavior in provider projects.
+- SQL Server MVP execution is implemented in `SqlServerDatabaseProvider` with configurable timeout and max row limits.
+
 ## Error handling and diagnostics
 
 Error categorization and sanitized diagnostics are documented in [error-handling](./error-handling.md).

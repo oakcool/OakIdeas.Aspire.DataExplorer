@@ -1,7 +1,10 @@
+using System.Globalization;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
+using OakIdeas.Aspire.DataExplorer.Core.Configuration;
 using OakIdeas.Aspire.DataExplorer.Web.Abstractions;
+using Microsoft.Extensions.Options;
 using DataExplorerOperationException = OakIdeas.Aspire.DataExplorer.Core.Models.DataExplorerOperationException;
 using ErrorContext = OakIdeas.Aspire.DataExplorer.Core.Models.ErrorContext;
 using SelectedDatabaseContext = OakIdeas.Aspire.DataExplorer.Core.Models.SelectedDatabaseContext;
@@ -14,7 +17,8 @@ public sealed class ExplorerService(
     IMetadataAggregationService metadataAggregationService,
     IMetadataRefreshService metadataRefreshService,
     IProviderFactory providerFactory,
-    IErrorHandler errorHandler) : IExplorerService
+    IErrorHandler errorHandler,
+    IOptions<DataExplorerOptions> dataExplorerOptions) : IExplorerService
 {
     private readonly IAspireResourceDiscovery _resourceDiscovery = resourceDiscovery;
     private readonly ISelectedDatabaseService _selectedDatabaseService = selectedDatabaseService;
@@ -22,6 +26,7 @@ public sealed class ExplorerService(
     private readonly IMetadataRefreshService _metadataRefreshService = metadataRefreshService;
     private readonly IProviderFactory _providerFactory = providerFactory;
     private readonly IErrorHandler _errorHandler = errorHandler;
+    private readonly DataExplorerOptions _dataExplorerOptions = dataExplorerOptions.Value;
 
     public async Task<GetAvailableDatabasesResponse> GetAvailableDatabasesAsync(CancellationToken cancellationToken)
     {
@@ -327,6 +332,161 @@ public sealed class ExplorerService(
         }
     }
 
+    public async Task<ExecuteQueryResponse> ExecuteQueryAsync(
+        ExecuteQueryRequest request,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (!_dataExplorerOptions.EnableAdHocQueries)
+        {
+            return new ExecuteQueryResponse(
+                Columns: [],
+                Rows: [],
+                RowCount: 0,
+                AffectedRowCount: null,
+                Duration: TimeSpan.Zero,
+                IsTruncated: false,
+                Errors: ["Ad-hoc query execution is disabled in current configuration."],
+                Error: _errorHandler.CreateError(
+                    ErrorCategory.ProviderError,
+                    "Ad-hoc query execution is disabled in current configuration.",
+                    "Enable ad-hoc query execution in development settings and try again.",
+                    new ErrorContext("execute-query")));
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Sql))
+        {
+            return new ExecuteQueryResponse(
+                Columns: [],
+                Rows: [],
+                RowCount: 0,
+                AffectedRowCount: null,
+                Duration: TimeSpan.Zero,
+                IsTruncated: false,
+                Errors: ["Query text is required."]);
+        }
+
+        var selected = await _selectedDatabaseService.GetSelectedDatabaseAsync(cancellationToken);
+        if (selected is null)
+        {
+            return new ExecuteQueryResponse(
+                Columns: [],
+                Rows: [],
+                RowCount: 0,
+                AffectedRowCount: null,
+                Duration: TimeSpan.Zero,
+                IsTruncated: false,
+                Errors: ["Select an available database before executing queries."],
+                Error: _errorHandler.CreateError(
+                    ErrorCategory.ResourceNotFound,
+                    "Select an available database before executing queries.",
+                    "Choose a database from Object Explorer and try again.",
+                    new ErrorContext("execute-query")));
+        }
+
+        if (!selected.IsValid)
+        {
+            return new ExecuteQueryResponse(
+                Columns: [],
+                Rows: [],
+                RowCount: 0,
+                AffectedRowCount: null,
+                Duration: TimeSpan.Zero,
+                IsTruncated: false,
+                Errors: [selected.ValidationMessage ?? "The selected database is not valid."],
+                Error: _errorHandler.CreateError(
+                    ErrorCategory.ConnectionFailed,
+                    selected.ValidationMessage ?? "The selected database is not valid.",
+                    "Select a different database resource and try again.",
+                    new ErrorContext("execute-query", selected.Resource.DatabaseName, selected.Resource.ProviderType)));
+        }
+
+        var sql = request.Sql.Trim();
+        if (IsPotentiallyDestructiveStatement(sql))
+        {
+            if (!_dataExplorerOptions.EnableWriteOperations)
+            {
+                return new ExecuteQueryResponse(
+                    Columns: [],
+                    Rows: [],
+                    RowCount: 0,
+                    AffectedRowCount: null,
+                    Duration: TimeSpan.Zero,
+                    IsTruncated: false,
+                    Errors: ["Write operations are disabled for this development session."],
+                    Error: _errorHandler.CreateError(
+                        ErrorCategory.PermissionDenied,
+                        "Write operations are disabled for this development session.",
+                        "Run a read-only query or enable write operations in development settings.",
+                        new ErrorContext("execute-query", selected.Resource.DatabaseName, selected.Resource.ProviderType)));
+            }
+
+            if (!request.ConfirmDestructiveExecution)
+            {
+                return new ExecuteQueryResponse(
+                    Columns: [],
+                    Rows: [],
+                    RowCount: 0,
+                    AffectedRowCount: null,
+                    Duration: TimeSpan.Zero,
+                    IsTruncated: false,
+                    Errors: ["Potentially destructive SQL requires explicit confirmation before execution."],
+                    Error: _errorHandler.CreateError(
+                        ErrorCategory.PermissionDenied,
+                        "Potentially destructive SQL requires explicit confirmation before execution.",
+                        "Review the statement and confirm execution to proceed.",
+                        new ErrorContext("execute-query", selected.Resource.DatabaseName, selected.Resource.ProviderType)));
+            }
+        }
+
+        var effectiveMaxRows = request.MaxRows > 0
+            ? Math.Min(request.MaxRows, _dataExplorerOptions.MaxQueryRows)
+            : _dataExplorerOptions.MaxQueryRows;
+
+        try
+        {
+            var provider = _providerFactory.Create(selected.Resource.ProviderType);
+            var providerRequest = request with
+            {
+                ConnectionName = selected.Resource.ResourceName,
+                Sql = sql,
+                MaxRows = effectiveMaxRows,
+            };
+            var result = await provider.ExecuteQueryAsync(
+                CreateDatabaseResource(selected.Resource),
+                providerRequest,
+                cancellationToken);
+
+            return new ExecuteQueryResponse(
+                Columns: result.Columns,
+                Rows: result.Rows.Select(row => result.Columns.Select(column => ToDisplayValue(row, column)).ToArray()).ToArray(),
+                RowCount: result.RowCount,
+                AffectedRowCount: result.AffectedRowCount,
+                Duration: result.Duration,
+                IsTruncated: result.IsTruncated,
+                Errors: []);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            var error = ResolveError(ex, new ErrorContext("execute-query", selected.Resource.DatabaseName, selected.Resource.ProviderType));
+            return new ExecuteQueryResponse(
+                Columns: [],
+                Rows: [],
+                RowCount: 0,
+                AffectedRowCount: null,
+                Duration: TimeSpan.Zero,
+                IsTruncated: false,
+                Errors: [error.Message],
+                Error: error);
+        }
+    }
+
     private DataExplorerError ResolveError(Exception exception, ErrorContext context)
         => exception is DataExplorerOperationException dataExplorerException
             ? dataExplorerException.Error
@@ -351,4 +511,31 @@ public sealed class ExplorerService(
                 : string.Empty,
             IsLocal: true,
             IsWritable: true);
+
+    private static bool IsPotentiallyDestructiveStatement(string sql)
+    {
+        var firstToken = sql
+            .TrimStart()
+            .Split([' ', '\t', '\r', '\n', ';', '('], 2, StringSplitOptions.RemoveEmptyEntries)[0]
+            .ToUpperInvariant();
+        return firstToken is "INSERT" or "UPDATE" or "DELETE" or "MERGE" or "TRUNCATE" or "DROP" or "ALTER" or "CREATE";
+    }
+
+    private static string? ToDisplayValue(IReadOnlyDictionary<string, object?> row, string column)
+    {
+        if (!row.TryGetValue(column, out var value) || value is null)
+        {
+            return null;
+        }
+
+        return value switch
+        {
+            DateTimeOffset dto => dto.ToString("O"),
+            DateTime dateTime => dateTime.ToString("O"),
+            TimeSpan timeSpan => timeSpan.ToString("c"),
+            byte[] bytes => $"0x{Convert.ToHexString(bytes)}",
+            IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
+            _ => value.ToString(),
+        };
+    }
 }

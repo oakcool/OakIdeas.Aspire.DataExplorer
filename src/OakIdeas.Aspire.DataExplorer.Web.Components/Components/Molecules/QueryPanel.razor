@@ -12,6 +12,12 @@
                     Title="Clear editor"
                     Variant="ghost"
                     OnClick="Clear" />
+        <IconButton Icon="HeroIconKind.XMark"
+                    Label="Cancel"
+                    Title="Cancel running query"
+                    Variant="ghost"
+                    Disabled="!IsExecuting"
+                    OnClick="Cancel" />
         @if (!string.IsNullOrEmpty(ConnectionName))
         {
             <StatusBadge Text="@ConnectionName" Variant="connected" />
@@ -54,6 +60,9 @@
     [Parameter]
     public EventCallback<string> OnExecute { get; set; }
 
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
     private string Placeholder => "-- Enter your SQL query here\nSELECT TOP 100 * FROM [dbo].[YourTable];";
 
     private async Task Execute()
@@ -73,4 +82,7 @@
         if (e.Key == "F5" || (e.Key == "Enter" && e.CtrlKey))
             await Execute();
     }
+
+    private Task Cancel()
+        => OnCancel.InvokeAsync();
 }

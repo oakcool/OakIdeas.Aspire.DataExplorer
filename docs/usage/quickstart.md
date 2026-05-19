@@ -38,6 +38,18 @@
    - `Triggers`
 5. Select an object to load object details and (when supported) definition text.
 
+## Query window walkthrough
+
+1. Open **Query** in the Data Explorer shell after selecting a database resource.
+2. Enter SQL and run it with **Execute** (or `Ctrl+Enter`).
+3. Use **Cancel** to stop long-running statements.
+4. Review:
+   - Returned rows in the results grid
+   - Duration, row count, and affected row count status
+   - Truncation notice when max row limits are reached
+5. For `INSERT`/`UPDATE`/`DELETE`/DDL statements, enable destructive execution confirmation before running.
+6. Use in-memory history entries to restore prior queries during the current session.
+
 ## Running the sample with metadata exploration
 
 Run sample AppHost to validate a consuming app workflow:

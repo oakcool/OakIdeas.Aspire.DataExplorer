@@ -64,6 +64,7 @@ This keeps service orchestration provider-agnostic while allowing provider proje
 - Optional discovery failures are captured as `MetadataCollectionFailure` and return partial results.
 - Errors are mapped through `IErrorHandler` into sanitized `DataExplorerError` payloads.
 - Provider-specific exception interpretation stays in provider projects (`IProviderErrorMapper`).
+- Query execution reuses the same sanitized diagnostics path (`ExplorerService` + `IErrorHandler`) to avoid leaking connection strings or credentials.
 
 See also:
 

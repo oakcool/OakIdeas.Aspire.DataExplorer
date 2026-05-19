@@ -7,6 +7,15 @@ The SQL Server provider project contains SQL Server-specific discovery and query
 - `ProviderType = DatabaseProviderType.SqlServer`
 - SQL Server capability flags through `ProviderCapabilities`
 
+## Query execution
+
+`SqlServerDatabaseProvider.ExecuteQueryAsync` executes ad-hoc SQL text using `SqlCommand`:
+
+- Command timeout comes from `DataExplorerOptions.QueryTimeoutSeconds`.
+- Returned rows are normalized as dictionaries keyed by column name.
+- Max rows are capped by `DataExplorerOptions.MaxQueryRows` and request `MaxRows`.
+- The result includes duration, row count, `RecordsAffected` (when available), and truncation status.
+
 ## Schema discovery
 
 `SqlServerDatabaseProvider` also implements `ISchemaDiscoveryProvider` and returns `DiscoverSchemasResponse` with `SchemaObject` entries.
