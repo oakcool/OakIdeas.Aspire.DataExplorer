@@ -52,3 +52,4 @@ OakIdeas.Aspire.DataExplorer is a development-time-only Aspire add-on for explor
 - Update docs when architecture or behavior changes.
 - Add ADRs for significant decisions.
 - Document new error categories, recovery guidance, and safe logging expectations when diagnostics behavior changes.
+- For any UI change, include before/after screenshots in the pull request description.
