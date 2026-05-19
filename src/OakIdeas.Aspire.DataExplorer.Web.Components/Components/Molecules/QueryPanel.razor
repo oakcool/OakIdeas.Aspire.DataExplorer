@@ -3,14 +3,21 @@
     <div class="query-panel__toolbar">
         <IconButton Icon="HeroIconKind.Play"
                     Label="Execute"
-                    Title="Execute (F5)"
+                    Title="Execute (Ctrl+Enter)"
                     Variant="primary"
                     Disabled="IsExecuting || string.IsNullOrWhiteSpace(Sql)"
                     OnClick="Execute" />
         <IconButton Icon="HeroIconKind.XMark"
+                    Label="Cancel"
+                    Title="Cancel current query"
+                    Variant="ghost"
+                    Disabled="!IsExecuting"
+                    OnClick="Cancel" />
+        <IconButton Icon="HeroIconKind.ArrowPath"
                     Label="Clear"
                     Title="Clear editor"
                     Variant="ghost"
+                    Disabled="IsExecuting"
                     OnClick="Clear" />
         @if (!string.IsNullOrEmpty(ConnectionName))
         {
@@ -34,8 +41,19 @@
                   autocapitalize="off"
                   @bind="Sql"
                   @bind:event="oninput"
+                  @bind:after="HandleSqlUpdatedAsync"
                   @onkeydown="HandleKeyDown"></textarea>
     </div>
+
+    @if (_filteredSuggestions.Count > 0)
+    {
+        <div class="query-panel__autocomplete" role="listbox" aria-label="Autocomplete suggestions">
+            @foreach (var suggestion in _filteredSuggestions)
+            {
+                <button type="button" class="query-panel__suggestion" @onclick="() => ApplySuggestion(suggestion)">@suggestion</button>
+            }
+        </div>
+    }
 </div>
 
 @code {
@@ -54,6 +72,15 @@
     [Parameter]
     public EventCallback<string> OnExecute { get; set; }
 
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<string> Suggestions { get; set; } = [];
+
+    private readonly List<string> _filteredSuggestions = [];
+    private string _currentToken = string.Empty;
+
     private string Placeholder => "-- Enter your SQL query here\nSELECT TOP 100 * FROM [dbo].[YourTable];";
 
     private async Task Execute()
@@ -62,15 +89,68 @@
             await OnExecute.InvokeAsync(Sql);
     }
 
+    private Task Cancel() => OnCancel.InvokeAsync();
+
     private async Task Clear()
     {
         Sql = string.Empty;
+        _currentToken = string.Empty;
+        _filteredSuggestions.Clear();
+        await SqlChanged.InvokeAsync(Sql);
+    }
+
+    private async Task HandleSqlUpdatedAsync()
+    {
+        _currentToken = GetCurrentToken(Sql);
+        _filteredSuggestions.Clear();
+
+        if (string.IsNullOrWhiteSpace(_currentToken))
+        {
+            await SqlChanged.InvokeAsync(Sql);
+            return;
+        }
+
+        _filteredSuggestions.AddRange(
+            Suggestions
+                .Where(candidate => candidate.StartsWith(_currentToken, StringComparison.OrdinalIgnoreCase))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(8));
+
+        await SqlChanged.InvokeAsync(Sql);
+    }
+
+    private async Task ApplySuggestion(string suggestion)
+    {
+        if (string.IsNullOrWhiteSpace(_currentToken))
+        {
+            return;
+        }
+
+        Sql = Sql[..^_currentToken.Length] + suggestion + " ";
+        _currentToken = string.Empty;
+        _filteredSuggestions.Clear();
         await SqlChanged.InvokeAsync(Sql);
     }
 
     private async Task HandleKeyDown(KeyboardEventArgs e)
     {
-        if (e.Key == "F5" || (e.Key == "Enter" && e.CtrlKey))
+        if (e.Key == "Enter" && e.CtrlKey)
             await Execute();
+    }
+
+    private static string GetCurrentToken(string sql)
+    {
+        if (string.IsNullOrWhiteSpace(sql))
+        {
+            return string.Empty;
+        }
+
+        var index = sql.Length - 1;
+        while (index >= 0 && (char.IsLetterOrDigit(sql[index]) || sql[index] is '_' or '.' or '[' or ']'))
+        {
+            index--;
+        }
+
+        return sql[(index + 1)..];
     }
 }

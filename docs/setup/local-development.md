@@ -46,3 +46,12 @@ npm run watch:css
 ```
 
 If using Visual Studio, use `DataExplorer + Sample (Development Debug)` solution launch profile.
+
+## Query Window configuration
+
+`DataExplorerOptions` (section `OakIdeas:Aspire:DataExplorer`) controls query behavior:
+
+- `EnableAdHocQueries` (default `true`)
+- `EnableWriteOperations` (set `false` for read-only query mode)
+- `QueryTimeoutSeconds` (default `30`)
+- `MaxQueryRows` (default `1000`)

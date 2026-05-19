@@ -10,6 +10,7 @@ OakIdeas.Aspire.DataExplorer is a development-time-only Aspire add-on for explor
 - Do not weaken development-only runtime guards.
 - Do not put connection strings or secrets into client-side code.
 - Keep provider-specific logic in provider projects.
+- Keep Query Window guardrails enabled (ad-hoc toggle, read-only mode support, safe diagnostics).
 
 ## Architecture Rules
 

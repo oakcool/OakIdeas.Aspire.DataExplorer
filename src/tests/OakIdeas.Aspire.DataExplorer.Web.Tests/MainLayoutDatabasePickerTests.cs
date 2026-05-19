@@ -229,6 +229,19 @@ public sealed class MainLayoutDatabasePickerTests : TestContext
                 Errors: []));
         }
 
+        public Task<ExecuteDatabaseQueryResponse> ExecuteQueryAsync(string sql, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(new ExecuteDatabaseQueryResponse(
+                DatabaseName: "applicationdb",
+                Columns: [],
+                Rows: [],
+                RowCount: 0,
+                AffectedRowCount: null,
+                Duration: TimeSpan.Zero,
+                IsTruncated: false));
+        }
+
         private static ExplorerDatabaseSelection Map(DiscoveredDatabaseResource resource)
             => new(
                 ResourceId: resource.ResourceId,

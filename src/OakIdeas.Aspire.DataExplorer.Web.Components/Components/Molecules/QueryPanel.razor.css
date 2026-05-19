@@ -53,3 +53,27 @@
     background-color: #30363d;
     border-radius: 4px;
 }
+
+.query-panel__autocomplete {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    padding: 0.5rem 0.75rem;
+    border-top: 1px solid #21262d;
+    background-color: #11161e;
+}
+
+.query-panel__suggestion {
+    border: 1px solid #30363d;
+    background-color: #161b22;
+    color: #c9d1d9;
+    border-radius: 4px;
+    padding: 0.2rem 0.45rem;
+    font-size: 0.72rem;
+    cursor: pointer;
+}
+
+.query-panel__suggestion:hover {
+    border-color: #58a6ff;
+    color: #58a6ff;
+}

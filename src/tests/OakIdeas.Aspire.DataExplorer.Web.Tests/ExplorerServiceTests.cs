@@ -1,7 +1,9 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
+using OakIdeas.Aspire.DataExplorer.Core.Configuration;
 using OakIdeas.Aspire.DataExplorer.Core.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Services;
 using OakIdeas.Aspire.DataExplorer.Web.Services;
@@ -163,19 +165,67 @@ public sealed class ExplorerServiceTests
         response.Errors.Should().ContainSingle().Which.Should().Contain("Object ID is required");
     }
 
+    [Fact]
+    public async Task ExecuteQueryAsync_WhenNoSelectedDatabase_ReturnsValidationError()
+    {
+        var service = CreateService(selectedDatabaseService: new StubSelectedDatabaseService(selectedContext: null));
+
+        var response = await service.ExecuteQueryAsync("SELECT 1", CancellationToken.None);
+
+        response.Error.Should().NotBeNull();
+        response.Error!.Category.Should().Be(ErrorCategory.ResourceNotFound);
+    }
+
+    [Fact]
+    public async Task ExecuteQueryAsync_ReturnsProviderResult()
+    {
+        var provider = new DefinitionProvider(
+            "SELECT 1",
+            new QueryResult(
+                Columns: ["id"],
+                Rows: [new Dictionary<string, object?> { ["id"] = 1 }],
+                RowCount: 1,
+                Duration: TimeSpan.FromMilliseconds(8),
+                AffectedRowCount: null,
+                IsTruncated: false));
+
+        var service = CreateService(providerFactory: new StubProviderFactory(provider));
+
+        var response = await service.ExecuteQueryAsync("SELECT id FROM dbo.Users", CancellationToken.None);
+
+        response.Error.Should().BeNull();
+        response.Columns.Should().ContainSingle().Which.Should().Be("id");
+        response.Rows.Should().ContainSingle();
+        response.RowCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ExecuteQueryAsync_WhenProviderThrows_ReturnsSanitizedError()
+    {
+        var provider = new DefinitionProvider("SELECT 1", null, new InvalidOperationException("Server=secret;Database=app"));
+        var service = CreateService(providerFactory: new StubProviderFactory(provider));
+
+        var response = await service.ExecuteQueryAsync("SELECT 1", CancellationToken.None);
+
+        response.Error.Should().NotBeNull();
+        response.Error!.Message.Should().NotContain("Server=secret");
+    }
+
     private static ExplorerService CreateService(
         IAspireResourceDiscovery? resourceDiscovery = null,
         ISelectedDatabaseService? selectedDatabaseService = null,
         IMetadataAggregationService? metadataAggregationService = null,
         IMetadataRefreshService? metadataRefreshService = null,
-        IProviderFactory? providerFactory = null)
+        IProviderFactory? providerFactory = null,
+        DataExplorerOptions? options = null)
         => new(
             resourceDiscovery ?? new StubResourceDiscovery([]),
             selectedDatabaseService ?? new StubSelectedDatabaseService(CreateSelectedContext("sql-main", "applicationdb")),
             metadataAggregationService ?? new StubMetadataAggregationService(),
             metadataRefreshService ?? new StubMetadataRefreshService(),
             providerFactory ?? new StubProviderFactory(new DefinitionProvider("SELECT 1;")),
-            new ErrorHandler(NullLogger<ErrorHandler>.Instance, []));
+            new ErrorHandler(NullLogger<ErrorHandler>.Instance, []),
+            Options.Create(options ?? new DataExplorerOptions()));
 
     private static DiscoveredDatabaseResource CreateResource(string resourceId, string databaseName = "applicationdb")
         => new(
@@ -341,9 +391,14 @@ public sealed class ExplorerServiceTests
         }
     }
 
-    private sealed class DefinitionProvider(string definition) : IMetadataProvider, IObjectDefinitionProvider
+    private sealed class DefinitionProvider(
+        string definition,
+        QueryResult? queryResult = null,
+        Exception? queryException = null) : IMetadataProvider, IObjectDefinitionProvider
     {
         private readonly string _definition = definition;
+        private readonly QueryResult _queryResult = queryResult ?? new QueryResult([], [], 0, TimeSpan.Zero);
+        private readonly Exception? _queryException = queryException;
 
         public DatabaseProviderType ProviderType => DatabaseProviderType.SqlServer;
 
@@ -356,7 +411,9 @@ public sealed class ExplorerServiceTests
             => Task.FromResult<IReadOnlyList<SchemaMetadata>>([]);
 
         public Task<QueryResult> ExecuteQueryAsync(DatabaseResource resource, ExecuteQueryRequest request, CancellationToken cancellationToken)
-            => Task.FromResult(new QueryResult([], [], 0, TimeSpan.Zero));
+            => _queryException is null
+                ? Task.FromResult(_queryResult)
+                : Task.FromException<QueryResult>(_queryException);
 
         public Task<ObjectDefinitionResponse> GetDefinitionAsync(DatabaseResource resource, ObjectDefinitionRequest request, CancellationToken cancellationToken)
             => Task.FromResult(new ObjectDefinitionResponse(

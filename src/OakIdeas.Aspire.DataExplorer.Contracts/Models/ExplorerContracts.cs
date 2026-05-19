@@ -38,3 +38,13 @@ public sealed record GetObjectDefinitionResponse(
     string? UnavailableReason,
     IReadOnlyList<string> Errors,
     DataExplorerError? Error = null);
+
+public sealed record ExecuteDatabaseQueryResponse(
+    string DatabaseName,
+    IReadOnlyList<string> Columns,
+    IReadOnlyList<IReadOnlyDictionary<string, object?>> Rows,
+    int RowCount,
+    int? AffectedRowCount,
+    TimeSpan Duration,
+    bool IsTruncated,
+    DataExplorerError? Error = null);

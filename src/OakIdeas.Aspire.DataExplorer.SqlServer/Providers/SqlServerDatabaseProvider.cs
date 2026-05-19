@@ -1,4 +1,5 @@
 using System.Data;
+using System.Diagnostics;
 using System.Globalization;
 using Microsoft.Data.SqlClient;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
@@ -416,16 +417,102 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         }
     }
 
-    public Task<QueryResult> ExecuteQueryAsync(
+    public async Task<QueryResult> ExecuteQueryAsync(
         DatabaseResource resource,
         ExecuteQueryRequest request,
         CancellationToken cancellationToken)
-        => Task.FromResult(
-            new QueryResult(
-                Columns: Array.Empty<string>(),
-                Rows: Array.Empty<IReadOnlyDictionary<string, object?>>(),
-                RowCount: 0,
-                Duration: TimeSpan.Zero));
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (string.IsNullOrWhiteSpace(request.Sql))
+        {
+            throw new ArgumentException("Query text is required.", nameof(request));
+        }
+
+        if (request.MaxRows <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(request), "MaxRows must be greater than zero.");
+        }
+
+        await using var connection = new SqlConnection(resource.ConnectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandType = CommandType.Text;
+        command.CommandText = request.Sql;
+        command.CommandTimeout = ResolveCommandTimeoutSeconds(request);
+
+        var stopwatch = Stopwatch.StartNew();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        var columns = new List<string>();
+        var rows = new List<IReadOnlyDictionary<string, object?>>();
+        var maxRows = request.MaxRows;
+        var isTruncated = false;
+
+        do
+        {
+            if (reader.FieldCount <= 0)
+            {
+                continue;
+            }
+
+            if (columns.Count == 0)
+            {
+                for (var index = 0; index < reader.FieldCount; index++)
+                {
+                    columns.Add(reader.GetName(index));
+                }
+            }
+
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                if (rows.Count >= maxRows)
+                {
+                    isTruncated = true;
+                    break;
+                }
+
+                var row = new Dictionary<string, object?>(columns.Count, StringComparer.OrdinalIgnoreCase);
+                for (var index = 0; index < columns.Count; index++)
+                {
+                    row[columns[index]] = reader.IsDBNull(index)
+                        ? null
+                        : reader.GetValue(index);
+                }
+
+                rows.Add(row);
+            }
+
+            if (isTruncated)
+            {
+                break;
+            }
+        }
+        while (await reader.NextResultAsync(cancellationToken));
+
+        var elapsed = stopwatch.Elapsed;
+        int? affectedRows = reader.RecordsAffected >= 0
+            ? reader.RecordsAffected
+            : null;
+
+        return new QueryResult(
+            Columns: columns,
+            Rows: rows,
+            RowCount: rows.Count,
+            Duration: elapsed,
+            AffectedRowCount: affectedRows,
+            IsTruncated: isTruncated);
+    }
+
+    internal static int ResolveCommandTimeoutSeconds(ExecuteQueryRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return request.TimeoutSeconds.GetValueOrDefault() > 0
+            ? request.TimeoutSeconds!.Value
+            : 30;
+    }
 
     public async Task<DiscoverForeignKeysResponse> DiscoverForeignKeysAsync(
         DatabaseResource resource,

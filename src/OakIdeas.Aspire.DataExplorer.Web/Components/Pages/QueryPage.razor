@@ -1,17 +1,44 @@
 @page "/query/{connectionName?}"
+@using Microsoft.Extensions.Options
+@using OakIdeas.Aspire.DataExplorer.Core.Configuration
+@using OakIdeas.Aspire.DataExplorer.Web.Abstractions
+@inject IExplorerService ExplorerService
+@inject IOptions<DataExplorerOptions> DataExplorerOptions
 
 <PageTitle>Query — Data Explorer</PageTitle>
 
 <div class="de-query-page">
+    <div class="de-query-banner">
+        <HeroIcon Kind="HeroIconKind.ExclamationTriangle" Size="14" />
+        <span>Development-only query window. Never execute untrusted SQL.</span>
+    </div>
+
     <div class="de-query-pane de-query-pane--editor">
         <div class="de-query-pane__label">
             <HeroIcon Kind="HeroIconKind.CodeBracket" Size="15" Class="de-query-pane__label-icon" />
             <span>SQL Editor</span>
         </div>
-        <QueryPanel ConnectionName="@(ConnectionName ?? string.Empty)"
+        <div class="de-query-status">
+            @if (_running)
+            {
+                <span>Executing query…</span>
+            }
+            else if (!string.IsNullOrEmpty(_status))
+            {
+                <span>@_status</span>
+            }
+
+            @if (IsReadOnlyMode)
+            {
+                <span class="de-query-status__pill">Read-only mode</span>
+            }
+        </div>
+        <QueryPanel ConnectionName="@_activeConnectionName"
                     @bind-Sql="_sql"
                     IsExecuting="_running"
-                    OnExecute="RunQuery" />
+                    OnExecute="RunQuery"
+                    OnCancel="CancelQuery"
+                    Suggestions="_suggestions" />
     </div>
 
     <div class="de-query-divider" aria-hidden="true"></div>
@@ -25,35 +52,226 @@
                       Rows="@_rows"
                       IsLoading="_running"
                       ErrorMessage="@_error" />
+
+        @if (_history.Count > 0)
+        {
+            <div class="de-query-history">
+                <div class="de-query-history__title">Recent queries</div>
+                <ul>
+                    @foreach (var entry in _history)
+                    {
+                        <li>
+                            <button type="button" @onclick="() => LoadFromHistory(entry.Sql)">@entry.Timestamp.ToLocalTime():HH:mm:ss</button>
+                            <span class="de-query-history__meta">@entry.DatabaseName · @entry.RowCount row(s) · @entry.Duration.TotalMilliseconds:F0 ms</span>
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
     </div>
 </div>
 
 @code {
+    private static readonly string[] SqlKeywords =
+    [
+        "SELECT", "FROM", "WHERE", "JOIN", "LEFT JOIN", "RIGHT JOIN", "INNER JOIN", "GROUP BY", "ORDER BY",
+        "INSERT", "UPDATE", "DELETE", "MERGE", "EXEC", "CREATE", "ALTER", "DROP", "TOP", "DISTINCT"
+    ];
+
     [Parameter]
     public string? ConnectionName { get; set; }
 
     private string _sql = string.Empty;
     private bool _running;
     private string _error = string.Empty;
+    private string _status = string.Empty;
     private IReadOnlyList<string> _columns = [];
     private IReadOnlyList<IReadOnlyList<string?>> _rows = [];
+    private IReadOnlyList<string> _suggestions = [];
+    private readonly List<QueryHistoryEntry> _history = [];
+    private bool _isDestructiveConfirmationPending;
+    private CancellationTokenSource? _queryCts;
+    private string _activeConnectionName = string.Empty;
+
+    private bool IsReadOnlyMode => !DataExplorerOptions.Value.EnableWriteOperations;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrWhiteSpace(ConnectionName))
+        {
+            var selected = await ExplorerService.GetSelectedDatabaseAsync(CancellationToken.None);
+            _activeConnectionName = selected.Selection?.DatabaseName ?? string.Empty;
+        }
+        else
+        {
+            _activeConnectionName = ConnectionName;
+        }
+
+        _suggestions = await BuildSuggestionsAsync(CancellationToken.None);
+    }
 
     private async Task RunQuery(string sql)
     {
+        if (_running)
+        {
+            return;
+        }
+
+        if (IsReadOnlyMode && IsPotentiallyDestructiveSql(sql))
+        {
+            _error = "Read-only mode is enabled. Run a SELECT query or enable write operations.";
+            return;
+        }
+
+        if (IsPotentiallyDestructiveSql(sql) && !_isDestructiveConfirmationPending)
+        {
+            _isDestructiveConfirmationPending = true;
+            _status = "Potentially destructive statement detected. Run Execute again to confirm.";
+            _error = string.Empty;
+            return;
+        }
+
+        _isDestructiveConfirmationPending = false;
         _running = true;
         _error = string.Empty;
+        _status = string.Empty;
         _columns = [];
         _rows = [];
+        _queryCts?.Dispose();
+        _queryCts = new CancellationTokenSource();
         StateHasChanged();
 
-        // Simulate async query execution (real implementation added in follow-up)
-        await Task.Delay(400);
-        _columns = ["Id", "Name", "Value", "CreatedAt"];
-        _rows = [
-            ["1", "Sample Row", "42", "2025-01-01"],
-            ["2", "Another Row", "99", "2025-01-02"]
-        ];
-        _running = false;
-    }
-}
+        try
+        {
+            var response = await ExplorerService.ExecuteQueryAsync(sql, _queryCts.Token);
+            if (response.Error is not null)
+            {
+                _error = response.Error.Message;
+                _status = response.Error.RecoverySuggestion ?? "Query execution failed.";
+                AddHistory(sql, response.DatabaseName, response.Duration, response.RowCount);
+                return;
+            }
 
+            _columns = response.Columns;
+            _rows = response.Rows
+                .Select(row => _columns.Select(column => ToDisplayValue(row.TryGetValue(column, out var value) ? value : null)).ToArray())
+                .ToArray();
+
+            var affected = response.AffectedRowCount.HasValue
+                ? $", affected {response.AffectedRowCount.Value} row(s)"
+                : string.Empty;
+            var truncated = response.IsTruncated ? ", truncated to max row limit" : string.Empty;
+            _status = $"Completed in {response.Duration.TotalMilliseconds:F0} ms, returned {response.RowCount} row(s){affected}{truncated}.";
+
+            AddHistory(sql, response.DatabaseName, response.Duration, response.RowCount);
+        }
+        catch (OperationCanceledException)
+        {
+            _status = "Query canceled.";
+            _error = string.Empty;
+        }
+        finally
+        {
+            _running = false;
+        }
+    }
+
+    private void CancelQuery()
+    {
+        if (_running)
+        {
+            _queryCts?.Cancel();
+        }
+    }
+
+    private void LoadFromHistory(string sql)
+    {
+        _sql = sql;
+    }
+
+    private void AddHistory(string sql, string databaseName, TimeSpan duration, int rowCount)
+    {
+        _history.Insert(0, new QueryHistoryEntry(sql, databaseName, duration, rowCount, DateTimeOffset.UtcNow));
+        if (_history.Count > 20)
+        {
+            _history.RemoveRange(20, _history.Count - 20);
+        }
+    }
+
+    private async Task<IReadOnlyList<string>> BuildSuggestionsAsync(CancellationToken cancellationToken)
+    {
+        var suggestions = new HashSet<string>(SqlKeywords, StringComparer.OrdinalIgnoreCase);
+
+        var metadataResponse = await ExplorerService.GetDatabaseMetadataAsync(cancellationToken);
+        var metadata = metadataResponse.AggregatedMetadata;
+        if (metadata is null)
+        {
+            return suggestions.OrderBy(value => value, StringComparer.OrdinalIgnoreCase).ToArray();
+        }
+
+        foreach (var table in metadata.Tables)
+        {
+            suggestions.Add($"{table.SchemaName}.{table.ObjectName}");
+        }
+
+        foreach (var view in metadata.Views)
+        {
+            suggestions.Add($"{view.SchemaName}.{view.ObjectName}");
+        }
+
+        foreach (var procedure in metadata.ProceduresBySchema)
+        {
+            foreach (var item in procedure.Value)
+            {
+                suggestions.Add($"{procedure.Key}.{item.ProcedureName}");
+            }
+        }
+
+        foreach (var schemaFunctions in metadata.FunctionsBySchema)
+        {
+            foreach (var functionGroup in schemaFunctions.Value)
+            {
+                foreach (var item in functionGroup.Value)
+                {
+                    suggestions.Add($"{schemaFunctions.Key}.{item.FunctionName}");
+                }
+            }
+        }
+
+        foreach (var column in metadata.ColumnsByObject.SelectMany(pair => pair.Value))
+        {
+            suggestions.Add(column.Name);
+        }
+
+        return suggestions.OrderBy(value => value, StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
+    private static bool IsPotentiallyDestructiveSql(string sql)
+    {
+        if (string.IsNullOrWhiteSpace(sql))
+        {
+            return false;
+        }
+
+        var firstToken = sql.TrimStart().Split([' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+        return firstToken?.ToUpperInvariant() is
+            "INSERT" or "UPDATE" or "DELETE" or "MERGE" or "TRUNCATE" or "DROP" or "ALTER" or "CREATE" or "EXEC" or "EXECUTE";
+    }
+
+    private static string? ToDisplayValue(object? value)
+        => value switch
+        {
+            null => null,
+            DateTime dateTime => dateTime.ToString("u"),
+            DateTimeOffset dateTimeOffset => dateTimeOffset.ToString("u"),
+            byte[] bytes => Convert.ToBase64String(bytes),
+            _ => Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture)
+        };
+
+    private sealed record QueryHistoryEntry(
+        string Sql,
+        string DatabaseName,
+        TimeSpan Duration,
+        int RowCount,
+        DateTimeOffset Timestamp);
+}

@@ -55,4 +55,12 @@ public interface IExplorerService
         string objectId,
         DatabaseObjectType objectType,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Executes an ad-hoc SQL query for the currently selected database.
+    /// </summary>
+    /// <param name="sql">The SQL text to execute.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>A typed response containing query results and execution metrics.</returns>
+    Task<ExecuteDatabaseQueryResponse> ExecuteQueryAsync(string sql, CancellationToken cancellationToken);
 }
