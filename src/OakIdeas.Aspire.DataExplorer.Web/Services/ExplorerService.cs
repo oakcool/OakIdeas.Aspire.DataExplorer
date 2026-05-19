@@ -514,10 +514,15 @@ public sealed class ExplorerService(
 
     private static bool IsPotentiallyDestructiveStatement(string sql)
     {
-        var firstToken = sql
+        var tokens = sql
             .TrimStart()
-            .Split([' ', '\t', '\r', '\n', ';', '('], 2, StringSplitOptions.RemoveEmptyEntries)[0]
-            .ToUpperInvariant();
+            .Split([' ', '\t', '\r', '\n', ';', '('], 2, StringSplitOptions.RemoveEmptyEntries);
+        if (tokens.Length == 0)
+        {
+            return false;
+        }
+
+        var firstToken = tokens[0].ToUpperInvariant();
         return firstToken is "INSERT" or "UPDATE" or "DELETE" or "MERGE" or "TRUNCATE" or "DROP" or "ALTER" or "CREATE";
     }
 

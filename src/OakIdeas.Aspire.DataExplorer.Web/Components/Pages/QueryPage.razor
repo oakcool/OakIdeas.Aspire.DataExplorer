@@ -200,18 +200,6 @@
         _sql = $"{_sql.TrimEnd()} {suggestion}";
     }
 
-    private void ClearQuery()
-    {
-        _sql = string.Empty;
-        _columns = [];
-        _rows = [];
-        _error = string.Empty;
-        _status = "Ready";
-        _duration = null;
-        _affectedRowCount = null;
-        _isTruncated = false;
-    }
-
     private async Task LoadAutocompleteSuggestionsAsync()
     {
         var suggestions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
