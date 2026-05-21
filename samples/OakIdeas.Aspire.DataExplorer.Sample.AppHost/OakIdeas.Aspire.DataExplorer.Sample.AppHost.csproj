@@ -15,6 +15,7 @@
 
   <PropertyGroup>
     <DataExplorerLocalPublishedAppDir>$(MSBuildProjectDirectory)\..\..\src\OakIdeas.Aspire.DataExplorer.Hosting\DataExplorerWeb\publish\</DataExplorerLocalPublishedAppDir>
+    <UserSecretsId>454f13de-9214-4e3a-9d98-f76182b35e21</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -23,18 +24,12 @@
     <ProjectReference Include="..\OakIdeas.Aspire.DataExplorer.Sample.Web\OakIdeas.Aspire.DataExplorer.Sample.Web.csproj" />
   </ItemGroup>
 
-  <Target Name="CopyLocalDataExplorerWebApp"
-          AfterTargets="Build"
-          Condition="Exists('$(DataExplorerLocalPublishedAppDir)')">
+  <Target Name="CopyLocalDataExplorerWebApp" AfterTargets="Build" Condition="Exists('$(DataExplorerLocalPublishedAppDir)')">
     <ItemGroup>
-    <_LocalDataExplorerPublishedFiles Include="$(DataExplorerLocalPublishedAppDir)**\*.*"
-                 Exclude="$(DataExplorerLocalPublishedAppDir)**\*.br;$(DataExplorerLocalPublishedAppDir)**\*.gz" />
+    <_LocalDataExplorerPublishedFiles Include="$(DataExplorerLocalPublishedAppDir)**\*.*" Exclude="$(DataExplorerLocalPublishedAppDir)**\*.br;$(DataExplorerLocalPublishedAppDir)**\*.gz" />
     </ItemGroup>
 
-    <Copy SourceFiles="@(_LocalDataExplorerPublishedFiles)"
-          DestinationFiles="@(_LocalDataExplorerPublishedFiles->'$(TargetDir)data-explorer-web\%(RecursiveDir)%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true"
-          ContinueOnError="WarnAndContinue" />
+    <Copy SourceFiles="@(_LocalDataExplorerPublishedFiles)" DestinationFiles="@(_LocalDataExplorerPublishedFiles->'$(TargetDir)data-explorer-web\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" ContinueOnError="WarnAndContinue" />
   </Target>
 
 </Project>

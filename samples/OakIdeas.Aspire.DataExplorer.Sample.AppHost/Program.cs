@@ -3,7 +3,10 @@ using OakIdeas.Aspire.DataExplorer.Hosting.Extensions;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-var sql = builder.AddSqlServer("sample-sql")
+var password = builder.AddParameter("sql-password", secret: true);
+var sql = builder.AddSqlServer("sample-sql", password)
+    .WithLifetime(ContainerLifetime.Persistent)
+    .WithDataVolume()
     .AddDatabase("sampledb");
 
 if (builder.Environment.IsDevelopment())
