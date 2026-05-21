@@ -7,18 +7,18 @@
 
 <PageTitle>Query — Data Explorer</PageTitle>
 
-<div class="de-query-page">
-    <div class="de-query-banner">
+<div class="de-query-page flex h-full min-h-0 flex-col overflow-hidden bg-slate-950">
+    <div class="de-query-banner inline-flex items-center gap-2 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs font-medium text-amber-300">
         <HeroIcon Kind="HeroIconKind.ExclamationTriangle" Size="14" />
         <span>Development-only query window. Never execute untrusted SQL.</span>
     </div>
 
-    <div class="de-query-pane de-query-pane--editor">
-        <div class="de-query-pane__label">
+    <div class="de-query-pane de-query-pane--editor flex basis-[45%] flex-col overflow-hidden">
+        <div class="de-query-pane__label inline-flex shrink-0 items-center gap-2 border-b border-slate-800 bg-slate-900 px-4 py-2 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
             <HeroIcon Kind="HeroIconKind.CodeBracket" Size="15" Class="de-query-pane__label-icon" />
             <span>SQL Editor</span>
         </div>
-        <div class="de-query-status">
+        <div class="de-query-status flex min-h-9 items-center gap-2 border-b border-slate-800 bg-slate-900/70 px-4 py-1 text-xs text-slate-300">
             @if (_running)
             {
                 <span>Executing query…</span>
@@ -30,7 +30,7 @@
 
             @if (IsReadOnlyMode)
             {
-                <span class="de-query-status__pill">Read-only mode</span>
+                <span class="de-query-status__pill rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-300">Read-only mode</span>
             }
         </div>
         <QueryPanel ConnectionName="@_activeConnectionName"
@@ -41,10 +41,10 @@
                     Suggestions="_suggestions" />
     </div>
 
-    <div class="de-query-divider" aria-hidden="true"></div>
+    <div class="de-query-divider h-1 shrink-0 cursor-row-resize bg-slate-800 transition hover:bg-sky-500" aria-hidden="true"></div>
 
-    <div class="de-query-pane de-query-pane--results">
-        <div class="de-query-pane__label">
+    <div class="de-query-pane de-query-pane--results flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div class="de-query-pane__label inline-flex shrink-0 items-center gap-2 border-b border-slate-800 bg-slate-900 px-4 py-2 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
             <HeroIcon Kind="HeroIconKind.TableCells" Size="15" Class="de-query-pane__label-icon" />
             <span>Results</span>
         </div>
@@ -55,14 +55,14 @@
 
         @if (_history.Count > 0)
         {
-            <div class="de-query-history">
-                <div class="de-query-history__title">Recent queries</div>
-                <ul>
+            <div class="de-query-history border-t border-slate-800 bg-slate-900/80 px-4 py-3">
+                <div class="de-query-history__title mb-2 text-[11px] font-semibold uppercase tracking-widest text-slate-400">Recent queries</div>
+                <ul class="flex flex-col gap-2">
                     @foreach (var entry in _history)
                     {
-                        <li>
-                            <button type="button" @onclick="() => LoadFromHistory(entry.Sql)">@entry.Timestamp.ToLocalTime():HH:mm:ss</button>
-                            <span class="de-query-history__meta">@entry.DatabaseName · @entry.RowCount row(s) · @entry.Duration.TotalMilliseconds:F0 ms</span>
+                        <li class="flex flex-wrap items-center gap-2">
+                            <button type="button" class="rounded border border-slate-600 bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 transition hover:border-sky-500 hover:text-sky-200" @onclick="() => LoadFromHistory(entry.Sql)">@entry.Timestamp.ToLocalTime():HH:mm:ss</button>
+                            <span class="de-query-history__meta text-xs text-slate-400">@entry.DatabaseName · @entry.RowCount row(s) · @entry.Duration.TotalMilliseconds:F0 ms</span>
                         </li>
                     }
                 </ul>
