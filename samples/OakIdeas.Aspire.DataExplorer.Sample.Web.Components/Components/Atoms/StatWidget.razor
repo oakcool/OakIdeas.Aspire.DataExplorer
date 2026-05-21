@@ -1,11 +1,11 @@
 @* Compact stat widget card *@
-<div class="stat-widget">
-    <div class="stat-widget__icon-wrap" style="background-color: @IconBg">
-        <span class="stat-widget__icon" aria-hidden="true">@Icon</span>
+<div class="sample-surface flex items-center gap-4 px-4 py-4">
+    <div class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl ring-1 ring-white/35" style="background-color: @IconBg">
+        <span class="text-xl" aria-hidden="true">@Icon</span>
     </div>
-    <div class="stat-widget__info">
-        <span class="stat-widget__value">@Value</span>
-        <span class="stat-widget__label">@Label</span>
+    <div class="flex flex-col gap-0.5">
+        <span class="text-xl font-black leading-none text-white">@Value</span>
+        <span class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-300">@Label</span>
     </div>
 </div>
 

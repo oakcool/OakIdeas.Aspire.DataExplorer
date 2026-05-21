@@ -1,5 +1,5 @@
 @* Colored semantic badge pill *@
-<span class="sample-badge sample-badge--@Variant.ToLowerInvariant()">@Text</span>
+<span class="@GetBadgeClasses()">@Text</span>
 
 @code {
     [Parameter]
@@ -8,4 +8,14 @@
     /// <summary>Variant: success | warning | danger | info | neutral</summary>
     [Parameter]
     public string Variant { get; set; } = "neutral";
+
+    private string GetBadgeClasses()
+        => Variant.ToLowerInvariant() switch
+        {
+            "success" => "inline-flex items-center rounded-full border border-emerald-300/35 bg-emerald-500/20 px-2.5 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-emerald-100",
+            "warning" => "inline-flex items-center rounded-full border border-amber-300/35 bg-amber-500/20 px-2.5 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-amber-100",
+            "danger" => "inline-flex items-center rounded-full border border-rose-300/35 bg-rose-500/20 px-2.5 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-rose-100",
+            "info" => "inline-flex items-center rounded-full border border-violet-300/35 bg-violet-500/20 px-2.5 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-violet-100",
+            _ => "inline-flex items-center rounded-full border border-slate-400/30 bg-slate-600/25 px-2.5 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-slate-100"
+        };
 }

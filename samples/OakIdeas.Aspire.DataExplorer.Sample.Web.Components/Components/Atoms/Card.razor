@@ -1,16 +1,16 @@
 @* Generic card container with optional header *@
-<div class="sample-card sample-card--@Variant.ToLowerInvariant()">
+<div class="@GetCardClasses()">
     @if (!string.IsNullOrEmpty(Title))
     {
-        <div class="sample-card__header">
+        <div class="@GetHeaderClasses()">
             @if (!string.IsNullOrEmpty(Icon))
             {
-                <span class="sample-card__icon" aria-hidden="true">@Icon</span>
+                <span class="text-base" aria-hidden="true">@Icon</span>
             }
-            <span class="sample-card__title">@Title</span>
+            <span class="text-sm font-semibold text-slate-100">@Title</span>
         </div>
     }
-    <div class="sample-card__body">
+    <div class="px-5 py-4 text-slate-200">
         @ChildContent
     </div>
 </div>
@@ -28,4 +28,16 @@
 
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
+
+    private string GetCardClasses()
+        => "sample-surface overflow-hidden transition-transform duration-150 hover:-translate-y-0.5";
+
+    private string GetHeaderClasses()
+        => Variant.ToLowerInvariant() switch
+        {
+            "accent" => "flex items-center gap-2 border-b border-violet-300/25 bg-violet-500/18 px-5 py-3",
+            "success" => "flex items-center gap-2 border-b border-emerald-300/25 bg-emerald-500/18 px-5 py-3",
+            "warning" => "flex items-center gap-2 border-b border-amber-300/25 bg-amber-500/18 px-5 py-3",
+            _ => "flex items-center gap-2 border-b border-white/10 bg-slate-900/70 px-5 py-3"
+        };
 }

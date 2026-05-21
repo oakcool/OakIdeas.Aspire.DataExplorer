@@ -6,16 +6,16 @@
 <HeroSection Headline="Explore Your Aspire Databases"
              SubText="A development-time companion for inspecting and querying SQL Server databases registered with .NET Aspire. Browse tables, run queries, and understand your data.">
     <Actions>
-        <a href="/todos" class="btn btn-primary">View Todos ✅</a>
-        <a href="https://learn.microsoft.com/dotnet/aspire" target="_blank" rel="noopener" class="btn btn-outline">
+        <a href="/todos" class="sample-btn sample-btn--primary">View Todos ✅</a>
+        <a href="https://learn.microsoft.com/dotnet/aspire" target="_blank" rel="noopener" class="sample-btn sample-btn--outline">
             .NET Aspire Docs ↗
         </a>
     </Actions>
 </HeroSection>
 
-<div class="sample-stats-section">
-    <h2 class="sample-stats-section__title">What This Sample Demonstrates</h2>
-    <div class="sample-stats-grid">
+<div class="mx-auto w-full max-w-7xl px-4 pb-6 pt-8 sm:px-6 lg:px-8">
+    <h2 class="mb-4 text-lg font-bold text-white sm:text-xl">What This Sample Demonstrates</h2>
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatWidget Label="Todo Items" Value="Live" Icon="✅" IconBg="#d1fae5" />
         <StatWidget Label="SQL Server" Value="Connected" Icon="🗄" IconBg="#dbeafe" />
         <StatWidget Label="Aspire" Value="Orchestrated" Icon="⚡" IconBg="#fef3c7" />
@@ -23,17 +23,17 @@
     </div>
 </div>
 
-<div class="sample-features">
+<div class="mx-auto grid w-full max-w-7xl grid-cols-1 gap-4 px-4 pb-12 sm:px-6 lg:grid-cols-3 lg:px-8">
     <Card Title="Todo CRUD" Icon="✅" Variant="success">
-        <p>Create, edit, delete, complete, reopen, and comment on tasks with categories, tags, priorities, and statuses backed by SQL Server + EF Core.</p>
-        <a href="/todos" class="btn btn-primary" style="margin-top:0.75rem">Open Todos</a>
+        <p class="m-0 text-sm leading-7 text-slate-300">Create, edit, delete, complete, reopen, and comment on tasks with categories, tags, priorities, and statuses backed by SQL Server + EF Core.</p>
+        <a href="/todos" class="sample-btn sample-btn--primary mt-4">Open Todos</a>
     </Card>
 
     <Card Title="Live Database" Icon="🗄" Variant="accent">
-        <p>The <strong>DataExplorer</strong> tool is wired to the same SQL Server instance. Launch it from the Aspire dashboard to inspect the <code>TodoItems</code> table live.</p>
+        <p class="m-0 text-sm leading-7 text-slate-300">The <strong>DataExplorer</strong> tool is wired to the same SQL Server instance. Launch it from the Aspire dashboard to inspect the <code class="rounded border border-white/15 bg-slate-900/70 px-1.5 py-0.5 text-xs text-violet-100">TodoItems</code> table live.</p>
     </Card>
 
     <Card Title=".NET Aspire Integration" Icon="⚡">
-        <p>Resources are orchestrated via the Aspire AppHost. Service discovery, health checks, and configuration are all managed automatically.</p>
+        <p class="m-0 text-sm leading-7 text-slate-300">Resources are orchestrated via the Aspire AppHost. Service discovery, health checks, and configuration are all managed automatically.</p>
     </Card>
 </div>

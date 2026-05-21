@@ -60,7 +60,7 @@
                 </select>
 
                 <input class="todo-input" type="search" placeholder="Search title or description" @bind="_search" @bind:event="oninput" />
-                <button class="btn btn-outline" @onclick="RefreshTodosAsync">Apply</button>
+                <button class="sample-btn sample-btn--outline" @onclick="RefreshTodosAsync">Apply</button>
             </div>
         </Card>
 
@@ -143,10 +143,10 @@
                 </div>
 
                 <div class="todo-form-actions">
-                    <button type="submit" class="btn btn-primary">@(_editingTodoId.HasValue ? "Save changes" : "Create todo")</button>
+                    <button type="submit" class="sample-btn sample-btn--primary">@(_editingTodoId.HasValue ? "Save changes" : "Create todo")</button>
                     @if (_editingTodoId.HasValue)
                     {
-                        <button type="button" class="btn btn-outline" @onclick="ResetEditor">Cancel</button>
+                        <button type="button" class="sample-btn sample-btn--outline" @onclick="ResetEditor">Cancel</button>
                     }
                 </div>
             </EditForm>
@@ -180,10 +180,10 @@
                             </div>
                         </div>
                         <div class="todo-item__actions">
-                            <button class="btn btn-outline" @onclick="() => StartEditingAsync(todo.Id)">Edit</button>
-                            <button class="btn btn-outline" @onclick="() => SelectTodoAsync(todo.Id)">Details</button>
-                            <button class="btn btn-outline" @onclick="() => SetCompletionAsync(todo)">@(todo.IsCompleted ? "Reopen" : "Complete")</button>
-                            <button class="btn btn-outline" @onclick="() => DeleteTodoAsync(todo.Id)">Delete</button>
+                            <button class="sample-btn sample-btn--outline" @onclick="() => StartEditingAsync(todo.Id)">Edit</button>
+                            <button class="sample-btn sample-btn--outline" @onclick="() => SelectTodoAsync(todo.Id)">Details</button>
+                            <button class="sample-btn sample-btn--outline" @onclick="() => SetCompletionAsync(todo)">@(todo.IsCompleted ? "Reopen" : "Complete")</button>
+                            <button class="sample-btn sample-btn--outline" @onclick="() => DeleteTodoAsync(todo.Id)">Delete</button>
                         </div>
                     </div>
                 }
@@ -228,7 +228,7 @@
                         <ValidationSummary />
                         <InputText class="todo-input" @bind-Value="_commentEditor.AuthorName" maxlength="80" placeholder="Your name" />
                         <InputTextArea class="todo-textarea" @bind-Value="_commentEditor.Body" maxlength="1000" placeholder="Add a comment" />
-                        <button class="btn btn-primary" type="submit">Add comment</button>
+                        <button class="sample-btn sample-btn--primary" type="submit">Add comment</button>
                     </EditForm>
                 </div>
             </Card>
