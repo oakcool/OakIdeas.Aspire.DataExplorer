@@ -3,6 +3,12 @@
         "dotnet build": true,
         "git checkout": true,
         "git fetch": true,
-        "dotnet test": true
+        "dotnet test": true,
+        "app#\\[\\.\\": true,
+        "fingerprint\\=au061p0huw\\": true,
+        "fingerprint\\": true,
+        "ForEach-Object": true,
+        "ConvertFrom-Json": true,
+        "ConvertTo-Json": true
     }
 }

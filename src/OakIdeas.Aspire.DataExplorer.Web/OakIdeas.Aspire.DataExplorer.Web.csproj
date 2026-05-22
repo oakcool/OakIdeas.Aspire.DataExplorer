@@ -13,6 +13,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+		<DisableBuildCompression>true</DisableBuildCompression>
   </PropertyGroup>
 
 	<!-- Tailwind CSS build integration -->
@@ -23,6 +24,7 @@
 	<Target Name="BuildTailwindCss" BeforeTargets="Build" Inputs="$(MSBuildProjectDirectory)/Styles/app.css;@(Content)" Outputs="$(MSBuildProjectDirectory)/wwwroot/app.css">
 		<Exec Command="npm run build:css" WorkingDirectory="$(MSBuildProjectDirectory)" />
 	</Target>
+
 
 	<ItemGroup>
 		<None Include="Styles/**" />
