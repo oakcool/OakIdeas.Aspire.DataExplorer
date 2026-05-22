@@ -54,3 +54,15 @@ export function dispose(id) {
     inst.textarea.removeEventListener('keydown', inst.onKeyDown);
     _instances.delete(id);
 }
+
+/**
+ * Returns the currently selected text in the editor textarea, or an empty
+ * string when nothing is selected (selectionStart === selectionEnd).
+ */
+export function getSelectedText(id) {
+    const inst = _instances.get(id);
+    if (!inst) return '';
+    const { textarea } = inst;
+    const { selectionStart, selectionEnd } = textarea;
+    return selectionStart === selectionEnd ? '' : textarea.value.substring(selectionStart, selectionEnd);
+}

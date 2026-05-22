@@ -100,6 +100,40 @@ public sealed class QueryPanelRenderingTests : TestContext
     }
 
     [Fact]
+    public async Task Execute_WithSelectedText_ExecutesOnlySelection()
+    {
+        // Configure the module's getSelectedText to return a selection
+        var module = JSInterop.SetupModule(
+            "./_content/OakIdeas.Aspire.DataExplorer.Web.Components/Components/Molecules/QueryPanel.razor.js");
+        module.Setup<string?>("getSelectedText", _ => true).SetResult("WHERE Id = 1");
+
+        string? executedSql = null;
+        var component = RenderComponent<QueryPanel>(parameters => parameters
+            .Add(p => p.Sql, "SELECT * FROM Users WHERE Id = 1")
+            .Add(p => p.OnExecute, EventCallback.Factory.Create<string>(this, sql => executedSql = sql)));
+
+        component.Find("textarea").KeyDown(new KeyboardEventArgs { Key = "Enter", CtrlKey = true });
+
+        await component.InvokeAsync(() => Task.CompletedTask);
+
+        executedSql.Should().Be("WHERE Id = 1");
+    }
+
+    [Fact]
+    public void Execute_WithNoSelection_ExecutesFullSql()
+    {
+        // Loose mode — getSelectedText returns null/empty → full SQL is used
+        string? executedSql = null;
+        var component = RenderComponent<QueryPanel>(parameters => parameters
+            .Add(p => p.Sql, "SELECT 1")
+            .Add(p => p.OnExecute, EventCallback.Factory.Create<string>(this, sql => executedSql = sql)));
+
+        component.Find("textarea").KeyDown(new KeyboardEventArgs { Key = "Enter", CtrlKey = true });
+
+        executedSql.Should().Be("SELECT 1");
+    }
+
+    [Fact]
     public void PartialToken_MatchesContainsSuggestion()
     {
         var component = RenderComponent<QueryPanel>(parameters => parameters
