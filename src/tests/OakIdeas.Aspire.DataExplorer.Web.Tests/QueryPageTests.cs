@@ -48,6 +48,31 @@ public sealed class QueryPageTests : TestContext
         component.WaitForAssertion(() => service.ExecuteCalls.Should().Be(1));
     }
 
+    [Fact]
+    public void ExecuteQuery_HistoryIsLimitedToTwentyEntries()
+    {
+        var service = new FakeExplorerService();
+        Services.AddSingleton<IExplorerService>(service);
+        Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
+
+        var component = RenderComponent<QueryPage>();
+        var editor = component.Find("textarea");
+        var executeButtonSelector = "button[title='Execute (Ctrl+Enter)']";
+
+        for (var index = 1; index <= 25; index++)
+        {
+            editor.Input($"SELECT {index}");
+            component.Find(executeButtonSelector).Click();
+        }
+
+        component.WaitForAssertion(() =>
+        {
+            component.Markup.Should().Contain("Recent queries");
+            component.FindAll(".de-query-history li").Count.Should().Be(20);
+            service.ExecuteCalls.Should().Be(25);
+        });
+    }
+
     private sealed class FakeExplorerService : IExplorerService
     {
         public int ExecuteCalls { get; private set; }
