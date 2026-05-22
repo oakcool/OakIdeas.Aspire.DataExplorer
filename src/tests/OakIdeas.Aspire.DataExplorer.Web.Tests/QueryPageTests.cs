@@ -12,6 +12,31 @@ namespace OakIdeas.Aspire.DataExplorer.Web.Tests;
 
 public sealed class QueryPageTests : TestContext
 {
+    public QueryPageTests()
+    {
+        // QueryPanel uses IJSRuntime for the editor JS module; allow all calls to succeed silently
+        JSInterop.Mode = JSRuntimeMode.Loose;
+    }
+
+    [Fact]
+    public void ExecuteQuery_PreservesSqlAfterExecution()
+    {
+        var service = new FakeExplorerService();
+        Services.AddSingleton<IExplorerService>(service);
+        Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
+
+        var component = RenderComponent<QueryPage>();
+        component.Find("textarea").Input("SELECT 1");
+        component.Find("button[title='Execute (Ctrl+Enter)']").Click();
+
+        component.WaitForAssertion(() =>
+        {
+            // The editor must retain the SQL after execution — it must never be cleared
+            component.Find("textarea").GetAttribute("value").Should().Be("SELECT 1");
+            service.ExecuteCalls.Should().Be(1);
+        });
+    }
+
     [Fact]
     public void ExecuteQuery_AddsHistoryAndStatus()
     {

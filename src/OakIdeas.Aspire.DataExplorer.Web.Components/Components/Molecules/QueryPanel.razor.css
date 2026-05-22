@@ -16,33 +16,70 @@
     flex-shrink: 0;
 }
 
+/* Editor area: both layers share the same space */
 .query-panel__editor {
     flex: 1;
     overflow: hidden;
-    display: flex;
+    position: relative;
 }
 
-.query-panel__textarea {
-    flex: 1;
-    resize: none;
-    border: none;
-    outline: none;
-    background-color: #0d1117;
-    color: #e6edf3;
+/* ── Syntax-highlight layer ────────────────────────────────────────────────── */
+/* Sits behind the transparent textarea; scrolls in sync via JS. */
+.query-panel__highlight {
+    position: absolute;
+    inset: 0;
+    margin: 0;
     font-family: 'Cascadia Code', 'Fira Code', 'Consolas', 'Courier New', monospace;
     font-size: 0.87rem;
     line-height: 1.6;
     padding: 1rem;
     tab-size: 4;
-    caret-color: #58a6ff;
+    white-space: pre;
+    word-break: normal;
+    overflow-wrap: normal;
+    /* scrollable but scrollbars hidden — synced via JS */
+    overflow: auto;
+    scrollbar-width: none;
+    pointer-events: none;
+    color: #e6edf3;
+    background-color: #0d1117;
 }
 
+.query-panel__highlight::-webkit-scrollbar {
+    display: none;
+}
+
+/* ── Transparent textarea overlay ─────────────────────────────────────────── */
+/* text is transparent so the highlight layer shows through; caret is visible. */
+.query-panel__textarea {
+    position: absolute;
+    inset: 0;
+    resize: none;
+    border: none;
+    outline: none;
+    background-color: transparent;
+    color: transparent;
+    caret-color: #58a6ff;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', 'Courier New', monospace;
+    font-size: 0.87rem;
+    line-height: 1.6;
+    padding: 1rem;
+    tab-size: 4;
+    white-space: pre;
+    overflow: auto;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+}
+
+/* Placeholder is shown explicitly because the element colour is transparent */
 .query-panel__textarea::placeholder {
     color: #30363d;
 }
 
 .query-panel__textarea::-webkit-scrollbar {
     width: 8px;
+    height: 8px;
 }
 
 .query-panel__textarea::-webkit-scrollbar-track {
@@ -54,26 +91,31 @@
     border-radius: 4px;
 }
 
-.query-panel__autocomplete {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem;
-    padding: 0.5rem 0.75rem;
-    border-top: 1px solid #21262d;
-    background-color: #11161e;
+/* ── SQL token colours ─────────────────────────────────────────────────────── */
+.query-panel__highlight .sql-keyword {
+    color: #ff7b72;
+    font-weight: 600;
 }
 
-.query-panel__suggestion {
-    border: 1px solid #30363d;
-    background-color: #161b22;
-    color: #c9d1d9;
-    border-radius: 4px;
-    padding: 0.2rem 0.45rem;
-    font-size: 0.72rem;
-    cursor: pointer;
+.query-panel__highlight .sql-string {
+    color: #a5d6ff;
 }
 
-.query-panel__suggestion:hover {
-    border-color: #58a6ff;
-    color: #58a6ff;
+.query-panel__highlight .sql-comment {
+    color: #8b949e;
+    font-style: italic;
 }
+
+.query-panel__highlight .sql-number {
+    color: #79c0ff;
+}
+
+.query-panel__highlight .sql-identifier {
+    color: #d2a8ff;
+}
+
+/* ── Ghost text (inline completion hint) ──────────────────────────────────── */
+.query-panel__ghost {
+    color: #3d444d;
+}
+
