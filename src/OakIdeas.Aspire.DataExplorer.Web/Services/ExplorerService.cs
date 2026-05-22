@@ -480,11 +480,26 @@ public sealed class ExplorerService(
         => new(
             Name: resource.ResourceName,
             Provider: resource.ProviderType.ToString(),
-            ConnectionString: resource.ConnectionMetadata.Properties.TryGetValue("connectionString", out var connectionString)
-                ? connectionString ?? string.Empty
-                : string.Empty,
+            ConnectionString: ResolveConnectionString(resource.ConnectionMetadata.Properties) ?? string.Empty,
             IsLocal: true,
             IsWritable: true);
+
+    private static string? ResolveConnectionString(IReadOnlyDictionary<string, string?> metadata)
+    {
+        if (metadata.TryGetValue("connectionString", out var directConnectionString)
+            && !string.IsNullOrWhiteSpace(directConnectionString))
+        {
+            return directConnectionString;
+        }
+
+        if (metadata.TryGetValue("connectionStringEnvironmentVariable", out var environmentVariableName)
+            && !string.IsNullOrWhiteSpace(environmentVariableName))
+        {
+            return Environment.GetEnvironmentVariable(environmentVariableName);
+        }
+
+        return null;
+    }
 
     private static bool IsPotentiallyDestructiveSql(string sql)
     {

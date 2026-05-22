@@ -211,6 +211,39 @@ public sealed class ExplorerServiceTests
         response.Error!.Message.Should().NotContain("Server=secret");
     }
 
+    [Fact]
+    public async Task ExecuteQueryAsync_WhenConnectionStringIsInEnvironmentVariable_ResolvesAndUsesIt()
+    {
+        var envVarName = $"OAKIDEAS_DATAEXPLORER_CS_{Guid.NewGuid():N}";
+        const string expectedConnectionString = "Server=localhost;Database=applicationdb;User Id=sa;Password=Pass@word1;";
+        Environment.SetEnvironmentVariable(envVarName, expectedConnectionString);
+
+        try
+        {
+            var selected = CreateSelectedContext(
+                "sql-main",
+                "applicationdb",
+                new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["connectionStringEnvironmentVariable"] = envVarName,
+                });
+
+            var provider = new DefinitionProvider("SELECT 1");
+            var service = CreateService(
+                selectedDatabaseService: new StubSelectedDatabaseService(selected),
+                providerFactory: new StubProviderFactory(provider));
+
+            var response = await service.ExecuteQueryAsync("SELECT 1", CancellationToken.None);
+
+            response.Error.Should().BeNull();
+            provider.LastExecutedConnectionString.Should().Be(expectedConnectionString);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(envVarName, null);
+        }
+    }
+
     private static ExplorerService CreateService(
         IAspireResourceDiscovery? resourceDiscovery = null,
         ISelectedDatabaseService? selectedDatabaseService = null,
@@ -237,14 +270,17 @@ public sealed class ExplorerServiceTests
             IsAvailable: true,
             DiscoveredAt: DateTimeOffset.UtcNow);
 
-    private static SelectedDatabaseContext CreateSelectedContext(string resourceId, string databaseName)
+    private static SelectedDatabaseContext CreateSelectedContext(
+        string resourceId,
+        string databaseName,
+        IReadOnlyDictionary<string, string?>? connectionMetadata = null)
         => new(
             Resource: new DiscoveredDatabaseResource(
                 ResourceId: resourceId,
                 ResourceName: resourceId,
                 DatabaseName: databaseName,
                 ProviderType: DatabaseProviderType.SqlServer,
-                ConnectionMetadata: new ConnectionMetadata(new Dictionary<string, string?>()),
+                ConnectionMetadata: new ConnectionMetadata(connectionMetadata ?? new Dictionary<string, string?>()),
                 IsAvailable: true,
                 DiscoveredAt: DateTimeOffset.UtcNow),
             IsValid: true,
@@ -399,6 +435,7 @@ public sealed class ExplorerServiceTests
         private readonly string _definition = definition;
         private readonly QueryResult _queryResult = queryResult ?? new QueryResult([], [], 0, TimeSpan.Zero);
         private readonly Exception? _queryException = queryException;
+        public string? LastExecutedConnectionString { get; private set; }
 
         public DatabaseProviderType ProviderType => DatabaseProviderType.SqlServer;
 
@@ -411,9 +448,12 @@ public sealed class ExplorerServiceTests
             => Task.FromResult<IReadOnlyList<SchemaMetadata>>([]);
 
         public Task<QueryResult> ExecuteQueryAsync(DatabaseResource resource, ExecuteQueryRequest request, CancellationToken cancellationToken)
-            => _queryException is null
+        {
+            LastExecutedConnectionString = resource.ConnectionString;
+            return _queryException is null
                 ? Task.FromResult(_queryResult)
                 : Task.FromException<QueryResult>(_queryException);
+        }
 
         public Task<ObjectDefinitionResponse> GetDefinitionAsync(DatabaseResource resource, ObjectDefinitionRequest request, CancellationToken cancellationToken)
             => Task.FromResult(new ObjectDefinitionResponse(
