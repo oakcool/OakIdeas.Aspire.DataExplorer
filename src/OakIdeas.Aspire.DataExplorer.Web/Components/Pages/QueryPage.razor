@@ -147,12 +147,6 @@
 </div>
 
 @code {
-    private static readonly string[] SqlKeywords =
-    [
-        "SELECT", "FROM", "WHERE", "JOIN", "LEFT JOIN", "RIGHT JOIN", "INNER JOIN", "GROUP BY", "ORDER BY",
-        "INSERT", "UPDATE", "DELETE", "MERGE", "EXEC", "CREATE", "ALTER", "DROP", "TOP", "DISTINCT"
-    ];
-
     [Parameter]
     public string? ConnectionName { get; set; }
 
@@ -292,7 +286,7 @@
 
     private async Task<IReadOnlyList<string>> BuildSuggestionsAsync(CancellationToken cancellationToken)
     {
-        var suggestions = new HashSet<string>(SqlKeywords, StringComparer.OrdinalIgnoreCase);
+        var suggestions = new HashSet<string>(QueryPanel.SqlKeywords, StringComparer.OrdinalIgnoreCase);
 
         var metadataResponse = await ExplorerService.GetDatabaseMetadataAsync(cancellationToken);
         var metadata = metadataResponse.AggregatedMetadata;

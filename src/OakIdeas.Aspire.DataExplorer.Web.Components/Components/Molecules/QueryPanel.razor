@@ -52,8 +52,9 @@
 </div>
 
 @code {
-    // SQL keywords used for both syntax highlighting and suggestion ordering/context
-    private static readonly HashSet<string> SqlKeywords = new(StringComparer.OrdinalIgnoreCase)
+    // SQL keywords used for both syntax highlighting and suggestion ordering/context.
+    // Public so QueryPage (Web assembly) can seed its suggestion list from the same canonical set.
+    public static readonly HashSet<string> SqlKeywords = new(StringComparer.OrdinalIgnoreCase)
     {
         "SELECT", "FROM", "WHERE", "JOIN", "LEFT", "RIGHT", "INNER", "OUTER", "FULL", "CROSS",
         "ON", "AND", "OR", "NOT", "IN", "IS", "NULL", "AS", "TOP", "DISTINCT", "ORDER", "BY",
