@@ -73,9 +73,87 @@ public sealed class QueryPageTests : TestContext
         });
     }
 
-    private sealed class FakeExplorerService : IExplorerService
+    [Fact]
+    public void ExecuteQuery_WhenProviderReturnsError_SwitchesToErrorsTab()
+    {
+        var service = new FakeExplorerService(returnError: true);
+        Services.AddSingleton<IExplorerService>(service);
+        Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
+
+        var component = RenderComponent<QueryPage>();
+        component.Find("textarea").Input("SELECT 1");
+        component.Find("button[title='Execute (Ctrl+Enter)']").Click();
+
+        component.WaitForAssertion(() =>
+        {
+            component.Markup.Should().Contain("de-query-errors__panel");
+            component.Markup.Should().Contain("Synthetic provider error");
+        });
+    }
+
+    [Fact]
+    public void ExecuteQuery_WhenProviderReturnsError_ShowsFullErrorDetails()
+    {
+        var service = new FakeExplorerService(returnError: true);
+        Services.AddSingleton<IExplorerService>(service);
+        Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
+
+        var component = RenderComponent<QueryPage>();
+        component.Find("textarea").Input("SELECT 1");
+        component.Find("button[title='Execute (Ctrl+Enter)']").Click();
+
+        component.WaitForAssertion(() =>
+        {
+            component.Markup.Should().Contain("Synthetic provider error");
+            component.Markup.Should().Contain("Retry the operation");
+            component.Markup.Should().Contain("ProviderError");
+            component.Markup.Should().Contain("execute-query");
+            component.Markup.Should().Contain("test-error");
+        });
+    }
+
+    [Fact]
+    public void ExecuteQuery_WhenSuccessAfterError_SwitchesBackToResultsTab()
+    {
+        var service = new FakeExplorerService(returnError: true);
+        Services.AddSingleton<IExplorerService>(service);
+        Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
+
+        var component = RenderComponent<QueryPage>();
+        component.Find("textarea").Input("SELECT 1");
+        component.Find("button[title='Execute (Ctrl+Enter)']").Click();
+
+        component.WaitForAssertion(() =>
+            component.Markup.Should().Contain("de-query-errors__panel"));
+
+        service.ReturnError = false;
+        component.Find("button[title='Execute (Ctrl+Enter)']").Click();
+
+        component.WaitForAssertion(() =>
+        {
+            component.Markup.Should().Contain("Completed in");
+            component.Markup.Should().NotContain("de-query-errors__panel");
+        });
+    }
+
+    [Fact]
+    public void ErrorsTab_WhenNoError_ShowsNoErrorsMessage()
+    {
+        var service = new FakeExplorerService();
+        Services.AddSingleton<IExplorerService>(service);
+        Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
+
+        var component = RenderComponent<QueryPage>();
+        component.Find("button.de-query-tab--errors").Click();
+
+        component.Markup.Should().Contain("No errors");
+    }
+
+
+    private sealed class FakeExplorerService(bool returnError = false) : IExplorerService
     {
         public int ExecuteCalls { get; private set; }
+        public bool ReturnError { get; set; } = returnError;
 
         public Task<GetAvailableDatabasesResponse> GetAvailableDatabasesAsync(CancellationToken cancellationToken)
             => Task.FromResult(new GetAvailableDatabasesResponse([]));
@@ -144,6 +222,26 @@ public sealed class QueryPageTests : TestContext
         public Task<ExecuteDatabaseQueryResponse> ExecuteQueryAsync(string sql, CancellationToken cancellationToken)
         {
             ExecuteCalls++;
+            if (ReturnError)
+            {
+                return Task.FromResult(new ExecuteDatabaseQueryResponse(
+                    DatabaseName: "applicationdb",
+                    Columns: [],
+                    Rows: [],
+                    RowCount: 0,
+                    AffectedRowCount: null,
+                    Duration: TimeSpan.Zero,
+                    IsTruncated: false,
+                    Error: new DataExplorerError(
+                        Category: ErrorCategory.ProviderError,
+                        Message: "Synthetic provider error",
+                        RecoverySuggestion: "Retry the operation",
+                        Operation: "execute-query",
+                        Target: "applicationdb",
+                        Timestamp: DateTimeOffset.UtcNow,
+                        DiagnosticCode: "test-error")));
+            }
+
             return Task.FromResult(new ExecuteDatabaseQueryResponse(
                 DatabaseName: "applicationdb",
                 Columns: ["Id"],

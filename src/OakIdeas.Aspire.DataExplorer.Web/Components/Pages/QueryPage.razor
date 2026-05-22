@@ -1,5 +1,6 @@
 @page "/query/{connectionName?}"
 @using Microsoft.Extensions.Options
+@using OakIdeas.Aspire.DataExplorer.Contracts.Models
 @using OakIdeas.Aspire.DataExplorer.Core.Configuration
 @using OakIdeas.Aspire.DataExplorer.Web.Abstractions
 @inject IExplorerService ExplorerService
@@ -44,14 +45,93 @@
     <div class="de-query-divider h-1 shrink-0 cursor-row-resize bg-slate-800 transition hover:bg-sky-500" aria-hidden="true"></div>
 
     <div class="de-query-pane de-query-pane--results flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div class="de-query-pane__label inline-flex shrink-0 items-center gap-2 border-b border-slate-800 bg-slate-900 px-4 py-2 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
-            <HeroIcon Kind="HeroIconKind.TableCells" Size="15" Class="de-query-pane__label-icon" />
-            <span>Results</span>
+        <div class="de-query-pane__tabs inline-flex shrink-0 items-stretch border-b border-slate-800 bg-slate-900">
+            <button type="button"
+                    role="tab"
+                    aria-selected="@(_activeResultTab == ResultTab.Results)"
+                    class="de-query-tab inline-flex items-center gap-1.5 border-b-2 px-4 py-2 text-[11px] font-semibold uppercase tracking-widest transition @(_activeResultTab == ResultTab.Results ? "border-sky-500 text-sky-300" : "border-transparent text-slate-400 hover:text-slate-200")"
+                    @onclick="() => _activeResultTab = ResultTab.Results">
+                <HeroIcon Kind="HeroIconKind.TableCells" Size="13" />
+                Results
+            </button>
+            <button type="button"
+                    role="tab"
+                    aria-selected="@(_activeResultTab == ResultTab.Errors)"
+                    class="de-query-tab de-query-tab--errors inline-flex items-center gap-1.5 border-b-2 px-4 py-2 text-[11px] font-semibold uppercase tracking-widest transition @(_activeResultTab == ResultTab.Errors ? "border-red-500 text-red-300" : "border-transparent text-slate-400 hover:text-slate-200")"
+                    @onclick="() => _activeResultTab = ResultTab.Errors">
+                <HeroIcon Kind="HeroIconKind.ExclamationTriangle" Size="13" />
+                Errors
+                @if (_queryError is not null)
+                {
+                    <span class="ml-0.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500/30 px-1 text-[10px] font-bold text-red-300">!</span>
+                }
+            </button>
         </div>
-        <ResultsTable Columns="@_columns"
-                      Rows="@_rows"
-                      IsLoading="_running"
-                      ErrorMessage="@_error" />
+
+        @if (_activeResultTab == ResultTab.Results)
+        {
+            <ResultsTable Columns="@_columns"
+                          Rows="@_rows"
+                          IsLoading="_running" />
+        }
+        else
+        {
+            <div class="de-query-errors flex min-h-0 flex-1 flex-col overflow-auto p-4">
+                @if (_queryError is null)
+                {
+                    <div class="de-query-errors__empty flex items-center gap-2 text-sm text-slate-400">
+                        <HeroIcon Kind="HeroIconKind.CheckCircle" Size="16" />
+                        <span>No errors — last query executed successfully.</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="de-query-errors__panel flex flex-col gap-4">
+                        <div class="rounded-lg border border-red-500/30 bg-red-500/10 p-4">
+                            <div class="mb-1 flex items-center gap-2 text-sm font-semibold text-red-300">
+                                <HeroIcon Kind="HeroIconKind.ExclamationTriangle" Size="16" />
+                                <span>@_queryError.Message</span>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(_queryError.RecoverySuggestion))
+                            {
+                                <p class="mt-1 text-xs text-slate-300">@_queryError.RecoverySuggestion</p>
+                            }
+                        </div>
+
+                        <table class="de-query-errors__details w-full border-collapse text-xs text-slate-300">
+                            <tbody>
+                                <tr class="border-b border-slate-800">
+                                    <th class="w-40 py-1.5 pr-4 text-left font-semibold uppercase tracking-wider text-slate-500">Category</th>
+                                    <td class="py-1.5 font-mono">@_queryError.Category</td>
+                                </tr>
+                                <tr class="border-b border-slate-800">
+                                    <th class="py-1.5 pr-4 text-left font-semibold uppercase tracking-wider text-slate-500">Operation</th>
+                                    <td class="py-1.5 font-mono">@_queryError.Operation</td>
+                                </tr>
+                                @if (!string.IsNullOrWhiteSpace(_queryError.Target))
+                                {
+                                    <tr class="border-b border-slate-800">
+                                        <th class="py-1.5 pr-4 text-left font-semibold uppercase tracking-wider text-slate-500">Target</th>
+                                        <td class="py-1.5 font-mono">@_queryError.Target</td>
+                                    </tr>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(_queryError.DiagnosticCode))
+                                {
+                                    <tr class="border-b border-slate-800">
+                                        <th class="py-1.5 pr-4 text-left font-semibold uppercase tracking-wider text-slate-500">Diagnostic Code</th>
+                                        <td class="py-1.5 font-mono">@_queryError.DiagnosticCode</td>
+                                    </tr>
+                                }
+                                <tr>
+                                    <th class="py-1.5 pr-4 text-left font-semibold uppercase tracking-wider text-slate-500">Timestamp</th>
+                                    <td class="py-1.5 font-mono">@_queryError.Timestamp.ToLocalTime().ToString("u")</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        }
 
         @if (_history.Count > 0)
         {
@@ -81,9 +161,12 @@
     [Parameter]
     public string? ConnectionName { get; set; }
 
+    private enum ResultTab { Results, Errors }
+
     private string _sql = string.Empty;
     private bool _running;
-    private string _error = string.Empty;
+    private DataExplorerError? _queryError;
+    private ResultTab _activeResultTab = ResultTab.Results;
     private string _status = string.Empty;
     private IReadOnlyList<string> _columns = [];
     private IReadOnlyList<IReadOnlyList<string?>> _rows = [];
@@ -119,7 +202,15 @@
 
         if (IsReadOnlyMode && IsPotentiallyDestructiveSql(sql))
         {
-            _error = "Read-only mode is enabled. Run a SELECT query or enable write operations.";
+            _queryError = new DataExplorerError(
+                Category: ErrorCategory.PermissionDenied,
+                Message: "Read-only mode is enabled. Run a SELECT query or enable write operations.",
+                RecoverySuggestion: "Disable read-only mode to run write operations.",
+                Operation: "execute-query",
+                Target: null,
+                Timestamp: DateTimeOffset.UtcNow,
+                DiagnosticCode: "read-only-mode");
+            _activeResultTab = ResultTab.Errors;
             return;
         }
 
@@ -127,13 +218,13 @@
         {
             _isDestructiveConfirmationPending = true;
             _status = "Potentially destructive statement detected. Run Execute again to confirm.";
-            _error = string.Empty;
+            _queryError = null;
             return;
         }
 
         _isDestructiveConfirmationPending = false;
         _running = true;
-        _error = string.Empty;
+        _queryError = null;
         _status = string.Empty;
         _columns = [];
         _rows = [];
@@ -146,11 +237,15 @@
             var response = await ExplorerService.ExecuteQueryAsync(sql, _queryCts.Token);
             if (response.Error is not null)
             {
-                _error = response.Error.Message;
+                _queryError = response.Error;
                 _status = response.Error.RecoverySuggestion ?? "Query execution failed.";
+                _activeResultTab = ResultTab.Errors;
                 AddHistory(sql, response.DatabaseName, response.Duration, response.RowCount);
                 return;
             }
+
+            _queryError = null;
+            _activeResultTab = ResultTab.Results;
 
             _columns = response.Columns;
             _rows = response.Rows
@@ -168,7 +263,7 @@
         catch (OperationCanceledException)
         {
             _status = "Query canceled.";
-            _error = string.Empty;
+            _queryError = null;
         }
         finally
         {
