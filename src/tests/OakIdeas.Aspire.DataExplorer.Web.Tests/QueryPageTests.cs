@@ -26,7 +26,7 @@ public sealed class QueryPageTests : TestContext
         component.WaitForAssertion(() =>
         {
             component.Markup.Should().Contain("Completed in");
-            component.Markup.Should().Contain("Recent queries");
+            component.Markup.Should().Contain("de-query-lastrun");
             service.ExecuteCalls.Should().Be(1);
         });
     }
@@ -49,7 +49,7 @@ public sealed class QueryPageTests : TestContext
     }
 
     [Fact]
-    public void ExecuteQuery_HistoryIsLimitedToTwentyEntries()
+    public void ExecuteQuery_LastRunStatShowsLatestEntry()
     {
         var service = new FakeExplorerService();
         Services.AddSingleton<IExplorerService>(service);
@@ -67,8 +67,8 @@ public sealed class QueryPageTests : TestContext
 
         component.WaitForAssertion(() =>
         {
-            component.Markup.Should().Contain("Recent queries");
-            component.FindAll(".de-query-history li").Count.Should().Be(20);
+            component.Markup.Should().Contain("de-query-lastrun");
+            component.FindAll(".de-query-lastrun").Count.Should().Be(1);
             service.ExecuteCalls.Should().Be(25);
         });
     }

@@ -396,6 +396,9 @@
   .mx-1 {
     margin-inline: calc(var(--spacing) * 1);
   }
+  .mx-1\.5 {
+    margin-inline: calc(var(--spacing) * 1.5);
+  }
   .mx-2 {
     margin-inline: calc(var(--spacing) * 2);
   }
@@ -904,9 +907,6 @@
       border-color: color-mix(in oklab, var(--color-sky-500) 40%, transparent);
     }
   }
-  .border-slate-600 {
-    border-color: var(--color-slate-600);
-  }
   .border-slate-700 {
     border-color: var(--color-slate-700);
   }
@@ -1161,6 +1161,9 @@
   .text-left {
     text-align: left;
   }
+  .text-right {
+    text-align: right;
+  }
   .text-start {
     text-align: start;
   }
@@ -1275,6 +1278,9 @@
   .text-slate-500 {
     color: var(--color-slate-500);
   }
+  .text-slate-600 {
+    color: var(--color-slate-600);
+  }
   .text-white {
     color: var(--color-white);
   }
@@ -1378,13 +1384,6 @@
       }
     }
   }
-  .hover\:border-sky-500 {
-    &:hover {
-      @media (hover: hover) {
-        border-color: var(--color-sky-500);
-      }
-    }
-  }
   .hover\:bg-sky-500 {
     &:hover {
       @media (hover: hover) {
@@ -1409,13 +1408,6 @@
         @supports (color: color-mix(in lab, red, red)) {
           background-color: color-mix(in oklab, var(--color-slate-800) 80%, transparent);
         }
-      }
-    }
-  }
-  .hover\:text-sky-200 {
-    &:hover {
-      @media (hover: hover) {
-        color: var(--color-sky-200);
       }
     }
   }
