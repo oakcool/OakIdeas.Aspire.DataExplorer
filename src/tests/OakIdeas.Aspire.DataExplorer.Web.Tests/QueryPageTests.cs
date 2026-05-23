@@ -38,7 +38,7 @@ public sealed class QueryPageTests : TestContext
     }
 
     [Fact]
-    public void ExecuteQuery_AddsHistoryAndStatus()
+    public void ExecuteQuery_ShowsSuccessStatusWithoutLastRunBar()
     {
         var service = new FakeExplorerService();
         Services.AddSingleton<IExplorerService>(service);
@@ -50,8 +50,8 @@ public sealed class QueryPageTests : TestContext
 
         component.WaitForAssertion(() =>
         {
-            component.Markup.Should().Contain("Completed in");
-            component.Markup.Should().Contain("de-query-lastrun");
+            component.Markup.Should().Contain("Query executed successfully");
+            component.Markup.Should().NotContain("de-query-lastrun");
             service.ExecuteCalls.Should().Be(1);
         });
     }
@@ -74,7 +74,7 @@ public sealed class QueryPageTests : TestContext
     }
 
     [Fact]
-    public void ExecuteQuery_LastRunStatShowsLatestEntry()
+    public void ExecuteQuery_RepeatedRuns_DoNotRenderLastRunBar()
     {
         var service = new FakeExplorerService();
         Services.AddSingleton<IExplorerService>(service);
@@ -92,8 +92,7 @@ public sealed class QueryPageTests : TestContext
 
         component.WaitForAssertion(() =>
         {
-            component.Markup.Should().Contain("de-query-lastrun");
-            component.FindAll(".de-query-lastrun").Count.Should().Be(1);
+            component.Markup.Should().NotContain("de-query-lastrun");
             service.ExecuteCalls.Should().Be(25);
         });
     }
@@ -156,7 +155,7 @@ public sealed class QueryPageTests : TestContext
 
         component.WaitForAssertion(() =>
         {
-            component.Markup.Should().Contain("Completed in");
+            component.Markup.Should().Contain("Query executed successfully");
             component.Markup.Should().NotContain("de-query-errors__panel");
         });
     }

@@ -40,6 +40,7 @@
     text-transform: uppercase;
     color: #c2d0e5;
     text-shadow: 0 1px 0 rgba(15, 23, 42, 0.35);
+    white-space: nowrap;
 }
 
 .object-explorer--minimized .object-explorer__title {
@@ -50,6 +51,7 @@
     display: flex;
     gap: 0.35rem;
     align-items: center;
+    flex-shrink: 0;
 }
 
 .object-explorer__actions :global(.icon-btn) {

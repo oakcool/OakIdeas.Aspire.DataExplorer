@@ -43,19 +43,19 @@
     }
 
     /* Form elements */
-    input, textarea, select {
+    input:not([class]), textarea:not([class]), select:not([class]) {
         background-color: #161b22;
         color: #e6edf3;
         border: 1px solid #21262d;
         padding: 0.5rem;
     }
 
-    input:focus, textarea:focus, select:focus {
+    input:not([class]):focus, textarea:not([class]):focus, select:not([class]):focus {
         border-color: #1f6feb;
         outline: none;
     }
 
-    button {
+    button:not([class]) {
         background-color: #21262d;
         color: #e6edf3;
         border: 1px solid #21262d;
@@ -64,7 +64,7 @@
         cursor: pointer;
     }
 
-    button:hover {
+    button:not([class]):hover {
         background-color: #1f6feb;
         color: white;
     }
