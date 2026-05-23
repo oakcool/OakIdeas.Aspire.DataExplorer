@@ -1,4 +1,7 @@
 @* Results grid for query/table-browse output *@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
 <div class="results-table">
     @if (IsLoading)
     {
@@ -24,7 +27,7 @@
     else
     {
         <div class="results-table__scroll">
-            <table class="results-table__grid">
+            <table class="results-table__grid" @ref="_tableRef">
                 <thead>
                     <tr>
                         <th class="results-table__row-num">#</th>
@@ -58,6 +61,11 @@
 </div>
 
 @code {
+    private ElementReference _tableRef;
+    private IJSObjectReference? _resizeModule;
+    private IJSObjectReference? _resizeInstance;
+    private int _lastResizeColumnCount;
+
     [Parameter]
     public IReadOnlyList<string> Columns { get; set; } = [];
 
@@ -72,4 +80,52 @@
 
     [Parameter]
     public double? ElapsedMilliseconds { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var shouldEnableResize = !IsLoading && string.IsNullOrEmpty(ErrorMessage) && Columns.Count > 0 && Rows.Count > 0;
+
+        if (!shouldEnableResize)
+        {
+            await DisposeResizeInstanceAsync();
+            return;
+        }
+
+        if (_resizeModule is null)
+        {
+            _resizeModule = await JS.InvokeAsync<IJSObjectReference>(
+                "import",
+                "./_content/OakIdeas.Aspire.DataExplorer.Web.Components/columnResize.js");
+        }
+
+        var currentColumns = Columns.Count + 1;
+        if (_resizeInstance is null || _lastResizeColumnCount != currentColumns)
+        {
+            await DisposeResizeInstanceAsync();
+            _resizeInstance = await _resizeModule.InvokeAsync<IJSObjectReference>("enableColumnResize", _tableRef);
+            _lastResizeColumnCount = currentColumns;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await DisposeResizeInstanceAsync();
+
+        if (_resizeModule is not null)
+        {
+            await _resizeModule.DisposeAsync();
+            _resizeModule = null;
+        }
+    }
+
+    private async ValueTask DisposeResizeInstanceAsync()
+    {
+        if (_resizeInstance is not null)
+        {
+            await _resizeInstance.InvokeVoidAsync("dispose");
+            await _resizeInstance.DisposeAsync();
+            _resizeInstance = null;
+            _lastResizeColumnCount = 0;
+        }
+    }
 }

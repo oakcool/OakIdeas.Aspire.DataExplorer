@@ -6,6 +6,12 @@
   <Target Name="CopyPackagedDataExplorerWebApp"
           AfterTargets="Build"
           Condition="'@(_DataExplorerPackagedFiles)' != ''">
+    <ItemGroup>
+      <_DataExplorerPackagedDirectories Include="@(_DataExplorerPackagedFiles->'$(TargetDir)data-explorer-web\%(RecursiveDir)')" />
+    </ItemGroup>
+
+    <MakeDir Directories="@(_DataExplorerPackagedDirectories)" />
+
     <Copy SourceFiles="@(_DataExplorerPackagedFiles)"
       DestinationFiles="@(_DataExplorerPackagedFiles->'$(TargetDir)data-explorer-web\%(RecursiveDir)%(Filename)%(Extension)')"
           SkipUnchangedFiles="true"

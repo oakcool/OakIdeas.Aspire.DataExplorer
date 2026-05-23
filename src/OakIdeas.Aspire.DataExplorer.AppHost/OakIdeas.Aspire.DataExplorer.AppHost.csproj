@@ -24,8 +24,19 @@
 
   <Target Name="CopyLocalDataExplorerWebApp" AfterTargets="Build" Condition="Exists('$(DataExplorerLocalPublishedAppDir)')">
     <ItemGroup>
-    <_LocalDataExplorerPublishedFiles Include="$(DataExplorerLocalPublishedAppDir)**\*.*" />
+      <_LocalDataExplorerOldScopedCssBundles Include="$(TargetDir)data-explorer-web\wwwroot\_content\OakIdeas.Aspire.DataExplorer.Web.Components\*.bundle.scp.css" />
+      <_LocalDataExplorerOldScopedCssBundles Include="$(TargetDir)data-explorer-web\wwwroot\_content\OakIdeas.Aspire.DataExplorer.Web.Components\*.bundle.scp.css.br" />
+      <_LocalDataExplorerOldScopedCssBundles Include="$(TargetDir)data-explorer-web\wwwroot\_content\OakIdeas.Aspire.DataExplorer.Web.Components\*.bundle.scp.css.gz" />
     </ItemGroup>
+
+    <Delete Files="@(_LocalDataExplorerOldScopedCssBundles)" ContinueOnError="WarnAndContinue" />
+
+    <ItemGroup>
+    <_LocalDataExplorerPublishedFiles Include="$(DataExplorerLocalPublishedAppDir)**\*.*" />
+    <_LocalDataExplorerPublishedDirectories Include="@(_LocalDataExplorerPublishedFiles->'$(TargetDir)data-explorer-web\%(RecursiveDir)')" />
+    </ItemGroup>
+
+    <MakeDir Directories="@(_LocalDataExplorerPublishedDirectories)" />
 
     <Copy SourceFiles="@(_LocalDataExplorerPublishedFiles)" DestinationFiles="@(_LocalDataExplorerPublishedFiles->'$(TargetDir)data-explorer-web\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" ContinueOnError="WarnAndContinue" />
   </Target>
