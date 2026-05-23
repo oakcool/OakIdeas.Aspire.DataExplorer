@@ -1,16 +1,26 @@
-@* Query editor panel with SQL textarea and execute toolbar *@
-<div class="query-panel">
+@* Query editor panel — syntax-highlighted overlay + inline ghost text completion *@
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<div class="query-panel" @ref="_editorRef">
     <div class="query-panel__toolbar">
         <IconButton Icon="HeroIconKind.Play"
                     Label="Execute"
-                    Title="Execute (F5)"
+                    Title="Execute (Ctrl+Enter)"
                     Variant="primary"
                     Disabled="IsExecuting || string.IsNullOrWhiteSpace(Sql)"
                     OnClick="Execute" />
         <IconButton Icon="HeroIconKind.XMark"
+                    Label="Cancel"
+                    Title="Cancel current query"
+                    Variant="ghost"
+                    Disabled="!IsExecuting"
+                    OnClick="Cancel" />
+        <IconButton Icon="HeroIconKind.ArrowPath"
                     Label="Clear"
                     Title="Clear editor"
                     Variant="ghost"
+                    Disabled="IsExecuting"
                     OnClick="Clear" />
         @if (!string.IsNullOrEmpty(ConnectionName))
         {
@@ -27,6 +37,8 @@
     </div>
 
     <div class="query-panel__editor">
+        @* Syntax-highlighted layer sits behind the transparent textarea *@
+        <pre class="query-panel__highlight" aria-hidden="true">@GetHighlightedContent()</pre>
         <textarea class="query-panel__textarea"
                   placeholder="@Placeholder"
                   spellcheck="false"
@@ -34,43 +46,366 @@
                   autocapitalize="off"
                   @bind="Sql"
                   @bind:event="oninput"
+                  @bind:after="HandleSqlUpdatedAsync"
                   @onkeydown="HandleKeyDown"></textarea>
     </div>
 </div>
 
 @code {
-    [Parameter]
-    public string Sql { get; set; } = string.Empty;
+    // SQL keywords used for both syntax highlighting and suggestion ordering/context.
+    // Public so QueryPage (Web assembly) can seed its suggestion list from the same canonical set.
+    public static readonly HashSet<string> SqlKeywords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "SELECT", "FROM", "WHERE", "JOIN", "LEFT", "RIGHT", "INNER", "OUTER", "FULL", "CROSS",
+        "ON", "AND", "OR", "NOT", "IN", "IS", "NULL", "AS", "TOP", "DISTINCT", "ORDER", "BY",
+        "GROUP", "HAVING", "INSERT", "INTO", "VALUES", "UPDATE", "SET", "DELETE", "MERGE",
+        "EXEC", "EXECUTE", "CREATE", "ALTER", "DROP", "TABLE", "VIEW", "PROCEDURE", "FUNCTION",
+        "TRIGGER", "INDEX", "WITH", "UNION", "ALL", "EXCEPT", "INTERSECT", "CASE", "WHEN",
+        "THEN", "ELSE", "END", "BEGIN", "COMMIT", "ROLLBACK", "TRANSACTION", "DECLARE",
+        "LIKE", "BETWEEN", "EXISTS", "ANY", "SOME", "ASC", "DESC", "OFFSET", "FETCH", "NEXT",
+        "ROWS", "ONLY", "PRIMARY", "KEY", "FOREIGN", "REFERENCES", "CONSTRAINT", "DEFAULT",
+        "CHECK", "UNIQUE", "GO", "USE", "NOCOUNT", "PRINT", "CAST", "CONVERT", "ISNULL",
+        "COALESCE", "COUNT", "SUM", "AVG", "MIN", "MAX", "LEN", "GETDATE", "NEWID"
+    };
 
-    [Parameter]
-    public EventCallback<string> SqlChanged { get; set; }
+    // After these keywords, schema-qualified table/view names are offered first
+    private static readonly HashSet<string> ObjectContextKeywords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "FROM", "JOIN", "INNER", "LEFT", "RIGHT", "FULL", "CROSS", "UPDATE", "INTO", "TABLE"
+    };
 
-    [Parameter]
-    public string ConnectionName { get; set; } = string.Empty;
+    // After these keywords, column/function names are offered first
+    private static readonly HashSet<string> ColumnContextKeywords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "SELECT", "WHERE", "AND", "OR", "HAVING", "SET", "ON", "BY", "ORDER", "GROUP"
+    };
 
-    [Parameter]
-    public bool IsExecuting { get; set; }
+    [Parameter] public string Sql { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> SqlChanged { get; set; }
+    [Parameter] public string ConnectionName { get; set; } = string.Empty;
+    [Parameter] public bool IsExecuting { get; set; }
+    [Parameter] public EventCallback<string> OnExecute { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public IReadOnlyList<string> Suggestions { get; set; } = [];
 
-    [Parameter]
-    public EventCallback<string> OnExecute { get; set; }
+    private readonly List<string> _filteredSuggestions = [];
+    private string _currentToken = string.Empty;
+    private string _ghostText = string.Empty;
+    private ElementReference _editorRef;
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<QueryPanel>? _dotNetRef;
+    private readonly string _instanceId = Guid.NewGuid().ToString("N");
 
     private string Placeholder => "-- Enter your SQL query here\nSELECT TOP 100 * FROM [dbo].[YourTable];";
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                _module = await JS.InvokeAsync<IJSObjectReference>("import",
+                    "./_content/OakIdeas.Aspire.DataExplorer.Web.Components/Components/Molecules/QueryPanel.razor.js");
+                if (_module is not null)
+                {
+                    _dotNetRef = DotNetObjectReference.Create(this);
+                    await _module.InvokeVoidAsync("initEditor", _instanceId, _editorRef, _dotNetRef);
+                }
+            }
+            catch
+            {
+                // JS module is unavailable (e.g. test environment) — editor degrades gracefully
+            }
+        }
+    }
+
+    /// <summary>Invoked by JS when Tab is pressed and a suggestion is active.</summary>
+    [JSInvokable]
+    public async Task HandleTab()
+    {
+        if (_filteredSuggestions.Count > 0 && !string.IsNullOrEmpty(_ghostText))
+            await ApplySuggestion(_filteredSuggestions[0]);
+    }
+
     private async Task Execute()
     {
-        if (!string.IsNullOrWhiteSpace(Sql))
-            await OnExecute.InvokeAsync(Sql);
+        if (string.IsNullOrWhiteSpace(Sql))
+            return;
+
+        var sqlToExecute = Sql;
+
+        // Use only the selected text when the user has an active selection
+        if (_module is not null)
+        {
+            try
+            {
+                var selection = await _module.InvokeAsync<string?>("getSelectedText", _instanceId);
+                if (!string.IsNullOrWhiteSpace(selection))
+                    sqlToExecute = selection;
+            }
+            catch
+            {
+                // JS unavailable — fall back to full SQL
+            }
+        }
+
+        await OnExecute.InvokeAsync(sqlToExecute);
     }
+
+    private Task Cancel() => OnCancel.InvokeAsync();
 
     private async Task Clear()
     {
         Sql = string.Empty;
+        _currentToken = string.Empty;
+        _ghostText = string.Empty;
+        _filteredSuggestions.Clear();
         await SqlChanged.InvokeAsync(Sql);
+        await UpdateSuggestionStateAsync(hasSuggestion: false);
+    }
+
+    private async Task HandleSqlUpdatedAsync()
+    {
+        _currentToken = GetCurrentToken(Sql);
+        _filteredSuggestions.Clear();
+        _ghostText = string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(_currentToken))
+        {
+            var lastKeyword = GetLastKeyword();
+            _filteredSuggestions.AddRange(GetContextualSuggestions(_currentToken, lastKeyword));
+
+            if (_filteredSuggestions.Count > 0)
+            {
+                var top = _filteredSuggestions[0];
+                if (top.Length > _currentToken.Length)
+                    _ghostText = top[_currentToken.Length..];
+            }
+        }
+
+        await SqlChanged.InvokeAsync(Sql);
+        await UpdateSuggestionStateAsync(_filteredSuggestions.Count > 0);
+    }
+
+    private async Task UpdateSuggestionStateAsync(bool hasSuggestion)
+    {
+        if (_module is not null)
+        {
+            try
+            {
+                await _module.InvokeVoidAsync("updateSuggestionState", _instanceId, hasSuggestion);
+            }
+            catch
+            {
+                // Ignore JS errors during state updates
+            }
+        }
+    }
+
+    private async Task ApplySuggestion(string suggestion)
+    {
+        if (string.IsNullOrWhiteSpace(_currentToken))
+            return;
+
+        Sql = Sql[..^_currentToken.Length] + suggestion + " ";
+        _currentToken = string.Empty;
+        _ghostText = string.Empty;
+        _filteredSuggestions.Clear();
+        await SqlChanged.InvokeAsync(Sql);
+        await UpdateSuggestionStateAsync(hasSuggestion: false);
     }
 
     private async Task HandleKeyDown(KeyboardEventArgs e)
     {
-        if (e.Key == "F5" || (e.Key == "Enter" && e.CtrlKey))
+        if (e.Key == "Enter" && e.CtrlKey)
             await Execute();
+    }
+
+    // ── Rendering ──────────────────────────────────────────────────────────────
+
+    private MarkupString GetHighlightedContent()
+    {
+        var html = HighlightSql(Sql);
+        if (!string.IsNullOrEmpty(_ghostText))
+            html += $"<span class=\"query-panel__ghost\">{HtmlEncode(_ghostText)}</span>";
+        // Trailing newline ensures the final line renders at the correct height
+        return new MarkupString(html + "\n");
+    }
+
+    // ── Context-sensitive suggestions ──────────────────────────────────────────
+
+    private string GetLastKeyword()
+    {
+        if (string.IsNullOrWhiteSpace(Sql) || _currentToken.Length >= Sql.Length)
+            return string.Empty;
+
+        var before = Sql[..^_currentToken.Length];
+        var words = before.Split([' ', '\t', '\r', '\n', '(', ')', ','], StringSplitOptions.RemoveEmptyEntries);
+
+        for (var i = words.Length - 1; i >= 0; i--)
+        {
+            var word = words[i].Trim('[', ']');
+            if (SqlKeywords.Contains(word))
+                return word.ToUpperInvariant();
+        }
+
+        return string.Empty;
+    }
+
+    private IEnumerable<string> GetContextualSuggestions(string token, string lastKeyword)
+    {
+        // Prefix match wins; partial (contains) match requires ≥ 2 chars to avoid noise
+        var filtered = Suggestions
+            .Where(s => s.StartsWith(token, StringComparison.OrdinalIgnoreCase)
+                     || (token.Length >= 2 && s.Contains(token, StringComparison.OrdinalIgnoreCase)))
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        var isObjectCtx = ObjectContextKeywords.Contains(lastKeyword);
+        var isColumnCtx = ColumnContextKeywords.Contains(lastKeyword);
+
+        return filtered
+            // Prefix matches before "contains" matches
+            .OrderBy(s => s.StartsWith(token, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+            // Context-driven secondary ordering
+            .ThenBy(s =>
+            {
+                if (isObjectCtx) return s.Contains('.') ? 0 : 1;   // schema.table first
+                if (isColumnCtx) return s.Contains('.') ? 1 : 0;   // columns/keywords first
+                return SqlKeywords.Contains(s) ? 0 : 1;            // keywords first by default
+            })
+            .ThenBy(s => s, StringComparer.OrdinalIgnoreCase)
+            .Take(8);
+    }
+
+    // ── SQL syntax highlighter ──────────────────────────────────────────────────
+
+    private static string HighlightSql(string sql)
+    {
+        if (string.IsNullOrEmpty(sql))
+            return string.Empty;
+
+        var sb = new System.Text.StringBuilder(sql.Length * 2);
+        var i = 0;
+
+        while (i < sql.Length)
+        {
+            var ch = sql[i];
+
+            // -- single-line comment
+            if (ch == '-' && i + 1 < sql.Length && sql[i + 1] == '-')
+            {
+                var end = sql.IndexOf('\n', i);
+                var seg = end < 0 ? sql[i..] : sql[i..end];
+                sb.Append("<span class=\"sql-comment\">").Append(HtmlEncode(seg)).Append("</span>");
+                i += seg.Length;
+                continue;
+            }
+
+            // /* multi-line comment */
+            if (ch == '/' && i + 1 < sql.Length && sql[i + 1] == '*')
+            {
+                var end = sql.IndexOf("*/", i + 2, StringComparison.Ordinal);
+                var seg = end < 0 ? sql[i..] : sql[i..(end + 2)];
+                sb.Append("<span class=\"sql-comment\">").Append(HtmlEncode(seg)).Append("</span>");
+                i += seg.Length;
+                continue;
+            }
+
+            // 'string literal'
+            if (ch == '\'')
+            {
+                var end = i + 1;
+                while (end < sql.Length)
+                {
+                    if (sql[end] == '\'')
+                    {
+                        end++;
+                        if (end < sql.Length && sql[end] == '\'') end++; // escaped ''
+                        else break;
+                    }
+                    else end++;
+                }
+                sb.Append("<span class=\"sql-string\">").Append(HtmlEncode(sql[i..end])).Append("</span>");
+                i = end;
+                continue;
+            }
+
+            // [bracketed identifier]
+            if (ch == '[')
+            {
+                var end = sql.IndexOf(']', i + 1);
+                var seg = end < 0 ? sql[i..] : sql[i..(end + 1)];
+                sb.Append("<span class=\"sql-identifier\">").Append(HtmlEncode(seg)).Append("</span>");
+                i += seg.Length;
+                continue;
+            }
+
+            // numeric literal (only at a non-alphanumeric boundary)
+            if (char.IsDigit(ch) && (i == 0 || !char.IsLetterOrDigit(sql[i - 1])))
+            {
+                var end = i;
+                while (end < sql.Length && (char.IsDigit(sql[end]) || sql[end] == '.'))
+                    end++;
+                sb.Append("<span class=\"sql-number\">").Append(HtmlEncode(sql[i..end])).Append("</span>");
+                i = end;
+                continue;
+            }
+
+            // keyword or identifier word
+            if (char.IsLetter(ch) || ch is '_' or '@' or '#')
+            {
+                var end = i;
+                while (end < sql.Length && (char.IsLetterOrDigit(sql[end]) || sql[end] is '_' or '@' or '#'))
+                    end++;
+                var word = sql[i..end];
+                if (SqlKeywords.Contains(word))
+                    sb.Append("<span class=\"sql-keyword\">").Append(HtmlEncode(word)).Append("</span>");
+                else
+                    sb.Append(HtmlEncode(word));
+                i = end;
+                continue;
+            }
+
+            sb.Append(HtmlEncode(ch.ToString()));
+            i++;
+        }
+
+        return sb.ToString();
+    }
+
+    private static string HtmlEncode(string text)
+        => text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
+
+    // ── Token extraction ────────────────────────────────────────────────────────
+
+    private static string GetCurrentToken(string sql)
+    {
+        if (string.IsNullOrWhiteSpace(sql))
+            return string.Empty;
+
+        var index = sql.Length - 1;
+        while (index >= 0 && (char.IsLetterOrDigit(sql[index]) || sql[index] is '_' or '.' or '[' or ']' or '@' or '#'))
+            index--;
+
+        return sql[(index + 1)..];
+    }
+
+    // ── Lifecycle ───────────────────────────────────────────────────────────────
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module is not null)
+        {
+            try
+            {
+                await _module.InvokeVoidAsync("dispose", _instanceId);
+                await _module.DisposeAsync();
+            }
+            catch
+            {
+                // Ignore disposal errors (e.g. circuit already disconnected)
+            }
+        }
+        _dotNetRef?.Dispose();
     }
 }

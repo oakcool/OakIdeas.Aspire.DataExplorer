@@ -2,12 +2,14 @@
     max-width: 960px;
     margin: 0 auto;
     padding: 2.5rem 1.25rem 1rem;
+    background-color: #0d1117;
+    min-height: 100%;
 }
 
 .sample-stats-section__title {
     font-size: 1.1rem;
     font-weight: 700;
-    color: #0f172a;
+    color: #e6edf3;
     margin: 0 0 1.25rem;
 }
 
@@ -24,20 +26,22 @@
     max-width: 960px;
     margin: 0 auto;
     padding: 0.5rem 1.25rem 3rem;
+    background-color: #0d1117;
 }
 
 .sample-features p {
-    color: #475569;
+    color: #8b949e;
     font-size: 0.875rem;
     line-height: 1.6;
     margin: 0;
 }
 
 .sample-features code {
-    background-color: #f1f5f9;
+    background-color: #161b22;
     border-radius: 4px;
     padding: 0.1rem 0.35rem;
     font-size: 0.8rem;
-    color: #0f172a;
+    color: #e6edf3;
+    border: 1px solid #21262d;
 }
 

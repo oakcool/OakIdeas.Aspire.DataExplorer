@@ -1,7 +1,9 @@
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
+using OakIdeas.Aspire.DataExplorer.Core.Configuration;
 using OakIdeas.Aspire.DataExplorer.Web.Abstractions;
+using Microsoft.Extensions.Options;
 using DataExplorerOperationException = OakIdeas.Aspire.DataExplorer.Core.Models.DataExplorerOperationException;
 using ErrorContext = OakIdeas.Aspire.DataExplorer.Core.Models.ErrorContext;
 using SelectedDatabaseContext = OakIdeas.Aspire.DataExplorer.Core.Models.SelectedDatabaseContext;
@@ -14,7 +16,8 @@ public sealed class ExplorerService(
     IMetadataAggregationService metadataAggregationService,
     IMetadataRefreshService metadataRefreshService,
     IProviderFactory providerFactory,
-    IErrorHandler errorHandler) : IExplorerService
+    IErrorHandler errorHandler,
+    IOptions<DataExplorerOptions> options) : IExplorerService
 {
     private readonly IAspireResourceDiscovery _resourceDiscovery = resourceDiscovery;
     private readonly ISelectedDatabaseService _selectedDatabaseService = selectedDatabaseService;
@@ -22,6 +25,7 @@ public sealed class ExplorerService(
     private readonly IMetadataRefreshService _metadataRefreshService = metadataRefreshService;
     private readonly IProviderFactory _providerFactory = providerFactory;
     private readonly IErrorHandler _errorHandler = errorHandler;
+    private readonly DataExplorerOptions _options = options.Value;
 
     public async Task<GetAvailableDatabasesResponse> GetAvailableDatabasesAsync(CancellationToken cancellationToken)
     {
@@ -327,6 +331,136 @@ public sealed class ExplorerService(
         }
     }
 
+    public async Task<ExecuteDatabaseQueryResponse> ExecuteQueryAsync(string sql, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!_options.EnableAdHocQueries)
+        {
+            return new ExecuteDatabaseQueryResponse(
+                DatabaseName: string.Empty,
+                Columns: [],
+                Rows: [],
+                RowCount: 0,
+                AffectedRowCount: null,
+                Duration: TimeSpan.Zero,
+                IsTruncated: false,
+                Error: _errorHandler.CreateError(
+                    ErrorCategory.PermissionDenied,
+                    "Ad-hoc queries are disabled by configuration.",
+                    "Enable ad-hoc queries in configuration to execute SQL from Query Window.",
+                    new ErrorContext("execute-query")));
+        }
+
+        if (string.IsNullOrWhiteSpace(sql))
+        {
+            return new ExecuteDatabaseQueryResponse(
+                DatabaseName: string.Empty,
+                Columns: [],
+                Rows: [],
+                RowCount: 0,
+                AffectedRowCount: null,
+                Duration: TimeSpan.Zero,
+                IsTruncated: false,
+                Error: _errorHandler.CreateError(
+                    ErrorCategory.ProviderError,
+                    "Query text is required.",
+                    "Enter SQL and run the query again.",
+                    new ErrorContext("execute-query")));
+        }
+
+        if (!_options.EnableWriteOperations && IsPotentiallyDestructiveSql(sql))
+        {
+            return new ExecuteDatabaseQueryResponse(
+                DatabaseName: string.Empty,
+                Columns: [],
+                Rows: [],
+                RowCount: 0,
+                AffectedRowCount: null,
+                Duration: TimeSpan.Zero,
+                IsTruncated: false,
+                Error: _errorHandler.CreateError(
+                    ErrorCategory.PermissionDenied,
+                    "Write operations are disabled by configuration.",
+                    "Run a read-only query or enable write operations for development.",
+                    new ErrorContext("execute-query")));
+        }
+
+        var selected = await _selectedDatabaseService.GetSelectedDatabaseAsync(cancellationToken);
+        if (selected is null)
+        {
+            return new ExecuteDatabaseQueryResponse(
+                DatabaseName: string.Empty,
+                Columns: [],
+                Rows: [],
+                RowCount: 0,
+                AffectedRowCount: null,
+                Duration: TimeSpan.Zero,
+                IsTruncated: false,
+                Error: _errorHandler.CreateError(
+                    ErrorCategory.ResourceNotFound,
+                    "Select an available database before executing queries.",
+                    "Choose a database from Object Explorer and try again.",
+                    new ErrorContext("execute-query")));
+        }
+
+        if (!selected.IsValid)
+        {
+            return new ExecuteDatabaseQueryResponse(
+                DatabaseName: selected.Resource.DatabaseName,
+                Columns: [],
+                Rows: [],
+                RowCount: 0,
+                AffectedRowCount: null,
+                Duration: TimeSpan.Zero,
+                IsTruncated: false,
+                Error: _errorHandler.CreateError(
+                    ErrorCategory.ConnectionFailed,
+                    selected.ValidationMessage ?? "The selected database is not valid.",
+                    "Select a different database resource and try again.",
+                    new ErrorContext("execute-query", selected.Resource.DatabaseName, selected.Resource.ProviderType)));
+        }
+
+        try
+        {
+            var provider = _providerFactory.Create(selected.Resource.ProviderType);
+            var result = await provider.ExecuteQueryAsync(
+                CreateDatabaseResource(selected.Resource),
+                new ExecuteQueryRequest(
+                    ConnectionName: selected.Resource.DatabaseName,
+                    Sql: sql.Trim(),
+                    MaxRows: Math.Max(1, _options.MaxQueryRows),
+                    TimeoutSeconds: Math.Max(1, _options.QueryTimeoutSeconds)),
+                cancellationToken);
+
+            return new ExecuteDatabaseQueryResponse(
+                DatabaseName: selected.Resource.DatabaseName,
+                Columns: result.Columns,
+                Rows: result.Rows,
+                RowCount: result.RowCount,
+                AffectedRowCount: result.AffectedRowCount,
+                Duration: result.Duration,
+                IsTruncated: result.IsTruncated);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            var error = ResolveError(ex, new ErrorContext("execute-query", selected.Resource.DatabaseName, selected.Resource.ProviderType));
+            return new ExecuteDatabaseQueryResponse(
+                DatabaseName: selected.Resource.DatabaseName,
+                Columns: [],
+                Rows: [],
+                RowCount: 0,
+                AffectedRowCount: null,
+                Duration: TimeSpan.Zero,
+                IsTruncated: false,
+                Error: error);
+        }
+    }
+
     private DataExplorerError ResolveError(Exception exception, ErrorContext context)
         => exception is DataExplorerOperationException dataExplorerException
             ? dataExplorerException.Error
@@ -346,9 +480,44 @@ public sealed class ExplorerService(
         => new(
             Name: resource.ResourceName,
             Provider: resource.ProviderType.ToString(),
-            ConnectionString: resource.ConnectionMetadata.Properties.TryGetValue("connectionString", out var connectionString)
-                ? connectionString ?? string.Empty
-                : string.Empty,
+            ConnectionString: ResolveConnectionString(resource.ConnectionMetadata.Properties) ?? string.Empty,
             IsLocal: true,
             IsWritable: true);
+
+    private static string? ResolveConnectionString(IReadOnlyDictionary<string, string?> metadata)
+    {
+        if (metadata.TryGetValue("connectionString", out var directConnectionString)
+            && !string.IsNullOrWhiteSpace(directConnectionString))
+        {
+            return directConnectionString;
+        }
+
+        if (metadata.TryGetValue("connectionStringEnvironmentVariable", out var environmentVariableName)
+            && !string.IsNullOrWhiteSpace(environmentVariableName))
+        {
+            return Environment.GetEnvironmentVariable(environmentVariableName);
+        }
+
+        return null;
+    }
+
+    private static bool IsPotentiallyDestructiveSql(string sql)
+    {
+        if (string.IsNullOrWhiteSpace(sql))
+        {
+            return false;
+        }
+
+        var tokens = sql.TrimStart().Split([' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
+        if (tokens.Length == 0)
+        {
+            return false;
+        }
+
+        return tokens[0].ToUpperInvariant() switch
+        {
+            "INSERT" or "UPDATE" or "DELETE" or "MERGE" or "TRUNCATE" or "DROP" or "ALTER" or "CREATE" or "EXEC" or "EXECUTE" => true,
+            _ => false,
+        };
+    }
 }

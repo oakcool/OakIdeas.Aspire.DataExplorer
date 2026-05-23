@@ -52,17 +52,43 @@ public sealed class SqlServerDatabaseProviderTests
     }
 
     [Fact]
-    public async Task ExecuteQueryAsync_ReturnsEmptyResult()
+    public async Task ExecuteQueryAsync_WhenSqlMissing_ThrowsArgumentException()
     {
         var sut = new SqlServerDatabaseProvider();
         var resource = CreateResource("sqlserver");
-        var request = new ExecuteQueryRequest("db", "select 1", 10);
+        var request = new ExecuteQueryRequest("db", " ", 10);
 
-        QueryResult result = await sut.ExecuteQueryAsync(resource, request, CancellationToken.None);
+        Func<Task> act = () => sut.ExecuteQueryAsync(resource, request, CancellationToken.None);
 
-        result.Columns.Should().BeEmpty();
-        result.Rows.Should().BeEmpty();
-        result.RowCount.Should().Be(0);
+        await act.Should().ThrowAsync<ArgumentException>();
+    }
+
+    [Fact]
+    public async Task ExecuteQueryAsync_WhenMaxRowsInvalid_ThrowsArgumentOutOfRangeException()
+    {
+        var sut = new SqlServerDatabaseProvider();
+        var resource = CreateResource("sqlserver");
+        var request = new ExecuteQueryRequest("db", "select 1", 0);
+
+        Func<Task> act = () => sut.ExecuteQueryAsync(resource, request, CancellationToken.None);
+
+        await act.Should().ThrowAsync<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void ResolveCommandTimeoutSeconds_WhenTimeoutMissing_UsesDefault()
+    {
+        var timeout = SqlServerDatabaseProvider.ResolveCommandTimeoutSeconds(new ExecuteQueryRequest("db", "select 1", 10));
+
+        timeout.Should().Be(30);
+    }
+
+    [Fact]
+    public void ResolveCommandTimeoutSeconds_WhenTimeoutProvided_UsesRequestedValue()
+    {
+        var timeout = SqlServerDatabaseProvider.ResolveCommandTimeoutSeconds(new ExecuteQueryRequest("db", "select 1", 10, TimeoutSeconds: 45));
+
+        timeout.Should().Be(45);
     }
 
     [Fact]

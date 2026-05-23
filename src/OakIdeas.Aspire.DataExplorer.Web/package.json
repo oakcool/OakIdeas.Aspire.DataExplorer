@@ -1,13 +1,13 @@
 {
   "name": "oakideas.aspire.dataexplorer.web",
   "version": "1.0.0",
-  "description": "TailwindCSS build for OakIdeas.Aspire.DataExplorer.Web",
+  "description": "",
   "scripts": {
-    "build:css": "npx @tailwindcss/cli -i ./wwwroot/css/tailwind.input.css -o ./wwwroot/css/tailwind.output.css --minify",
-    "watch:css": "npx @tailwindcss/cli -i ./wwwroot/css/tailwind.input.css -o ./wwwroot/css/tailwind.output.css --watch"
+    "build:css": "tailwindcss -i ./Styles/app.css -o ./wwwroot/app.css",
+    "watch:css": "tailwindcss -i ./Styles/app.css -o ./wwwroot/app.css --watch"
   },
   "devDependencies": {
-    "@tailwindcss/cli": "^4.3.0",
-    "tailwindcss": "^4.3.0"
+    "@tailwindcss/cli": "^4.2.4",
+    "tailwindcss": "^4.2.4"
   }
 }

@@ -39,6 +39,13 @@ flowchart TD
 
 See [Metadata discovery architecture](./metadata-discovery.md) for detailed flow and contracts.
 
+## Query execution flow
+
+- `QueryPage` calls `IExplorerService.ExecuteQueryAsync` for ad-hoc SQL execution.
+- `ExplorerService` validates selected database state, applies `DataExplorerOptions` guardrails (ad-hoc enablement, read-only mode, max rows, timeout), and routes execution through `IProviderFactory`.
+- Provider implementations (SQL Server MVP) own SQL execution details and result-shape normalization.
+- User-visible failures are mapped through `IErrorHandler` and provider error mappers to avoid leaking secrets.
+
 ## Error handling and diagnostics
 
 Error categorization and sanitized diagnostics are documented in [error-handling](./error-handling.md).

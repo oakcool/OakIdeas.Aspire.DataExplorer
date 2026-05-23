@@ -6,14 +6,13 @@
     overflow: hidden;
 }
 
-.results-table__meta {
+.results-table__state {
     display: flex;
     align-items: center;
+    justify-content: center;
+    flex: 1;
     padding: 0.4rem 0.75rem;
-    background-color: #161b22;
-    border-bottom: 1px solid #21262d;
-    min-height: 2.2rem;
-    flex-shrink: 0;
+    background-color: #0d1117;
     font-size: 0.78rem;
 }
 
@@ -47,6 +46,7 @@
 .results-table__scroll {
     flex: 1;
     overflow: auto;
+    min-height: 0;
 }
 
 .results-table__scroll::-webkit-scrollbar {

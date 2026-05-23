@@ -51,7 +51,9 @@ public sealed record QueryResult(
     IReadOnlyList<string> Columns,
     IReadOnlyList<IReadOnlyDictionary<string, object?>> Rows,
     int RowCount,
-    TimeSpan Duration);
+    TimeSpan Duration,
+    int? AffectedRowCount = null,
+    bool IsTruncated = false);
 
 public sealed record TableRowsRequest(
     string Schema,

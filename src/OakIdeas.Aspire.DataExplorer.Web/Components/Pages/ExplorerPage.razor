@@ -8,10 +8,10 @@
 
 <PageTitle>@PageTitle</PageTitle>
 
-<div class="de-explorer-page">
-    <div class="de-main">
-        <div class="de-main__header">
-            <h2 class="de-main__title">
+<div class="de-explorer-page flex h-full min-h-0 flex-col bg-slate-950">
+    <div class="de-main flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-950">
+        <div class="de-main__header flex shrink-0 items-center gap-3 border-b border-slate-800 bg-slate-900/80 px-5 py-3">
+            <h2 class="de-main__title flex min-w-0 items-center gap-2 text-sm font-semibold text-slate-100">
                 <HeroIcon Kind="HeroIconKind.QueueList" Size="18" Class="de-main__title-icon" />
                 <span>Schema Explorer</span>
             </h2>
@@ -25,7 +25,7 @@
             }
         </div>
 
-        <div class="de-explorer-body">
+        <div class="de-explorer-body min-h-0 flex-1 overflow-auto bg-slate-950 p-6">
             @if (_metadataError is not null)
             {
                 <div class="explorer-state-stack">

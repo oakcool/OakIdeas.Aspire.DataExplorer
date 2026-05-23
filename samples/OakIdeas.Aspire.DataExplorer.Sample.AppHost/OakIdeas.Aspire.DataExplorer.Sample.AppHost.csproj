@@ -6,6 +6,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <UseAppHost>false</UseAppHost>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,6 +16,7 @@
 
   <PropertyGroup>
     <DataExplorerLocalPublishedAppDir>$(MSBuildProjectDirectory)\..\..\src\OakIdeas.Aspire.DataExplorer.Hosting\DataExplorerWeb\publish\</DataExplorerLocalPublishedAppDir>
+    <UserSecretsId>454f13de-9214-4e3a-9d98-f76182b35e21</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -23,18 +25,23 @@
     <ProjectReference Include="..\OakIdeas.Aspire.DataExplorer.Sample.Web\OakIdeas.Aspire.DataExplorer.Sample.Web.csproj" />
   </ItemGroup>
 
-  <Target Name="CopyLocalDataExplorerWebApp"
-          AfterTargets="Build"
-          Condition="Exists('$(DataExplorerLocalPublishedAppDir)')">
+  <Target Name="CopyLocalDataExplorerWebApp" AfterTargets="Build" Condition="Exists('$(DataExplorerLocalPublishedAppDir)')">
     <ItemGroup>
-    <_LocalDataExplorerPublishedFiles Include="$(DataExplorerLocalPublishedAppDir)**\*.*"
-                 Exclude="$(DataExplorerLocalPublishedAppDir)**\*.br;$(DataExplorerLocalPublishedAppDir)**\*.gz" />
+      <_LocalDataExplorerOldScopedCssBundles Include="$(TargetDir)data-explorer-web\wwwroot\_content\OakIdeas.Aspire.DataExplorer.Web.Components\*.bundle.scp.css" />
+      <_LocalDataExplorerOldScopedCssBundles Include="$(TargetDir)data-explorer-web\wwwroot\_content\OakIdeas.Aspire.DataExplorer.Web.Components\*.bundle.scp.css.br" />
+      <_LocalDataExplorerOldScopedCssBundles Include="$(TargetDir)data-explorer-web\wwwroot\_content\OakIdeas.Aspire.DataExplorer.Web.Components\*.bundle.scp.css.gz" />
     </ItemGroup>
 
-    <Copy SourceFiles="@(_LocalDataExplorerPublishedFiles)"
-          DestinationFiles="@(_LocalDataExplorerPublishedFiles->'$(TargetDir)data-explorer-web\%(RecursiveDir)%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true"
-          ContinueOnError="WarnAndContinue" />
+    <Delete Files="@(_LocalDataExplorerOldScopedCssBundles)" ContinueOnError="WarnAndContinue" />
+
+    <ItemGroup>
+    <_LocalDataExplorerPublishedFiles Include="$(DataExplorerLocalPublishedAppDir)**\*.*" />
+    <_LocalDataExplorerPublishedDirectories Include="@(_LocalDataExplorerPublishedFiles->'$(TargetDir)data-explorer-web\%(RecursiveDir)')" />
+    </ItemGroup>
+
+    <MakeDir Directories="@(_LocalDataExplorerPublishedDirectories)" />
+
+    <Copy SourceFiles="@(_LocalDataExplorerPublishedFiles)" DestinationFiles="@(_LocalDataExplorerPublishedFiles->'$(TargetDir)data-explorer-web\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" ContinueOnError="WarnAndContinue" />
   </Target>
 
 </Project>

@@ -1,4 +1,7 @@
 @* Renders a table of column metadata for a table or view object *@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
 <div class="column-details">
     @if (Columns is null || Columns.Count == 0)
     {
@@ -7,7 +10,7 @@
     else
     {
         <div class="column-details__scroll">
-            <table class="column-details__grid">
+            <table class="column-details__grid" @ref="_tableRef">
                 <thead>
                     <tr>
                         <th class="column-details__ordinal">#</th>
@@ -50,8 +53,56 @@
 </div>
 
 @code {
+    private ElementReference _tableRef;
+    private IJSObjectReference? _resizeModule;
+    private IJSObjectReference? _resizeInstance;
+
     [Parameter]
     public IReadOnlyList<ColumnModel>? Columns { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var shouldEnableResize = Columns is { Count: > 0 };
+
+        if (!shouldEnableResize)
+        {
+            await DisposeResizeInstanceAsync();
+            return;
+        }
+
+        if (_resizeModule is null)
+        {
+            _resizeModule = await JS.InvokeAsync<IJSObjectReference>(
+                "import",
+                "./_content/OakIdeas.Aspire.DataExplorer.Web.Components/columnResize.js");
+        }
+
+        if (_resizeInstance is null)
+        {
+            _resizeInstance = await _resizeModule.InvokeAsync<IJSObjectReference>("enableColumnResize", _tableRef);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await DisposeResizeInstanceAsync();
+
+        if (_resizeModule is not null)
+        {
+            await _resizeModule.DisposeAsync();
+            _resizeModule = null;
+        }
+    }
+
+    private async ValueTask DisposeResizeInstanceAsync()
+    {
+        if (_resizeInstance is not null)
+        {
+            await _resizeInstance.InvokeVoidAsync("dispose");
+            await _resizeInstance.DisposeAsync();
+            _resizeInstance = null;
+        }
+    }
 
     public sealed record ColumnModel(
         string Name,

@@ -25,9 +25,10 @@
        return;
    }
 
-   var metadata = await explorerService.GetDatabaseMetadataAsync(cancellationToken);
-   var refresh = await explorerService.RefreshDatabaseMetadataAsync(cancellationToken);
-   ```
+    var metadata = await explorerService.GetDatabaseMetadataAsync(cancellationToken);
+    var refresh = await explorerService.RefreshDatabaseMetadataAsync(cancellationToken);
+    var query = await explorerService.ExecuteQueryAsync("SELECT TOP 10 name FROM sys.tables ORDER BY name;", cancellationToken);
+    ```
 
 4. In Object Explorer, browse metadata by:
    - `Schema`
@@ -37,6 +38,10 @@
    - `Functions`
    - `Triggers`
 5. Select an object to load object details and (when supported) definition text.
+6. Open **Query** in the top navigation to run ad-hoc SQL against the selected database.
+   - `Ctrl+Enter` executes the current query.
+   - `Cancel` requests query cancellation.
+   - Destructive statements require an explicit confirmation run.
 
 ## Running the sample with metadata exploration
 

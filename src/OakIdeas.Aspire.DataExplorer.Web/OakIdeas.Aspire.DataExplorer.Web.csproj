@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
     <ProjectReference Include="..\OakIdeas.Aspire.DataExplorer.Web.Components\OakIdeas.Aspire.DataExplorer.Web.Components.csproj" />
@@ -13,11 +13,26 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+		<DisableBuildCompression>true</DisableBuildCompression>
   </PropertyGroup>
 
-  <Target Name="BuildTailwindCSS" BeforeTargets="Build" Condition="'$(NpmBuildEnabled)' != 'false'">
-    <Exec Command="npm install" WorkingDirectory="$(MSBuildProjectDirectory)" />
-    <Exec Command="npm run build:css" WorkingDirectory="$(MSBuildProjectDirectory)" />
-  </Target>
+	<!-- Tailwind CSS build integration -->
+	<Target Name="NpmInstallIfNeeded" BeforeTargets="BuildTailwindCss" Inputs="$(MSBuildProjectDirectory)/package.json" Outputs="$(MSBuildProjectDirectory)/node_modules/.package-lock.json">
+		<Exec Command="npm install" WorkingDirectory="$(MSBuildProjectDirectory)" />
+	</Target>
+
+	<Target Name="BuildTailwindCss" BeforeTargets="Build" Inputs="$(MSBuildProjectDirectory)/Styles/app.css;@(Content)" Outputs="$(MSBuildProjectDirectory)/wwwroot/app.css">
+		<Exec Command="npm run build:css" WorkingDirectory="$(MSBuildProjectDirectory)" />
+	</Target>
+
+
+	<ItemGroup>
+		<None Include="Styles/**" />
+		<Compile Remove="wwwroot\css\**" />
+		<Content Remove="wwwroot\css\**" />
+		<EmbeddedResource Remove="wwwroot\css\**" />
+		<None Remove="wwwroot\css\**" />
+		<None Include="package.json" />
+	</ItemGroup>
 
 </Project>

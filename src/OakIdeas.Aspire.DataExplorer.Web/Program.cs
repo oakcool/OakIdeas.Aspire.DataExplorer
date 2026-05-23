@@ -37,6 +37,7 @@ if (HasHttpsEndpoint(builder.Configuration))
     app.UseHttpsRedirection();
 }
 
+app.UseStaticFiles();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
