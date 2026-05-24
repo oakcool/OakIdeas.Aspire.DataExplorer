@@ -85,178 +85,12 @@
                                               Depth="1"
                                               IsExpanded="@IsDatabaseExpanded(databaseKey)"
                                               OnExpandToggle="@(expanded => ToggleDatabase(databaseKey, expanded))">
-                                        @if (db.Tables.Any())
+                                        @foreach (var node in db.Nodes)
                                         {
-                                            var groupKey = $"{databaseKey}/tables";
-                                            <TreeNode Label="Tables"
-                                                      Icon="HeroIconKind.TableCells"
-                                                      HasChildren="true"
-                                                      Depth="2"
-                                                      IsExpanded="@IsGroupExpanded(groupKey)"
-                                                      OnExpandToggle="@(expanded => ToggleGroup(groupKey, expanded))">
-                                                @foreach (var table in db.Tables)
-                                                {
-                                                    <ObjectNode Object="@table"
-                                                                Depth="3"
-                                                                IsSelected="@IsSelected(table)"
-                                                                OnSelect="HandleObjectSelect" />
-                                                }
-                                            </TreeNode>
-                                        }
-
-                                        @if (db.Views.Any())
-                                        {
-                                            var groupKey = $"{databaseKey}/views";
-                                            <TreeNode Label="Views"
-                                                      Icon="HeroIconKind.QueueList"
-                                                      HasChildren="true"
-                                                      Depth="2"
-                                                      IsExpanded="@IsGroupExpanded(groupKey)"
-                                                      OnExpandToggle="@(expanded => ToggleGroup(groupKey, expanded))">
-                                                @foreach (var view in db.Views)
-                                                {
-                                                    <ObjectNode Object="@view"
-                                                                Depth="3"
-                                                                IsSelected="@IsSelected(view)"
-                                                                OnSelect="HandleObjectSelect" />
-                                                }
-                                            </TreeNode>
-                                        }
-
-                                        @if (db.HasProgrammability)
-                                        {
-                                            var groupKey = $"{databaseKey}/programmability";
-                                            <TreeNode Label="Programmability"
-                                                      Icon="HeroIconKind.Folder"
-                                                      HasChildren="true"
-                                                      Depth="2"
-                                                      IsExpanded="@IsGroupExpanded(groupKey)"
-                                                      OnExpandToggle="@(expanded => ToggleGroup(groupKey, expanded))">
-                                                @if (db.StoredProcedures.Any())
-                                                {
-                                                    var proceduresGroupKey = $"{databaseKey}/programmability/procedures";
-                                                    <TreeNode Label="Stored Procedures"
-                                                              Icon="HeroIconKind.Play"
-                                                              HasChildren="true"
-                                                              Depth="3"
-                                                              IsExpanded="@IsGroupExpanded(proceduresGroupKey)"
-                                                              OnExpandToggle="@(expanded => ToggleGroup(proceduresGroupKey, expanded))">
-                                                        @foreach (var procedure in db.StoredProcedures)
-                                                        {
-                                                            <ObjectNode Object="@procedure"
-                                                                        Depth="4"
-                                                                        IsSelected="@IsSelected(procedure)"
-                                                                        OnSelect="HandleObjectSelect" />
-                                                        }
-                                                    </TreeNode>
-                                                }
-
-                                                @if (db.Functions.Any())
-                                                {
-                                                    var functionsGroupKey = $"{databaseKey}/programmability/functions";
-                                                    <TreeNode Label="Functions"
-                                                              Icon="HeroIconKind.CodeBracket"
-                                                              HasChildren="true"
-                                                              Depth="3"
-                                                              IsExpanded="@IsGroupExpanded(functionsGroupKey)"
-                                                              OnExpandToggle="@(expanded => ToggleGroup(functionsGroupKey, expanded))">
-                                                        @foreach (var function in db.Functions)
-                                                        {
-                                                            <ObjectNode Object="@function"
-                                                                        Depth="4"
-                                                                        IsSelected="@IsSelected(function)"
-                                                                        OnSelect="HandleObjectSelect" />
-                                                        }
-                                                    </TreeNode>
-                                                }
-
-                                                @if (db.Triggers.Any())
-                                                {
-                                                    var triggersGroupKey = $"{databaseKey}/programmability/triggers";
-                                                    <TreeNode Label="Triggers"
-                                                              Icon="HeroIconKind.Link"
-                                                              HasChildren="true"
-                                                              Depth="3"
-                                                              IsExpanded="@IsGroupExpanded(triggersGroupKey)"
-                                                              OnExpandToggle="@(expanded => ToggleGroup(triggersGroupKey, expanded))">
-                                                        @foreach (var trigger in db.Triggers)
-                                                        {
-                                                            <ObjectNode Object="@trigger"
-                                                                        Depth="4"
-                                                                        IsSelected="@IsSelected(trigger)"
-                                                                        OnSelect="HandleObjectSelect" />
-                                                        }
-                                                    </TreeNode>
-                                                }
-                                            </TreeNode>
-                                        }
-
-                                        @if (db.HasSecurity)
-                                        {
-                                            var groupKey = $"{databaseKey}/security";
-                                            <TreeNode Label="Security"
-                                                      Icon="HeroIconKind.Folder"
-                                                      HasChildren="true"
-                                                      Depth="2"
-                                                      IsExpanded="@IsGroupExpanded(groupKey)"
-                                                      OnExpandToggle="@(expanded => ToggleGroup(groupKey, expanded))">
-                                                @if (db.Users.Any())
-                                                {
-                                                    var usersGroupKey = $"{databaseKey}/security/users";
-                                                    <TreeNode Label="Users"
-                                                              Icon="HeroIconKind.Folder"
-                                                              HasChildren="true"
-                                                              Depth="3"
-                                                              IsExpanded="@IsGroupExpanded(usersGroupKey)"
-                                                              OnExpandToggle="@(expanded => ToggleGroup(usersGroupKey, expanded))">
-                                                        @foreach (var user in db.Users)
-                                                        {
-                                                            <TreeNode Label="@user.Name"
-                                                                      Icon="HeroIconKind.Folder"
-                                                                      HasChildren="false"
-                                                                      Depth="4" />
-                                                        }
-                                                    </TreeNode>
-                                                }
-
-                                                @if (db.Roles.Any())
-                                                {
-                                                    var rolesGroupKey = $"{databaseKey}/security/roles";
-                                                    <TreeNode Label="Roles"
-                                                              Icon="HeroIconKind.Folder"
-                                                              HasChildren="true"
-                                                              Depth="3"
-                                                              IsExpanded="@IsGroupExpanded(rolesGroupKey)"
-                                                              OnExpandToggle="@(expanded => ToggleGroup(rolesGroupKey, expanded))">
-                                                        @foreach (var role in db.Roles)
-                                                        {
-                                                            <TreeNode Label="@role.Name"
-                                                                      Icon="HeroIconKind.Folder"
-                                                                      HasChildren="false"
-                                                                      Depth="4" />
-                                                        }
-                                                    </TreeNode>
-                                                }
-
-                                                @if (db.Schemas.Any())
-                                                {
-                                                    var schemasGroupKey = $"{databaseKey}/security/schemas";
-                                                    <TreeNode Label="Schemas"
-                                                              Icon="HeroIconKind.Folder"
-                                                              HasChildren="true"
-                                                              Depth="3"
-                                                              IsExpanded="@IsGroupExpanded(schemasGroupKey)"
-                                                              OnExpandToggle="@(expanded => ToggleGroup(schemasGroupKey, expanded))">
-                                                        @foreach (var schema in db.Schemas)
-                                                        {
-                                                            <TreeNode Label="@schema.Name"
-                                                                      Icon="HeroIconKind.Folder"
-                                                                      HasChildren="false"
-                                                                      Depth="4" />
-                                                        }
-                                                    </TreeNode>
-                                                }
-                                            </TreeNode>
+                                            <ExplorerTreeNode Node="@node"
+                                                              Depth="2"
+                                                              SelectedObject="@_selectedObject"
+                                                              OnObjectSelect="HandleObjectSelect" />
                                         }
                                     </TreeNode>
                                 }
@@ -305,7 +139,6 @@
 
     private readonly HashSet<string> _collapsedConnections = [];
     private readonly HashSet<string> _collapsedDatabases = [];
-    private readonly HashSet<string> _collapsedGroups = [];
     private ObjectSelection? _selectedObject;
 
     protected override void OnParametersSet()
@@ -322,7 +155,6 @@
 
     private bool IsConnectionExpanded(string key) => !_collapsedConnections.Contains(key);
     private bool IsDatabaseExpanded(string key) => !_collapsedDatabases.Contains(key);
-    private bool IsGroupExpanded(string key) => !_collapsedGroups.Contains(key);
 
     private void ToggleConnection(string key, bool expanded)
     {
@@ -348,33 +180,8 @@
         }
     }
 
-    private void ToggleGroup(string key, bool expanded)
+    private async Task HandleObjectSelect(ObjectSelection selection)
     {
-        if (expanded)
-        {
-            _collapsedGroups.Remove(key);
-        }
-        else
-        {
-            _collapsedGroups.Add(key);
-        }
-    }
-
-    private bool IsSelected(ObjectNodeModel node)
-        => _selectedObject is not null &&
-           _selectedObject.ObjectId.Equals(node.ObjectId, StringComparison.OrdinalIgnoreCase) &&
-           _selectedObject.ObjectKind == node.Kind;
-
-    private async Task HandleObjectSelect(ObjectNodeModel node)
-    {
-        var selection = new ObjectSelection(
-            node.ConnectionName,
-            node.DatabaseName,
-            node.SchemaName,
-            node.ObjectId,
-            node.ObjectName,
-            node.Kind);
-
         _selectedObject = selection;
         await OnObjectSelect.InvokeAsync(selection);
     }
@@ -390,52 +197,21 @@
     }
 
     public record ConnectionNode(string Name, IReadOnlyList<DatabaseNode> Databases);
-    public record DatabaseNode(
-        string Name,
-        IReadOnlyList<ObjectNodeModel> Tables,
-        IReadOnlyList<ObjectNodeModel> Views,
-        IReadOnlyList<ObjectNodeModel> StoredProcedures,
-        IReadOnlyList<ObjectNodeModel> Functions,
-        IReadOnlyList<ObjectNodeModel> Triggers,
-        IReadOnlyList<SecurityNodeModel> Users,
-        IReadOnlyList<SecurityNodeModel> Roles,
-        IReadOnlyList<SecurityNodeModel> Schemas)
+
+    public record DatabaseNode(string Name, IReadOnlyList<ExplorerNodeModel> Nodes)
     {
-        public bool HasSchemaObjects =>
-            Tables.Any() ||
-            Views.Any() ||
-            StoredProcedures.Any() ||
-            Functions.Any() ||
-            Triggers.Any();
-
-        public bool HasProgrammability =>
-            StoredProcedures.Any() ||
-            Functions.Any() ||
-            Triggers.Any();
-
-        public bool HasSecurity =>
-            Users.Any() ||
-            Roles.Any() ||
-            Schemas.Any();
-
-        public bool HasAnyObjects =>
-            HasSchemaObjects ||
-            HasSecurity;
+        public bool HasAnyObjects => Nodes.Any();
     }
 
-    public record ObjectNodeModel(
-        string ObjectId,
-        string Name,
-        string ConnectionName,
-        string DatabaseName,
-        string SchemaName,
-        string ObjectName,
-        ObjectKind Kind);
-
-    public record SecurityNodeModel(
-        string ObjectId,
-        string Name,
-        SecurityKind Kind);
+    public record ExplorerNodeModel(
+        string NodeKey,
+        string Label,
+        HeroIconKind Icon,
+        IReadOnlyList<ExplorerNodeModel> Children,
+        ObjectSelection? Selection = null)
+    {
+        public bool HasChildren => Children.Any();
+    }
 
     public record ObjectSelection(
         string ConnectionName,
@@ -452,12 +228,5 @@
         Procedure,
         Function,
         Trigger,
-    }
-
-    public enum SecurityKind
-    {
-        User,
-        Role,
-        Schema,
     }
 }

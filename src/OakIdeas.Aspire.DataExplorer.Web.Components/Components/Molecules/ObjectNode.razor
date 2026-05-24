@@ -1,13 +1,12 @@
-<TreeNode Label="@Object.Name"
-          Badge="@SchemaBadge"
-          Icon="@Icon"
+<TreeNode Label="@Object.Label"
+          Icon="@Object.Icon"
           Depth="@Depth"
           IsSelected="@IsSelected"
           OnSelect="HandleSelect" />
 
 @code {
     [Parameter, EditorRequired]
-    public ObjectExplorer.ObjectNodeModel Object { get; set; } = default!;
+    public ObjectExplorer.ExplorerNodeModel Object { get; set; } = default!;
 
     [Parameter]
     public int Depth { get; set; }
@@ -16,24 +15,13 @@
     public bool IsSelected { get; set; }
 
     [Parameter]
-    public EventCallback<ObjectExplorer.ObjectNodeModel> OnSelect { get; set; }
-
-    private HeroIconKind Icon => Object.Kind switch
-    {
-        ObjectExplorer.ObjectKind.Table => HeroIconKind.TableCells,
-        ObjectExplorer.ObjectKind.View => HeroIconKind.QueueList,
-        ObjectExplorer.ObjectKind.Procedure => HeroIconKind.Play,
-        ObjectExplorer.ObjectKind.Function => HeroIconKind.CodeBracket,
-        ObjectExplorer.ObjectKind.Trigger => HeroIconKind.Link,
-        _ => HeroIconKind.TableCells,
-    };
-
-    private string SchemaBadge => string.IsNullOrWhiteSpace(Object.SchemaName)
-        ? string.Empty
-        : Object.SchemaName;
+    public EventCallback<ObjectExplorer.ObjectSelection> OnSelect { get; set; }
 
     private async Task HandleSelect()
     {
-        await OnSelect.InvokeAsync(Object);
+        if (Object.Selection is not null)
+        {
+            await OnSelect.InvokeAsync(Object.Selection);
+        }
     }
 }

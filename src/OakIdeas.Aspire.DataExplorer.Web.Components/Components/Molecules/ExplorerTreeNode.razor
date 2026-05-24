@@ -1,0 +1,48 @@
+<TreeNode Label="@Node.Label"
+          Icon="@Node.Icon"
+          HasChildren="@Node.HasChildren"
+          Depth="@Depth"
+          IsExpanded="@_isExpanded"
+          IsSelected="@IsSelected"
+          OnExpandToggle="HandleExpandToggle"
+          OnSelect="HandleSelect">
+    @foreach (var child in Node.Children)
+    {
+        <ExplorerTreeNode Node="@child"
+                          Depth="@(Depth + 1)"
+                          SelectedObject="@SelectedObject"
+                          OnObjectSelect="OnObjectSelect" />
+    }
+</TreeNode>
+
+@code {
+    [Parameter, EditorRequired]
+    public ObjectExplorer.ExplorerNodeModel Node { get; set; } = default!;
+
+    [Parameter]
+    public int Depth { get; set; }
+
+    [Parameter]
+    public ObjectExplorer.ObjectSelection? SelectedObject { get; set; }
+
+    [Parameter]
+    public EventCallback<ObjectExplorer.ObjectSelection> OnObjectSelect { get; set; }
+
+    private bool _isExpanded = true;
+
+    private bool IsSelected => Node.Selection is not null
+        && SelectedObject is not null
+        && Node.Selection.ObjectId.Equals(SelectedObject.ObjectId, StringComparison.OrdinalIgnoreCase)
+        && Node.Selection.ObjectKind == SelectedObject.ObjectKind;
+
+    private Task HandleExpandToggle(bool expanded)
+    {
+        _isExpanded = expanded;
+        return Task.CompletedTask;
+    }
+
+    private Task HandleSelect()
+        => Node.Selection is null
+            ? Task.CompletedTask
+            : OnObjectSelect.InvokeAsync(Node.Selection);
+}

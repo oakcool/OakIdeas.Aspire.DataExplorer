@@ -404,14 +404,7 @@
             [
                 new ObjectExplorer.DatabaseNode(
                     selected.DatabaseName,
-                    BuildObjectNodes(metadata, selected, DatabaseObjectType.Table, ObjectExplorer.ObjectKind.Table),
-                    BuildObjectNodes(metadata, selected, DatabaseObjectType.View, ObjectExplorer.ObjectKind.View),
-                    BuildObjectNodes(metadata, selected, DatabaseObjectType.Procedure, ObjectExplorer.ObjectKind.Procedure),
-                    BuildObjectNodes(metadata, selected, DatabaseObjectType.Function, ObjectExplorer.ObjectKind.Function),
-                    BuildObjectNodes(metadata, selected, DatabaseObjectType.Trigger, ObjectExplorer.ObjectKind.Trigger),
-                    [],
-                    [],
-                    BuildSecurityNodes(metadata, DatabaseObjectType.Schema, ObjectExplorer.SecurityKind.Schema))
+                    BuildExplorerNodes(metadata, selected))
             ]);
 
     private static DatabaseMetadataRoot? ResolveMetadataForExplorer(GetDatabaseMetadataResponse response)
@@ -506,11 +499,77 @@
             objects: objects);
     }
 
-    private static IReadOnlyList<ObjectExplorer.ObjectNodeModel> BuildObjectNodes(
+    private static IReadOnlyList<ObjectExplorer.ExplorerNodeModel> BuildExplorerNodes(
+        DatabaseMetadataRoot metadata,
+        ExplorerDatabaseSelection selected)
+    {
+        List<ObjectExplorer.ExplorerNodeModel> nodes = [];
+
+        AddFolderNode(
+            nodes,
+            key: "tables",
+            label: "Tables",
+            icon: HeroIconKind.TableCells,
+            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.Table, ObjectExplorer.ObjectKind.Table, HeroIconKind.TableCells));
+
+        AddFolderNode(
+            nodes,
+            key: "views",
+            label: "Views",
+            icon: HeroIconKind.QueueList,
+            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.View, ObjectExplorer.ObjectKind.View, HeroIconKind.QueueList));
+
+        List<ObjectExplorer.ExplorerNodeModel> programmabilityNodes = [];
+        AddFolderNode(
+            programmabilityNodes,
+            key: "stored-procedures",
+            label: "Stored Procedures",
+            icon: HeroIconKind.Play,
+            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.Procedure, ObjectExplorer.ObjectKind.Procedure, HeroIconKind.Play));
+        AddFolderNode(
+            programmabilityNodes,
+            key: "functions",
+            label: "Functions",
+            icon: HeroIconKind.CodeBracket,
+            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.Function, ObjectExplorer.ObjectKind.Function, HeroIconKind.CodeBracket));
+        AddFolderNode(
+            programmabilityNodes,
+            key: "triggers",
+            label: "Triggers",
+            icon: HeroIconKind.Link,
+            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.Trigger, ObjectExplorer.ObjectKind.Trigger, HeroIconKind.Link));
+
+        AddFolderNode(
+            nodes,
+            key: "programmability",
+            label: "Programmability",
+            icon: HeroIconKind.Folder,
+            children: programmabilityNodes);
+
+        List<ObjectExplorer.ExplorerNodeModel> securityNodes = [];
+        AddFolderNode(
+            securityNodes,
+            key: "schemas",
+            label: "Schemas",
+            icon: HeroIconKind.Folder,
+            children: BuildSecurityLeafNodes(metadata, DatabaseObjectType.Schema));
+
+        AddFolderNode(
+            nodes,
+            key: "security",
+            label: "Security",
+            icon: HeroIconKind.Folder,
+            children: securityNodes);
+
+        return nodes;
+    }
+
+    private static IReadOnlyList<ObjectExplorer.ExplorerNodeModel> BuildObjectLeafNodes(
         DatabaseMetadataRoot metadata,
         ExplorerDatabaseSelection selected,
         DatabaseObjectType objectType,
-        ObjectExplorer.ObjectKind objectKind)
+        ObjectExplorer.ObjectKind objectKind,
+        HeroIconKind icon)
     {
         if (!metadata.Objects.TryGetValue(objectType, out var objectsByName) || objectsByName.Count == 0)
         {
@@ -518,24 +577,30 @@
         }
 
         return objectsByName.Values
-            .Select(databaseObject => new ObjectExplorer.ObjectNodeModel(
-                databaseObject.ObjectId,
-                databaseObject.ObjectName,
-                selected.ResourceName,
-                selected.DatabaseName,
-                ResolveSchemaName(databaseObject),
-                databaseObject.ObjectName,
-                objectKind))
-            .OrderBy(item => item.ObjectName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(item => item.SchemaName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(item => item.ObjectId, StringComparer.OrdinalIgnoreCase)
+            .Select(databaseObject =>
+            {
+                var schemaName = ResolveSchemaName(databaseObject);
+                return new ObjectExplorer.ExplorerNodeModel(
+                    NodeKey: $"{objectType}:{databaseObject.ObjectId}",
+                    Label: BuildObjectLabel(databaseObject, schemaName),
+                    Icon: icon,
+                    Children: [],
+                    Selection: new ObjectExplorer.ObjectSelection(
+                        selected.ResourceName,
+                        selected.DatabaseName,
+                        schemaName,
+                        databaseObject.ObjectId,
+                        databaseObject.ObjectName,
+                        objectKind));
+            })
+            .OrderBy(item => item.Label, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.NodeKey, StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
 
-    private static IReadOnlyList<ObjectExplorer.SecurityNodeModel> BuildSecurityNodes(
+    private static IReadOnlyList<ObjectExplorer.ExplorerNodeModel> BuildSecurityLeafNodes(
         DatabaseMetadataRoot metadata,
-        DatabaseObjectType objectType,
-        ObjectExplorer.SecurityKind securityKind)
+        DatabaseObjectType objectType)
     {
         if (!metadata.Objects.TryGetValue(objectType, out var objectsByName) || objectsByName.Count == 0)
         {
@@ -543,14 +608,39 @@
         }
 
         return objectsByName.Values
-            .Select(databaseObject => new ObjectExplorer.SecurityNodeModel(
-                databaseObject.ObjectId,
-                databaseObject.ObjectName,
-                securityKind))
-            .OrderBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(item => item.ObjectId, StringComparer.OrdinalIgnoreCase)
+            .Select(databaseObject => new ObjectExplorer.ExplorerNodeModel(
+                NodeKey: $"{objectType}:{databaseObject.ObjectId}",
+                Label: databaseObject.ObjectName,
+                Icon: HeroIconKind.Folder,
+                Children: []))
+            .OrderBy(item => item.Label, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.NodeKey, StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
+
+    private static void AddFolderNode(
+        ICollection<ObjectExplorer.ExplorerNodeModel> nodes,
+        string key,
+        string label,
+        HeroIconKind icon,
+        IReadOnlyList<ObjectExplorer.ExplorerNodeModel> children)
+    {
+        if (children.Count == 0)
+        {
+            return;
+        }
+
+        nodes.Add(new ObjectExplorer.ExplorerNodeModel(
+            NodeKey: key,
+            Label: label,
+            Icon: icon,
+            Children: children));
+    }
+
+    private static string BuildObjectLabel(DatabaseObject databaseObject, string schemaName)
+        => string.IsNullOrWhiteSpace(schemaName) || string.Equals(schemaName, "default", StringComparison.OrdinalIgnoreCase)
+            ? databaseObject.ObjectName
+            : $"{schemaName}.{databaseObject.ObjectName}";
 
     private static string ResolveSchemaName(DatabaseObject databaseObject)
     {

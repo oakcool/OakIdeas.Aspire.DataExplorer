@@ -1,6 +1,7 @@
 using Bunit;
 using Microsoft.AspNetCore.Components;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
+using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Atoms;
 using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Molecules;
 
 namespace OakIdeas.Aspire.DataExplorer.Web.Components.Tests;
@@ -71,13 +72,12 @@ public sealed class ObjectExplorerRenderingTests : TestContext
         component.Markup.Should().Contain("Triggers");
         component.Markup.Should().Contain("Security");
         component.Markup.Should().Contain("Schemas");
+        component.Markup.Should().Contain("dbo.Users");
+        component.Markup.Should().Contain("dbo.ActiveUsers");
+        component.Markup.Should().Contain("dbo.SyncUsers");
+        component.Markup.Should().Contain("dbo.FormatName");
+        component.Markup.Should().Contain("dbo.UsersAudit");
         component.Markup.Should().Contain("dbo");
-        component.Markup.Should().Contain("Users");
-        component.Markup.Should().NotContain("dbo.Users");
-        component.Markup.Should().Contain("ActiveUsers");
-        component.Markup.Should().Contain("SyncUsers");
-        component.Markup.Should().Contain("FormatName");
-        component.Markup.Should().Contain("UsersAudit");
     }
 
     [Fact]
@@ -102,7 +102,7 @@ public sealed class ObjectExplorerRenderingTests : TestContext
             .Add(p => p.OnObjectSelect, EventCallback.Factory.Create<ObjectExplorer.ObjectSelection>(this, value => selected = value)));
 
         component.FindAll(".tree-node")
-            .First(node => node.TextContent.Contains("Users"))
+            .First(node => node.TextContent.Contains("dbo.Users", StringComparison.Ordinal))
             .Click();
 
         selected.Should().NotBeNull();
@@ -117,14 +117,66 @@ public sealed class ObjectExplorerRenderingTests : TestContext
             new ObjectExplorer.ConnectionNode("sql-main",
             [
                 new ObjectExplorer.DatabaseNode("applicationdb",
-                    [new ObjectExplorer.ObjectNodeModel("dbo.Users", "Users", "sql-main", "applicationdb", "dbo", "Users", ObjectExplorer.ObjectKind.Table)],
-                    [new ObjectExplorer.ObjectNodeModel("dbo.ActiveUsers", "ActiveUsers", "sql-main", "applicationdb", "dbo", "ActiveUsers", ObjectExplorer.ObjectKind.View)],
-                    [new ObjectExplorer.ObjectNodeModel("dbo.SyncUsers", "SyncUsers", "sql-main", "applicationdb", "dbo", "SyncUsers", ObjectExplorer.ObjectKind.Procedure)],
-                    [new ObjectExplorer.ObjectNodeModel("dbo.FormatName", "FormatName", "sql-main", "applicationdb", "dbo", "FormatName", ObjectExplorer.ObjectKind.Function)],
-                    [new ObjectExplorer.ObjectNodeModel("dbo.UsersAudit", "UsersAudit", "sql-main", "applicationdb", "dbo", "UsersAudit", ObjectExplorer.ObjectKind.Trigger)],
-                    [],
-                    [],
-                    [new ObjectExplorer.SecurityNodeModel("dbo", "dbo", ObjectExplorer.SecurityKind.Schema)] )
+                [
+                    CreateFolder("tables", "Tables", HeroIconKind.TableCells,
+                    [
+                        CreateObjectLeaf("dbo.Users", "sql-main", "applicationdb", "dbo", "Users", ObjectExplorer.ObjectKind.Table, HeroIconKind.TableCells)
+                    ]),
+                    CreateFolder("views", "Views", HeroIconKind.QueueList,
+                    [
+                        CreateObjectLeaf("dbo.ActiveUsers", "sql-main", "applicationdb", "dbo", "ActiveUsers", ObjectExplorer.ObjectKind.View, HeroIconKind.QueueList)
+                    ]),
+                    CreateFolder("programmability", "Programmability", HeroIconKind.Folder,
+                    [
+                        CreateFolder("stored-procedures", "Stored Procedures", HeroIconKind.Play,
+                        [
+                            CreateObjectLeaf("dbo.SyncUsers", "sql-main", "applicationdb", "dbo", "SyncUsers", ObjectExplorer.ObjectKind.Procedure, HeroIconKind.Play)
+                        ]),
+                        CreateFolder("functions", "Functions", HeroIconKind.CodeBracket,
+                        [
+                            CreateObjectLeaf("dbo.FormatName", "sql-main", "applicationdb", "dbo", "FormatName", ObjectExplorer.ObjectKind.Function, HeroIconKind.CodeBracket)
+                        ]),
+                        CreateFolder("triggers", "Triggers", HeroIconKind.Link,
+                        [
+                            CreateObjectLeaf("dbo.UsersAudit", "sql-main", "applicationdb", "dbo", "UsersAudit", ObjectExplorer.ObjectKind.Trigger, HeroIconKind.Link)
+                        ])
+                    ]),
+                    CreateFolder("security", "Security", HeroIconKind.Folder,
+                    [
+                        new ObjectExplorer.ExplorerNodeModel("schemas", "Schemas", HeroIconKind.Folder,
+                        [
+                            new ObjectExplorer.ExplorerNodeModel("schemas/dbo", "dbo", HeroIconKind.Folder, [])
+                        ])
+                    ])
+                ])
             ])
         ];
+
+    private static ObjectExplorer.ExplorerNodeModel CreateFolder(
+        string key,
+        string label,
+        HeroIconKind icon,
+        IReadOnlyList<ObjectExplorer.ExplorerNodeModel> children)
+        => new(key, label, icon, children);
+
+    private static ObjectExplorer.ExplorerNodeModel CreateObjectLeaf(
+        string label,
+        string connectionName,
+        string databaseName,
+        string schemaName,
+        string objectName,
+        ObjectExplorer.ObjectKind kind,
+        HeroIconKind icon)
+        => new(
+            $"{kind}:{label}",
+            label,
+            icon,
+            [],
+            new ObjectExplorer.ObjectSelection(
+                connectionName,
+                databaseName,
+                schemaName,
+                label,
+                objectName,
+                kind));
 }
