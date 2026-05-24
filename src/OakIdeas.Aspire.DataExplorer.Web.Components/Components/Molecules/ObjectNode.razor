@@ -1,4 +1,5 @@
 <TreeNode Label="@Object.Name"
+          Badge="@SchemaBadge"
           Icon="@Icon"
           Depth="@Depth"
           IsSelected="@IsSelected"
@@ -26,6 +27,10 @@
         ObjectExplorer.ObjectKind.Trigger => HeroIconKind.Link,
         _ => HeroIconKind.TableCells,
     };
+
+    private string SchemaBadge => string.IsNullOrWhiteSpace(Object.SchemaName)
+        ? string.Empty
+        : Object.SchemaName;
 
     private async Task HandleSelect()
     {

@@ -73,6 +73,7 @@ public sealed class ObjectExplorerRenderingTests : TestContext
         component.Markup.Should().Contain("Schemas");
         component.Markup.Should().Contain("dbo");
         component.Markup.Should().Contain("Users");
+        component.Markup.Should().NotContain("dbo.Users");
         component.Markup.Should().Contain("ActiveUsers");
         component.Markup.Should().Contain("SyncUsers");
         component.Markup.Should().Contain("FormatName");
@@ -116,11 +117,11 @@ public sealed class ObjectExplorerRenderingTests : TestContext
             new ObjectExplorer.ConnectionNode("sql-main",
             [
                 new ObjectExplorer.DatabaseNode("applicationdb",
-                    [new ObjectExplorer.ObjectNodeModel("dbo.Users", "dbo.Users", "sql-main", "applicationdb", "dbo", "Users", ObjectExplorer.ObjectKind.Table)],
-                    [new ObjectExplorer.ObjectNodeModel("dbo.ActiveUsers", "dbo.ActiveUsers", "sql-main", "applicationdb", "dbo", "ActiveUsers", ObjectExplorer.ObjectKind.View)],
-                    [new ObjectExplorer.ObjectNodeModel("dbo.SyncUsers", "dbo.SyncUsers", "sql-main", "applicationdb", "dbo", "SyncUsers", ObjectExplorer.ObjectKind.Procedure)],
-                    [new ObjectExplorer.ObjectNodeModel("dbo.FormatName", "dbo.FormatName", "sql-main", "applicationdb", "dbo", "FormatName", ObjectExplorer.ObjectKind.Function)],
-                    [new ObjectExplorer.ObjectNodeModel("dbo.UsersAudit", "dbo.UsersAudit", "sql-main", "applicationdb", "dbo", "UsersAudit", ObjectExplorer.ObjectKind.Trigger)],
+                    [new ObjectExplorer.ObjectNodeModel("dbo.Users", "Users", "sql-main", "applicationdb", "dbo", "Users", ObjectExplorer.ObjectKind.Table)],
+                    [new ObjectExplorer.ObjectNodeModel("dbo.ActiveUsers", "ActiveUsers", "sql-main", "applicationdb", "dbo", "ActiveUsers", ObjectExplorer.ObjectKind.View)],
+                    [new ObjectExplorer.ObjectNodeModel("dbo.SyncUsers", "SyncUsers", "sql-main", "applicationdb", "dbo", "SyncUsers", ObjectExplorer.ObjectKind.Procedure)],
+                    [new ObjectExplorer.ObjectNodeModel("dbo.FormatName", "FormatName", "sql-main", "applicationdb", "dbo", "FormatName", ObjectExplorer.ObjectKind.Function)],
+                    [new ObjectExplorer.ObjectNodeModel("dbo.UsersAudit", "UsersAudit", "sql-main", "applicationdb", "dbo", "UsersAudit", ObjectExplorer.ObjectKind.Trigger)],
                     [],
                     [],
                     [new ObjectExplorer.SecurityNodeModel("dbo", "dbo", ObjectExplorer.SecurityKind.Schema)] )

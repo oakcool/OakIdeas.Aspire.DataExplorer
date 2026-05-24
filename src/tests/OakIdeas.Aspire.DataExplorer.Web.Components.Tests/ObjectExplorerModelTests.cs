@@ -32,14 +32,14 @@ public sealed class ObjectExplorerModelTests
     {
         var node = new ObjectExplorer.ObjectNodeModel(
             "dbo.Users",
-            "dbo.Users",
+            "Users",
             "sample",
             "applicationdb",
             "dbo",
             "Users",
             ObjectExplorer.ObjectKind.Table);
 
-        node.Name.Should().Be("dbo.Users");
+        node.Name.Should().Be("Users");
         node.ConnectionName.Should().Be("sample");
         node.DatabaseName.Should().Be("applicationdb");
         node.SchemaName.Should().Be("dbo");
@@ -70,9 +70,9 @@ public sealed class ObjectExplorerModelTests
     {
         var tables = (IReadOnlyList<ObjectExplorer.ObjectNodeModel>)
         [
-            new("dbo.Users", "dbo.Users", "my-connection", "applicationdb", "dbo", "Users", ObjectExplorer.ObjectKind.Table),
-            new("dbo.Products", "dbo.Products", "my-connection", "applicationdb", "dbo", "Products", ObjectExplorer.ObjectKind.Table),
-            new("dbo.Orders", "dbo.Orders", "my-connection", "applicationdb", "dbo", "Orders", ObjectExplorer.ObjectKind.Table),
+            new("dbo.Users", "Users", "my-connection", "applicationdb", "dbo", "Users", ObjectExplorer.ObjectKind.Table),
+            new("dbo.Products", "Products", "my-connection", "applicationdb", "dbo", "Products", ObjectExplorer.ObjectKind.Table),
+            new("dbo.Orders", "Orders", "my-connection", "applicationdb", "dbo", "Orders", ObjectExplorer.ObjectKind.Table),
         ];
         var db = new ObjectExplorer.DatabaseNode("applicationdb", tables, [], [], [], [], [], [], []);
         var conn = new ObjectExplorer.ConnectionNode("my-connection", [db]);
@@ -86,7 +86,7 @@ public sealed class ObjectExplorerModelTests
     {
         var empty = new ObjectExplorer.DatabaseNode("applicationdb", [], [], [], [], [], [], [], []);
         var populated = new ObjectExplorer.DatabaseNode("applicationdb", [], [], [], [
-            new ObjectExplorer.ObjectNodeModel("dbo.FormatName", "dbo.FormatName", "sample", "applicationdb", "dbo", "FormatName", ObjectExplorer.ObjectKind.Function)
+            new ObjectExplorer.ObjectNodeModel("dbo.FormatName", "FormatName", "sample", "applicationdb", "dbo", "FormatName", ObjectExplorer.ObjectKind.Function)
         ], [], [], [], []);
 
         empty.HasAnyObjects.Should().BeFalse();

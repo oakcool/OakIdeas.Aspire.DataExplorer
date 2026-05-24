@@ -520,14 +520,14 @@
         return objectsByName.Values
             .Select(databaseObject => new ObjectExplorer.ObjectNodeModel(
                 databaseObject.ObjectId,
-                databaseObject.FullyQualifiedName,
+                databaseObject.ObjectName,
                 selected.ResourceName,
                 selected.DatabaseName,
                 ResolveSchemaName(databaseObject),
                 databaseObject.ObjectName,
                 objectKind))
-            .OrderBy(item => item.SchemaName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(item => item.ObjectName, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(item => item.ObjectName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.SchemaName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(item => item.ObjectId, StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
