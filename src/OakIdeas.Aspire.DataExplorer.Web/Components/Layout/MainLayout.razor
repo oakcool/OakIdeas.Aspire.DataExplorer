@@ -404,7 +404,14 @@
             [
                 new ObjectExplorer.DatabaseNode(
                     selected.DatabaseName,
-                    BuildSchemaNodes(metadata))
+                    BuildObjectNodes(metadata, selected, DatabaseObjectType.Table, ObjectExplorer.ObjectKind.Table),
+                    BuildObjectNodes(metadata, selected, DatabaseObjectType.View, ObjectExplorer.ObjectKind.View),
+                    BuildObjectNodes(metadata, selected, DatabaseObjectType.Procedure, ObjectExplorer.ObjectKind.Procedure),
+                    BuildObjectNodes(metadata, selected, DatabaseObjectType.Function, ObjectExplorer.ObjectKind.Function),
+                    BuildObjectNodes(metadata, selected, DatabaseObjectType.Trigger, ObjectExplorer.ObjectKind.Trigger),
+                    [],
+                    [],
+                    BuildSecurityNodes(metadata, DatabaseObjectType.Schema, ObjectExplorer.SecurityKind.Schema))
             ]);
 
     private static DatabaseMetadataRoot? ResolveMetadataForExplorer(GetDatabaseMetadataResponse response)
@@ -499,78 +506,50 @@
             objects: objects);
     }
 
-    private static IReadOnlyList<ObjectExplorer.SchemaNode> BuildSchemaNodes(DatabaseMetadataRoot metadata)
+    private static IReadOnlyList<ObjectExplorer.ObjectNodeModel> BuildObjectNodes(
+        DatabaseMetadataRoot metadata,
+        ExplorerDatabaseSelection selected,
+        DatabaseObjectType objectType,
+        ObjectExplorer.ObjectKind objectKind)
     {
-        var schemas = new Dictionary<string, SchemaAccumulator>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var (objectType, objectsByName) in metadata.Objects)
+        if (!metadata.Objects.TryGetValue(objectType, out var objectsByName) || objectsByName.Count == 0)
         {
-            foreach (var databaseObject in objectsByName.Values)
-            {
-                var schemaName = ResolveSchemaName(databaseObject);
-                var schema = GetOrCreateSchema(schemas, schemaName);
-
-                switch (objectType)
-                {
-                    case DatabaseObjectType.Table:
-                        schema.Tables.Add(new ObjectExplorer.ObjectNodeModel(
-                            databaseObject.ObjectId,
-                            databaseObject.ObjectName,
-                            ObjectExplorer.ObjectKind.Table));
-                        break;
-                    case DatabaseObjectType.View:
-                        schema.Views.Add(new ObjectExplorer.ObjectNodeModel(
-                            databaseObject.ObjectId,
-                            databaseObject.ObjectName,
-                            ObjectExplorer.ObjectKind.View));
-                        break;
-                    case DatabaseObjectType.Procedure:
-                        schema.Procedures.Add(new ObjectExplorer.ObjectNodeModel(
-                            databaseObject.ObjectId,
-                            databaseObject.ObjectName,
-                            ObjectExplorer.ObjectKind.Procedure));
-                        break;
-                    case DatabaseObjectType.Function:
-                        schema.Functions.Add(new ObjectExplorer.ObjectNodeModel(
-                            databaseObject.ObjectId,
-                            databaseObject.ObjectName,
-                            ObjectExplorer.ObjectKind.Function));
-                        break;
-                    case DatabaseObjectType.Trigger:
-                        schema.Triggers.Add(new ObjectExplorer.ObjectNodeModel(
-                            databaseObject.ObjectId,
-                            databaseObject.ObjectName,
-                            ObjectExplorer.ObjectKind.Trigger));
-                        break;
-                    case DatabaseObjectType.Schema:
-                        break;
-                }
-            }
+            return [];
         }
 
-        return schemas
-            .OrderBy(schema => schema.Key, StringComparer.OrdinalIgnoreCase)
-            .Select(schema => new ObjectExplorer.SchemaNode(
-                schema.Key,
-                Sort(schema.Value.Tables),
-                Sort(schema.Value.Views),
-                Sort(schema.Value.Procedures),
-                Sort(schema.Value.Functions),
-                Sort(schema.Value.Triggers)))
+        return objectsByName.Values
+            .Select(databaseObject => new ObjectExplorer.ObjectNodeModel(
+                databaseObject.ObjectId,
+                databaseObject.FullyQualifiedName,
+                selected.ResourceName,
+                selected.DatabaseName,
+                ResolveSchemaName(databaseObject),
+                databaseObject.ObjectName,
+                objectKind))
+            .OrderBy(item => item.SchemaName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.ObjectName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.ObjectId, StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
 
-    private static SchemaAccumulator GetOrCreateSchema(
-        IDictionary<string, SchemaAccumulator> schemas,
-        string schemaName)
+    private static IReadOnlyList<ObjectExplorer.SecurityNodeModel> BuildSecurityNodes(
+        DatabaseMetadataRoot metadata,
+        DatabaseObjectType objectType,
+        ObjectExplorer.SecurityKind securityKind)
     {
-        if (!schemas.TryGetValue(schemaName, out var schema))
+        if (!metadata.Objects.TryGetValue(objectType, out var objectsByName) || objectsByName.Count == 0)
         {
-            schema = new SchemaAccumulator();
-            schemas[schemaName] = schema;
+            return [];
         }
 
-        return schema;
+        return objectsByName.Values
+            .Select(databaseObject => new ObjectExplorer.SecurityNodeModel(
+                databaseObject.ObjectId,
+                databaseObject.ObjectName,
+                securityKind))
+            .OrderBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.ObjectId, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
     }
 
     private static string ResolveSchemaName(DatabaseObject databaseObject)
@@ -591,18 +570,4 @@
             : "default";
     }
 
-    private static IReadOnlyList<ObjectExplorer.ObjectNodeModel> Sort(IEnumerable<ObjectExplorer.ObjectNodeModel> objects)
-        => objects
-            .OrderBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(item => item.ObjectId, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
-    private sealed class SchemaAccumulator
-    {
-        public List<ObjectExplorer.ObjectNodeModel> Tables { get; } = [];
-        public List<ObjectExplorer.ObjectNodeModel> Views { get; } = [];
-        public List<ObjectExplorer.ObjectNodeModel> Procedures { get; } = [];
-        public List<ObjectExplorer.ObjectNodeModel> Functions { get; } = [];
-        public List<ObjectExplorer.ObjectNodeModel> Triggers { get; } = [];
-    }
 }

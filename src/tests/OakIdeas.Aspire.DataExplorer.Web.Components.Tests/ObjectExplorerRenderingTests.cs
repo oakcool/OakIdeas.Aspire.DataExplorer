@@ -57,18 +57,21 @@ public sealed class ObjectExplorerRenderingTests : TestContext
     }
 
     [Fact]
-    public void RendersSchemaTypeGroupsAndObjects()
+    public void RendersDatabaseGroupsAndObjects()
     {
         var connections = CreateConnections();
         var component = RenderComponent<ObjectExplorer>(parameters => parameters
             .Add(p => p.Connections, connections));
 
-        component.Markup.Should().Contain("dbo");
         component.Markup.Should().Contain("Tables");
         component.Markup.Should().Contain("Views");
-        component.Markup.Should().Contain("Procedures");
+        component.Markup.Should().Contain("Programmability");
+        component.Markup.Should().Contain("Stored Procedures");
         component.Markup.Should().Contain("Functions");
         component.Markup.Should().Contain("Triggers");
+        component.Markup.Should().Contain("Security");
+        component.Markup.Should().Contain("Schemas");
+        component.Markup.Should().Contain("dbo");
         component.Markup.Should().Contain("Users");
         component.Markup.Should().Contain("ActiveUsers");
         component.Markup.Should().Contain("SyncUsers");
@@ -113,15 +116,14 @@ public sealed class ObjectExplorerRenderingTests : TestContext
             new ObjectExplorer.ConnectionNode("sql-main",
             [
                 new ObjectExplorer.DatabaseNode("applicationdb",
-                [
-                    new ObjectExplorer.SchemaNode(
-                        "dbo",
-                        [new ObjectExplorer.ObjectNodeModel("dbo.Users", "Users", ObjectExplorer.ObjectKind.Table)],
-                        [new ObjectExplorer.ObjectNodeModel("dbo.ActiveUsers", "ActiveUsers", ObjectExplorer.ObjectKind.View)],
-                        [new ObjectExplorer.ObjectNodeModel("dbo.SyncUsers", "SyncUsers", ObjectExplorer.ObjectKind.Procedure)],
-                        [new ObjectExplorer.ObjectNodeModel("dbo.FormatName", "FormatName", ObjectExplorer.ObjectKind.Function)],
-                        [new ObjectExplorer.ObjectNodeModel("dbo.UsersAudit", "UsersAudit", ObjectExplorer.ObjectKind.Trigger)])
-                ])
+                    [new ObjectExplorer.ObjectNodeModel("dbo.Users", "dbo.Users", "sql-main", "applicationdb", "dbo", "Users", ObjectExplorer.ObjectKind.Table)],
+                    [new ObjectExplorer.ObjectNodeModel("dbo.ActiveUsers", "dbo.ActiveUsers", "sql-main", "applicationdb", "dbo", "ActiveUsers", ObjectExplorer.ObjectKind.View)],
+                    [new ObjectExplorer.ObjectNodeModel("dbo.SyncUsers", "dbo.SyncUsers", "sql-main", "applicationdb", "dbo", "SyncUsers", ObjectExplorer.ObjectKind.Procedure)],
+                    [new ObjectExplorer.ObjectNodeModel("dbo.FormatName", "dbo.FormatName", "sql-main", "applicationdb", "dbo", "FormatName", ObjectExplorer.ObjectKind.Function)],
+                    [new ObjectExplorer.ObjectNodeModel("dbo.UsersAudit", "dbo.UsersAudit", "sql-main", "applicationdb", "dbo", "UsersAudit", ObjectExplorer.ObjectKind.Trigger)],
+                    [],
+                    [],
+                    [new ObjectExplorer.SecurityNodeModel("dbo", "dbo", ObjectExplorer.SecurityKind.Schema)] )
             ])
         ];
 }

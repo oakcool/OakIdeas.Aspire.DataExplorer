@@ -14,24 +14,36 @@ public sealed class ObjectExplorerModelTests
     }
 
     [Fact]
-    public void DatabaseNode_StoresNameAndSchemas()
+    public void DatabaseNode_StoresNameAndGroups()
     {
-        var node = new ObjectExplorer.DatabaseNode("appdb", []);
+        var node = new ObjectExplorer.DatabaseNode("appdb", [], [], [], [], [], [], [], []);
 
         node.Name.Should().Be("appdb");
+        node.Tables.Should().BeEmpty();
+        node.Views.Should().BeEmpty();
+        node.StoredProcedures.Should().BeEmpty();
+        node.Functions.Should().BeEmpty();
+        node.Triggers.Should().BeEmpty();
         node.Schemas.Should().BeEmpty();
     }
 
     [Fact]
-    public void SchemaNode_StoresTypeGroups()
+    public void ObjectNodeModel_StoresDisplayAndSelectionFields()
     {
-        var table = new ObjectExplorer.ObjectNodeModel("dbo.Users", "Users", ObjectExplorer.ObjectKind.Table);
-        var view = new ObjectExplorer.ObjectNodeModel("dbo.ActiveUsers", "ActiveUsers", ObjectExplorer.ObjectKind.View);
-        var node = new ObjectExplorer.SchemaNode("dbo", [table], [view], [], [], []);
+        var node = new ObjectExplorer.ObjectNodeModel(
+            "dbo.Users",
+            "dbo.Users",
+            "sample",
+            "applicationdb",
+            "dbo",
+            "Users",
+            ObjectExplorer.ObjectKind.Table);
 
-        node.Name.Should().Be("dbo");
-        node.Tables.Should().ContainSingle().Which.Name.Should().Be("Users");
-        node.Views.Should().ContainSingle().Which.Name.Should().Be("ActiveUsers");
+        node.Name.Should().Be("dbo.Users");
+        node.ConnectionName.Should().Be("sample");
+        node.DatabaseName.Should().Be("applicationdb");
+        node.SchemaName.Should().Be("dbo");
+        node.ObjectName.Should().Be("Users");
     }
 
     [Fact]
@@ -58,26 +70,24 @@ public sealed class ObjectExplorerModelTests
     {
         var tables = (IReadOnlyList<ObjectExplorer.ObjectNodeModel>)
         [
-            new("dbo.Users", "Users", ObjectExplorer.ObjectKind.Table),
-            new("dbo.Products", "Products", ObjectExplorer.ObjectKind.Table),
-            new("dbo.Orders", "Orders", ObjectExplorer.ObjectKind.Table),
+            new("dbo.Users", "dbo.Users", "my-connection", "applicationdb", "dbo", "Users", ObjectExplorer.ObjectKind.Table),
+            new("dbo.Products", "dbo.Products", "my-connection", "applicationdb", "dbo", "Products", ObjectExplorer.ObjectKind.Table),
+            new("dbo.Orders", "dbo.Orders", "my-connection", "applicationdb", "dbo", "Orders", ObjectExplorer.ObjectKind.Table),
         ];
-        var schema = new ObjectExplorer.SchemaNode("dbo", tables, [], [], [], []);
-        var db = new ObjectExplorer.DatabaseNode("applicationdb", [schema]);
+        var db = new ObjectExplorer.DatabaseNode("applicationdb", tables, [], [], [], [], [], [], []);
         var conn = new ObjectExplorer.ConnectionNode("my-connection", [db]);
 
         conn.Databases.Should().HaveCount(1);
-        conn.Databases[0].Schemas.Should().HaveCount(1);
-        conn.Databases[0].Schemas[0].Tables.Should().HaveCount(3);
+        conn.Databases[0].Tables.Should().HaveCount(3);
     }
 
     [Fact]
-    public void SchemaNode_HasAnyObjectsReflectsGroups()
+    public void DatabaseNode_HasAnyObjectsReflectsGroups()
     {
-        var empty = new ObjectExplorer.SchemaNode("dbo", [], [], [], [], []);
-        var populated = new ObjectExplorer.SchemaNode("dbo", [], [], [], [
-            new ObjectExplorer.ObjectNodeModel("dbo.FormatName", "FormatName", ObjectExplorer.ObjectKind.Function)
-        ], []);
+        var empty = new ObjectExplorer.DatabaseNode("applicationdb", [], [], [], [], [], [], [], []);
+        var populated = new ObjectExplorer.DatabaseNode("applicationdb", [], [], [], [
+            new ObjectExplorer.ObjectNodeModel("dbo.FormatName", "dbo.FormatName", "sample", "applicationdb", "dbo", "FormatName", ObjectExplorer.ObjectKind.Function)
+        ], [], [], [], []);
 
         empty.HasAnyObjects.Should().BeFalse();
         populated.HasAnyObjects.Should().BeTrue();
