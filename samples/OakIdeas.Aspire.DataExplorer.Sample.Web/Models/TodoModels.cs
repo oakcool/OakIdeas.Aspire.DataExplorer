@@ -39,6 +39,20 @@ public sealed record TodoLookupData(
     IReadOnlyList<StatusLookupValue> Statuses,
     IReadOnlyList<PriorityLookupValue> Priorities);
 
+public sealed record TodoShowcaseData(
+    int MirroredListCount,
+    int MirroredItemCount,
+    int OpenMirroredItemCount,
+    IReadOnlyList<TodoShowcaseRow> ProcedureRows,
+    IReadOnlyList<TodoShowcaseRow> ViewRows);
+
+public sealed record TodoShowcaseRow(
+    int TodoItemId,
+    string Title,
+    string ListName,
+    string StatusName,
+    string PriorityName);
+
 public sealed record LookupValue<T>(T Id, string Name) where T : struct;
 
 public sealed record CategoryLookupValue(int Id, string Name, string ColorHex, bool IsSystem);

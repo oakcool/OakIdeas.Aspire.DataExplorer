@@ -22,6 +22,12 @@ The sample database intentionally exercises metadata discovery scenarios in Data
 - Unique indexes (`Name` columns on lookup tables)
 - Date/time, boolean, and text fields
 - Seeded relational data with comments and tags
+- Additional schema-scoped objects for explorer demos:
+  - `showcase` schema
+  - mirror tables (`showcase.TodoListsReplica`, `showcase.TodoItemsReplica`)
+  - view (`showcase.vwTodoReplicaOverview`)
+  - stored procedure (`showcase.usp_ListReplicaTodosByStatus`)
+  - scalar function (`showcase.ufn_OpenReplicaTodoCount`)
 
 Main entities:
 
@@ -59,6 +65,8 @@ dotnet ef migrations add <MigrationName> \
 
 Seed data is configured in `SampleDbContext.OnModelCreating(...)` and is deterministic so screenshots and metadata checks remain stable.
 
+The `ShowcaseProgrammabilityObjects` migration also creates schema-scoped SQL objects in the `showcase` schema and mirrors data from `dbo` tables so Object Explorer can demonstrate folder-based nodes for tables, views, and programmability.
+
 ## Validating with Data Explorer
 
 1. Start the sample AppHost only:
@@ -69,6 +77,10 @@ Seed data is configured in `SampleDbContext.OnModelCreating(...)` and is determi
 3. Confirm the discovered database is `sampledb`.
 4. Inspect tables and metadata for keys, constraints, indexes, and relationships.
 5. Use `sample-web` to create/edit/delete/complete/reopen tasks and add comments, then refresh metadata views.
+6. On `/todos`, verify the **Schema + Programmability Showcase** card loads counts/rows from:
+   - `showcase.vwTodoReplicaOverview`
+   - `showcase.usp_ListReplicaTodosByStatus`
+   - `showcase.ufn_OpenReplicaTodoCount`
 
 The sample intentionally runs Data Explorer as a consumer-style setup: the AppHost enables discovery with `builder.AddDataExplorer()` and hosts the Data Explorer web resource alongside sample resources.
 

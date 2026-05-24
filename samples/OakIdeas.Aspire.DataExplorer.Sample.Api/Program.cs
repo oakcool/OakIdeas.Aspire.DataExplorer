@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using OakIdeas.Aspire.DataExplorer.Sample.Api.Data;
+using System.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,6 +40,50 @@ app.MapGet("/todoitems/lookups", async (SampleDbContext db, CancellationToken ca
         Priorities: await db.TodoPriorities.AsNoTracking().OrderBy(x => x.SortOrder).Select(x => new PriorityLookupValue(x.Id, x.Name, x.SortOrder, x.IsDefault)).ToListAsync(cancellationToken));
 
     return Results.Ok(response);
+});
+
+app.MapGet("/todoitems/showcase", async (SampleDbContext db, CancellationToken cancellationToken) =>
+{
+    var mirroredListCount = await ExecuteScalarIntAsync(
+        db,
+        "SELECT COUNT(1) FROM [showcase].[TodoListsReplica];",
+        cancellationToken);
+
+    var mirroredItemCount = await ExecuteScalarIntAsync(
+        db,
+        "SELECT COUNT(1) FROM [showcase].[TodoItemsReplica];",
+        cancellationToken);
+
+    var openMirroredItemCount = await ExecuteScalarIntAsync(
+        db,
+        "SELECT [showcase].[ufn_OpenReplicaTodoCount]();",
+        cancellationToken);
+
+    var procedureRows = await ExecuteTodoShowcaseRowsAsync(
+        db,
+        "EXEC [showcase].[usp_ListReplicaTodosByStatus] @StatusId = NULL;",
+        cancellationToken);
+
+    var viewRows = await ExecuteTodoShowcaseRowsAsync(
+        db,
+        """
+        SELECT TOP (8)
+            [TodoItemId],
+            [Title],
+            [ListName],
+            [StatusName],
+            [PriorityName]
+        FROM [showcase].[vwTodoReplicaOverview]
+        ORDER BY [TodoItemId];
+        """,
+        cancellationToken);
+
+    return Results.Ok(new TodoShowcaseResponse(
+        MirroredListCount: mirroredListCount,
+        MirroredItemCount: mirroredItemCount,
+        OpenMirroredItemCount: openMirroredItemCount,
+        ProcedureRows: procedureRows,
+        ViewRows: viewRows));
 });
 
 app.MapGet("/todoitems", async (
@@ -415,4 +460,52 @@ static async Task<Dictionary<string, string[]>> ValidateTodoRequestAsync(
     }
 
     return errors;
+}
+
+static async Task<int> ExecuteScalarIntAsync(
+    SampleDbContext db,
+    string sql,
+    CancellationToken cancellationToken)
+{
+    await using var command = db.Database.GetDbConnection().CreateCommand();
+    command.CommandText = sql;
+    command.CommandType = CommandType.Text;
+
+    if (command.Connection?.State != ConnectionState.Open)
+    {
+        await command.Connection!.OpenAsync(cancellationToken);
+    }
+
+    var value = await command.ExecuteScalarAsync(cancellationToken);
+    return Convert.ToInt32(value ?? 0);
+}
+
+static async Task<IReadOnlyList<TodoShowcaseRow>> ExecuteTodoShowcaseRowsAsync(
+    SampleDbContext db,
+    string sql,
+    CancellationToken cancellationToken)
+{
+    await using var command = db.Database.GetDbConnection().CreateCommand();
+    command.CommandText = sql;
+    command.CommandType = CommandType.Text;
+
+    if (command.Connection?.State != ConnectionState.Open)
+    {
+        await command.Connection!.OpenAsync(cancellationToken);
+    }
+
+    var rows = new List<TodoShowcaseRow>();
+
+    await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+    while (await reader.ReadAsync(cancellationToken))
+    {
+        rows.Add(new TodoShowcaseRow(
+            TodoItemId: reader.GetInt32(0),
+            Title: reader.GetString(1),
+            ListName: reader.GetString(2),
+            StatusName: reader.GetString(3),
+            PriorityName: reader.GetString(4)));
+    }
+
+    return rows;
 }

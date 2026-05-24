@@ -1,3 +1,4 @@
+using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Atoms;
 using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Molecules;
 
 namespace OakIdeas.Aspire.DataExplorer.Web.Components.Tests;
@@ -14,24 +15,37 @@ public sealed class ObjectExplorerModelTests
     }
 
     [Fact]
-    public void DatabaseNode_StoresNameAndSchemas()
+    public void DatabaseNode_StoresNameAndHierarchyNodes()
     {
         var node = new ObjectExplorer.DatabaseNode("appdb", []);
 
         node.Name.Should().Be("appdb");
-        node.Schemas.Should().BeEmpty();
+        node.Nodes.Should().BeEmpty();
     }
 
     [Fact]
-    public void SchemaNode_StoresTypeGroups()
+    public void ExplorerNodeModel_StoresTreeAndSelectionFields()
     {
-        var table = new ObjectExplorer.ObjectNodeModel("dbo.Users", "Users", ObjectExplorer.ObjectKind.Table);
-        var view = new ObjectExplorer.ObjectNodeModel("dbo.ActiveUsers", "ActiveUsers", ObjectExplorer.ObjectKind.View);
-        var node = new ObjectExplorer.SchemaNode("dbo", [table], [view], [], [], []);
+        var selection = new ObjectExplorer.ObjectSelection(
+            "sample",
+            "applicationdb",
+            "dbo",
+            "dbo.Users",
+            "Users",
+            ObjectExplorer.ObjectKind.Table);
 
-        node.Name.Should().Be("dbo");
-        node.Tables.Should().ContainSingle().Which.Name.Should().Be("Users");
-        node.Views.Should().ContainSingle().Which.Name.Should().Be("ActiveUsers");
+        var node = new ObjectExplorer.ExplorerNodeModel(
+            "tables/dbo.Users",
+            "dbo.Users",
+            HeroIconKind.TableCells,
+            [],
+            selection);
+
+        node.NodeKey.Should().Be("tables/dbo.Users");
+        node.Label.Should().Be("dbo.Users");
+        node.Icon.Should().Be(HeroIconKind.TableCells);
+        node.Selection.Should().Be(selection);
+        node.HasChildren.Should().BeFalse();
     }
 
     [Fact]
@@ -56,28 +70,46 @@ public sealed class ObjectExplorerModelTests
     [Fact]
     public void ConnectionNode_CanBeNestedDeep()
     {
-        var tables = (IReadOnlyList<ObjectExplorer.ObjectNodeModel>)
-        [
-            new("dbo.Users", "Users", ObjectExplorer.ObjectKind.Table),
-            new("dbo.Products", "Products", ObjectExplorer.ObjectKind.Table),
-            new("dbo.Orders", "Orders", ObjectExplorer.ObjectKind.Table),
-        ];
-        var schema = new ObjectExplorer.SchemaNode("dbo", tables, [], [], [], []);
-        var db = new ObjectExplorer.DatabaseNode("applicationdb", [schema]);
+        var tableLeaf = new ObjectExplorer.ExplorerNodeModel(
+            "tables/dbo.Users",
+            "dbo.Users",
+            HeroIconKind.TableCells,
+            [],
+            new ObjectExplorer.ObjectSelection("my-connection", "applicationdb", "dbo", "dbo.Users", "Users", ObjectExplorer.ObjectKind.Table));
+
+        var tables = new ObjectExplorer.ExplorerNodeModel(
+            "tables",
+            "Tables",
+            HeroIconKind.TableCells,
+            [tableLeaf]);
+
+        var db = new ObjectExplorer.DatabaseNode("applicationdb", [tables]);
         var conn = new ObjectExplorer.ConnectionNode("my-connection", [db]);
 
         conn.Databases.Should().HaveCount(1);
-        conn.Databases[0].Schemas.Should().HaveCount(1);
-        conn.Databases[0].Schemas[0].Tables.Should().HaveCount(3);
+        conn.Databases[0].Nodes.Should().ContainSingle();
+        conn.Databases[0].Nodes[0].Children.Should().ContainSingle();
     }
 
     [Fact]
-    public void SchemaNode_HasAnyObjectsReflectsGroups()
+    public void DatabaseNode_HasAnyObjectsReflectsHierarchyNodes()
     {
-        var empty = new ObjectExplorer.SchemaNode("dbo", [], [], [], [], []);
-        var populated = new ObjectExplorer.SchemaNode("dbo", [], [], [], [
-            new ObjectExplorer.ObjectNodeModel("dbo.FormatName", "FormatName", ObjectExplorer.ObjectKind.Function)
-        ], []);
+        var empty = new ObjectExplorer.DatabaseNode("applicationdb", []);
+        var populated = new ObjectExplorer.DatabaseNode("applicationdb",
+        [
+            new ObjectExplorer.ExplorerNodeModel(
+                "functions",
+                "Functions",
+                HeroIconKind.CodeBracket,
+                [
+                    new ObjectExplorer.ExplorerNodeModel(
+                        "functions/dbo.FormatName",
+                        "dbo.FormatName",
+                        HeroIconKind.CodeBracket,
+                        [],
+                        new ObjectExplorer.ObjectSelection("sample", "applicationdb", "dbo", "dbo.FormatName", "FormatName", ObjectExplorer.ObjectKind.Function))
+                ])
+        ]);
 
         empty.HasAnyObjects.Should().BeFalse();
         populated.HasAnyObjects.Should().BeTrue();

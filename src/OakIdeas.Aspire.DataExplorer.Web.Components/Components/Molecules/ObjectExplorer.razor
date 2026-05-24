@@ -1,4 +1,4 @@
-@* Object Explorer panel — tree of connections, databases, schemas, and object types *@
+@* Object Explorer panel — tree of connections, databases, and object groups *@
 <div class="object-explorer @(IsMinimized ? "object-explorer--minimized" : string.Empty)">
     <div class="object-explorer__header">
         @if (IsMinimized)
@@ -71,7 +71,7 @@
                             var connectionKey = conn.Name;
                             <TreeNode Label="@conn.Name"
                                       Icon="HeroIconKind.ServerStack"
-                                      HasChildren="@conn.Databases.Any()"
+                                      HasChildren="@conn.Databases.Any(database => database.HasAnyObjects)"
                                       Depth="0"
                                       IsExpanded="@IsConnectionExpanded(connectionKey)"
                                       OnExpandToggle="@(expanded => ToggleConnection(connectionKey, expanded))"
@@ -81,21 +81,16 @@
                                     var databaseKey = $"{conn.Name}/{db.Name}";
                                     <TreeNode Label="@db.Name"
                                               Icon="HeroIconKind.CircleStack"
-                                              HasChildren="@db.Schemas.Any()"
+                                              HasChildren="@db.HasAnyObjects"
                                               Depth="1"
                                               IsExpanded="@IsDatabaseExpanded(databaseKey)"
                                               OnExpandToggle="@(expanded => ToggleDatabase(databaseKey, expanded))">
-                                        @foreach (var schema in db.Schemas)
+                                        @foreach (var node in db.Nodes)
                                         {
-                                            var schemaKey = $"{conn.Name}/{db.Name}/{schema.Name}";
-                                            <SchemaNode Schema="@schema"
-                                                        ConnectionName="@conn.Name"
-                                                        DatabaseName="@db.Name"
-                                                        Depth="2"
-                                                        IsExpanded="@IsSchemaExpanded(schemaKey)"
-                                                        OnExpandToggle="@(expanded => ToggleSchema(schemaKey, expanded))"
-                                                        SelectedObject="_selectedObject"
-                                                        OnObjectSelect="HandleObjectSelect" />
+                                            <ExplorerTreeNode Node="@node"
+                                                              Depth="2"
+                                                              SelectedObject="@_selectedObject"
+                                                              OnObjectSelect="HandleObjectSelect" />
                                         }
                                     </TreeNode>
                                 }
@@ -144,7 +139,6 @@
 
     private readonly HashSet<string> _collapsedConnections = [];
     private readonly HashSet<string> _collapsedDatabases = [];
-    private readonly HashSet<string> _collapsedSchemas = [];
     private ObjectSelection? _selectedObject;
 
     protected override void OnParametersSet()
@@ -157,12 +151,10 @@
 
     private bool HasObjects => Connections
         .SelectMany(connection => connection.Databases)
-        .SelectMany(database => database.Schemas)
-        .Any(schema => schema.HasAnyObjects);
+        .Any(database => database.HasAnyObjects);
 
     private bool IsConnectionExpanded(string key) => !_collapsedConnections.Contains(key);
     private bool IsDatabaseExpanded(string key) => !_collapsedDatabases.Contains(key);
-    private bool IsSchemaExpanded(string key) => !_collapsedSchemas.Contains(key);
 
     private void ToggleConnection(string key, bool expanded)
     {
@@ -188,18 +180,6 @@
         }
     }
 
-    private void ToggleSchema(string key, bool expanded)
-    {
-        if (expanded)
-        {
-            _collapsedSchemas.Remove(key);
-        }
-        else
-        {
-            _collapsedSchemas.Add(key);
-        }
-    }
-
     private async Task HandleObjectSelect(ObjectSelection selection)
     {
         _selectedObject = selection;
@@ -217,24 +197,21 @@
     }
 
     public record ConnectionNode(string Name, IReadOnlyList<DatabaseNode> Databases);
-    public record DatabaseNode(string Name, IReadOnlyList<SchemaNode> Schemas);
-    public record SchemaNode(
-        string Name,
-        IReadOnlyList<ObjectNodeModel> Tables,
-        IReadOnlyList<ObjectNodeModel> Views,
-        IReadOnlyList<ObjectNodeModel> Procedures,
-        IReadOnlyList<ObjectNodeModel> Functions,
-        IReadOnlyList<ObjectNodeModel> Triggers)
+
+    public record DatabaseNode(string Name, IReadOnlyList<ExplorerNodeModel> Nodes)
     {
-        public bool HasAnyObjects =>
-            Tables.Any() ||
-            Views.Any() ||
-            Procedures.Any() ||
-            Functions.Any() ||
-            Triggers.Any();
+        public bool HasAnyObjects => Nodes.Any();
     }
 
-    public record ObjectNodeModel(string ObjectId, string Name, ObjectKind Kind);
+    public record ExplorerNodeModel(
+        string NodeKey,
+        string Label,
+        HeroIconKind Icon,
+        IReadOnlyList<ExplorerNodeModel> Children,
+        ObjectSelection? Selection = null)
+    {
+        public bool HasChildren => Children.Any();
+    }
 
     public record ObjectSelection(
         string ConnectionName,

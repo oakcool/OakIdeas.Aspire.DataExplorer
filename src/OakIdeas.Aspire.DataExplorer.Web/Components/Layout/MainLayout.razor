@@ -404,7 +404,7 @@
             [
                 new ObjectExplorer.DatabaseNode(
                     selected.DatabaseName,
-                    BuildSchemaNodes(metadata))
+                    BuildExplorerNodes(metadata, selected))
             ]);
 
     private static DatabaseMetadataRoot? ResolveMetadataForExplorer(GetDatabaseMetadataResponse response)
@@ -499,79 +499,148 @@
             objects: objects);
     }
 
-    private static IReadOnlyList<ObjectExplorer.SchemaNode> BuildSchemaNodes(DatabaseMetadataRoot metadata)
+    private static IReadOnlyList<ObjectExplorer.ExplorerNodeModel> BuildExplorerNodes(
+        DatabaseMetadataRoot metadata,
+        ExplorerDatabaseSelection selected)
     {
-        var schemas = new Dictionary<string, SchemaAccumulator>(StringComparer.OrdinalIgnoreCase);
+        List<ObjectExplorer.ExplorerNodeModel> nodes = [];
 
-        foreach (var (objectType, objectsByName) in metadata.Objects)
+        AddFolderNode(
+            nodes,
+            key: "tables",
+            label: "Tables",
+            icon: HeroIconKind.TableCells,
+            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.Table, ObjectExplorer.ObjectKind.Table, HeroIconKind.TableCells));
+
+        AddFolderNode(
+            nodes,
+            key: "views",
+            label: "Views",
+            icon: HeroIconKind.QueueList,
+            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.View, ObjectExplorer.ObjectKind.View, HeroIconKind.QueueList));
+
+        List<ObjectExplorer.ExplorerNodeModel> programmabilityNodes = [];
+        AddFolderNode(
+            programmabilityNodes,
+            key: "stored-procedures",
+            label: "Stored Procedures",
+            icon: HeroIconKind.Play,
+            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.Procedure, ObjectExplorer.ObjectKind.Procedure, HeroIconKind.Play));
+        AddFolderNode(
+            programmabilityNodes,
+            key: "functions",
+            label: "Functions",
+            icon: HeroIconKind.CodeBracket,
+            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.Function, ObjectExplorer.ObjectKind.Function, HeroIconKind.CodeBracket));
+        AddFolderNode(
+            programmabilityNodes,
+            key: "triggers",
+            label: "Triggers",
+            icon: HeroIconKind.Link,
+            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.Trigger, ObjectExplorer.ObjectKind.Trigger, HeroIconKind.Link));
+
+        AddFolderNode(
+            nodes,
+            key: "programmability",
+            label: "Programmability",
+            icon: HeroIconKind.Folder,
+            children: programmabilityNodes);
+
+        List<ObjectExplorer.ExplorerNodeModel> securityNodes = [];
+        AddFolderNode(
+            securityNodes,
+            key: "schemas",
+            label: "Schemas",
+            icon: HeroIconKind.Folder,
+            children: BuildSecurityLeafNodes(metadata, DatabaseObjectType.Schema));
+
+        AddFolderNode(
+            nodes,
+            key: "security",
+            label: "Security",
+            icon: HeroIconKind.Folder,
+            children: securityNodes);
+
+        return nodes;
+    }
+
+    private static IReadOnlyList<ObjectExplorer.ExplorerNodeModel> BuildObjectLeafNodes(
+        DatabaseMetadataRoot metadata,
+        ExplorerDatabaseSelection selected,
+        DatabaseObjectType objectType,
+        ObjectExplorer.ObjectKind objectKind,
+        HeroIconKind icon)
+    {
+        if (!metadata.Objects.TryGetValue(objectType, out var objectsByName) || objectsByName.Count == 0)
         {
-            foreach (var databaseObject in objectsByName.Values)
-            {
-                var schemaName = ResolveSchemaName(databaseObject);
-                var schema = GetOrCreateSchema(schemas, schemaName);
-
-                switch (objectType)
-                {
-                    case DatabaseObjectType.Table:
-                        schema.Tables.Add(new ObjectExplorer.ObjectNodeModel(
-                            databaseObject.ObjectId,
-                            databaseObject.ObjectName,
-                            ObjectExplorer.ObjectKind.Table));
-                        break;
-                    case DatabaseObjectType.View:
-                        schema.Views.Add(new ObjectExplorer.ObjectNodeModel(
-                            databaseObject.ObjectId,
-                            databaseObject.ObjectName,
-                            ObjectExplorer.ObjectKind.View));
-                        break;
-                    case DatabaseObjectType.Procedure:
-                        schema.Procedures.Add(new ObjectExplorer.ObjectNodeModel(
-                            databaseObject.ObjectId,
-                            databaseObject.ObjectName,
-                            ObjectExplorer.ObjectKind.Procedure));
-                        break;
-                    case DatabaseObjectType.Function:
-                        schema.Functions.Add(new ObjectExplorer.ObjectNodeModel(
-                            databaseObject.ObjectId,
-                            databaseObject.ObjectName,
-                            ObjectExplorer.ObjectKind.Function));
-                        break;
-                    case DatabaseObjectType.Trigger:
-                        schema.Triggers.Add(new ObjectExplorer.ObjectNodeModel(
-                            databaseObject.ObjectId,
-                            databaseObject.ObjectName,
-                            ObjectExplorer.ObjectKind.Trigger));
-                        break;
-                    case DatabaseObjectType.Schema:
-                        break;
-                }
-            }
+            return [];
         }
 
-        return schemas
-            .OrderBy(schema => schema.Key, StringComparer.OrdinalIgnoreCase)
-            .Select(schema => new ObjectExplorer.SchemaNode(
-                schema.Key,
-                Sort(schema.Value.Tables),
-                Sort(schema.Value.Views),
-                Sort(schema.Value.Procedures),
-                Sort(schema.Value.Functions),
-                Sort(schema.Value.Triggers)))
+        return objectsByName.Values
+            .Select(databaseObject =>
+            {
+                var schemaName = ResolveSchemaName(databaseObject);
+                return new ObjectExplorer.ExplorerNodeModel(
+                    NodeKey: $"{objectType}:{databaseObject.ObjectId}",
+                    Label: BuildObjectLabel(databaseObject, schemaName),
+                    Icon: icon,
+                    Children: [],
+                    Selection: new ObjectExplorer.ObjectSelection(
+                        selected.ResourceName,
+                        selected.DatabaseName,
+                        schemaName,
+                        databaseObject.ObjectId,
+                        databaseObject.ObjectName,
+                        objectKind));
+            })
+            .OrderBy(item => item.Label, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.NodeKey, StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
 
-    private static SchemaAccumulator GetOrCreateSchema(
-        IDictionary<string, SchemaAccumulator> schemas,
-        string schemaName)
+    private static IReadOnlyList<ObjectExplorer.ExplorerNodeModel> BuildSecurityLeafNodes(
+        DatabaseMetadataRoot metadata,
+        DatabaseObjectType objectType)
     {
-        if (!schemas.TryGetValue(schemaName, out var schema))
+        if (!metadata.Objects.TryGetValue(objectType, out var objectsByName) || objectsByName.Count == 0)
         {
-            schema = new SchemaAccumulator();
-            schemas[schemaName] = schema;
+            return [];
         }
 
-        return schema;
+        return objectsByName.Values
+            .Select(databaseObject => new ObjectExplorer.ExplorerNodeModel(
+                NodeKey: $"{objectType}:{databaseObject.ObjectId}",
+                Label: databaseObject.ObjectName,
+                Icon: HeroIconKind.Folder,
+                Children: []))
+            .OrderBy(item => item.Label, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.NodeKey, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
     }
+
+    private static void AddFolderNode(
+        ICollection<ObjectExplorer.ExplorerNodeModel> nodes,
+        string key,
+        string label,
+        HeroIconKind icon,
+        IReadOnlyList<ObjectExplorer.ExplorerNodeModel> children)
+    {
+        if (children.Count == 0)
+        {
+            return;
+        }
+
+        nodes.Add(new ObjectExplorer.ExplorerNodeModel(
+            NodeKey: key,
+            Label: label,
+            Icon: icon,
+            Children: children));
+    }
+
+    private static string BuildObjectLabel(DatabaseObject databaseObject, string schemaName)
+        => string.IsNullOrWhiteSpace(schemaName) || string.Equals(schemaName, "default", StringComparison.OrdinalIgnoreCase)
+            ? databaseObject.ObjectName
+            : $"{schemaName}.{databaseObject.ObjectName}";
 
     private static string ResolveSchemaName(DatabaseObject databaseObject)
     {
@@ -591,18 +660,4 @@
             : "default";
     }
 
-    private static IReadOnlyList<ObjectExplorer.ObjectNodeModel> Sort(IEnumerable<ObjectExplorer.ObjectNodeModel> objects)
-        => objects
-            .OrderBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(item => item.ObjectId, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
-    private sealed class SchemaAccumulator
-    {
-        public List<ObjectExplorer.ObjectNodeModel> Tables { get; } = [];
-        public List<ObjectExplorer.ObjectNodeModel> Views { get; } = [];
-        public List<ObjectExplorer.ObjectNodeModel> Procedures { get; } = [];
-        public List<ObjectExplorer.ObjectNodeModel> Functions { get; } = [];
-        public List<ObjectExplorer.ObjectNodeModel> Triggers { get; } = [];
-    }
 }
