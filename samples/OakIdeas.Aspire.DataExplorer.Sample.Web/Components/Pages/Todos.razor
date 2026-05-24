@@ -64,6 +64,30 @@
             </div>
         </Card>
 
+        @if (_showcase is not null)
+        {
+            <Card Title="Schema + Programmability Showcase" Icon="🧪" Variant="accent">
+                <div class="todos-filters">
+                    <StatWidget Label="showcase lists" Value="@_showcase.MirroredListCount.ToString()" Icon="🗂️" IconBg="#dbeafe" />
+                    <StatWidget Label="showcase items" Value="@_showcase.MirroredItemCount.ToString()" Icon="🧾" IconBg="#e0e7ff" />
+                    <StatWidget Label="open (function)" Value="@_showcase.OpenMirroredItemCount.ToString()" Icon="🔢" IconBg="#fef3c7" />
+                </div>
+                <p class="todos-header__sub">Sample app calls <code>showcase.usp_ListReplicaTodosByStatus</code>, <code>showcase.vwTodoReplicaOverview</code>, and <code>showcase.ufn_OpenReplicaTodoCount</code>.</p>
+                @if (_showcase.ProcedureRows.Count > 0)
+                {
+                    <ul class="todo-comments">
+                        @foreach (var row in _showcase.ProcedureRows.Take(3))
+                        {
+                            <li>
+                                <strong>@row.Title</strong>
+                                <span>@row.ListName · @row.StatusName · @row.PriorityName</span>
+                            </li>
+                        }
+                    </ul>
+                }
+            </Card>
+        }
+
         <Card Title="@(_editingTodoId.HasValue ? "Edit todo" : "Create todo")" Icon="📝" Variant="success">
             <EditForm Model="_editor" OnValidSubmit="SaveTodoAsync" class="todo-form">
                 <DataAnnotationsValidator />
@@ -240,6 +264,7 @@
     private TodoLookupData? _lookups;
     private List<TodoSummary>? _todos;
     private TodoDetail? _selectedTodo;
+    private TodoShowcaseData? _showcase;
     private string? _errorMessage;
 
     private int? _selectedListId;
@@ -290,6 +315,7 @@
         {
             _errorMessage = null;
             _todos = await Api.GetTodosAsync(new TodoFilter(_selectedListId, _selectedCategoryId, _selectedStatusId, _search));
+            _showcase = await Api.GetShowcaseAsync();
         }
         catch (Exception ex)
         {

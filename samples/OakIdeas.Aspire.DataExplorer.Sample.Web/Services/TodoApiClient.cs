@@ -37,6 +37,10 @@ public sealed class TodoApiClient(HttpClient httpClient)
         return await httpClient.GetFromJsonAsync<List<TodoSummary>>(path, cancellationToken) ?? [];
     }
 
+    public async Task<TodoShowcaseData> GetShowcaseAsync(CancellationToken cancellationToken = default)
+        => await httpClient.GetFromJsonAsync<TodoShowcaseData>("/todoitems/showcase", cancellationToken)
+            ?? new TodoShowcaseData(0, 0, 0, [], []);
+
     public async Task<TodoDetail?> GetTodoAsync(int id, CancellationToken cancellationToken = default)
         => await httpClient.GetFromJsonAsync<TodoDetail>($"/todoitems/{id}", cancellationToken);
 
