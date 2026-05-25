@@ -173,6 +173,45 @@ public sealed class QueryPageTests : TestContext
         component.Markup.Should().Contain("No errors");
     }
 
+    [Fact]
+    public void InitialSql_WhenParametersChange_UpdatesEditorSql()
+    {
+        var service = new FakeExplorerService();
+        Services.AddSingleton<IExplorerService>(service);
+        Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
+
+        var component = RenderComponent<QueryPage>(parameters => parameters
+            .Add(page => page.InitialSql, "SELECT 1"));
+
+        component.Find("textarea").GetAttribute("value").Should().Be("SELECT 1");
+
+        component.SetParametersAndRender(parameters => parameters
+            .Add(page => page.InitialSql, "SELECT TOP 1000 * FROM dbo.Users"));
+
+        component.Find("textarea").GetAttribute("value").Should().Be("SELECT TOP 1000 * FROM dbo.Users");
+    }
+
+    [Fact]
+    public void AutoExecute_WhenParametersChange_ExecutesUpdatedSql()
+    {
+        var service = new FakeExplorerService();
+        Services.AddSingleton<IExplorerService>(service);
+        Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
+
+        var component = RenderComponent<QueryPage>(parameters => parameters
+            .Add(page => page.InitialSql, "SELECT 1")
+            .Add(page => page.AutoExecute, false));
+
+        service.ExecuteCalls.Should().Be(0);
+
+        component.SetParametersAndRender(parameters => parameters
+            .Add(page => page.InitialSql, "SELECT COUNT(*) FROM dbo.Users")
+            .Add(page => page.AutoExecute, true));
+
+        component.WaitForAssertion(() => service.ExecuteCalls.Should().Be(1));
+        component.Find("textarea").GetAttribute("value").Should().Be("SELECT COUNT(*) FROM dbo.Users");
+    }
+
 
     private sealed class FakeExplorerService(bool returnError = false) : IExplorerService
     {

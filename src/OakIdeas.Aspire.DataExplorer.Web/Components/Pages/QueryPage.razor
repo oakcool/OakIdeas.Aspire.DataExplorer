@@ -160,6 +160,8 @@
     private bool _isDestructiveConfirmationPending;
     private CancellationTokenSource? _queryCts;
     private string _activeConnectionName = string.Empty;
+    private string? _lastAppliedInitialSql;
+    private bool _lastAppliedAutoExecute;
 
     private bool IsReadOnlyMode => !DataExplorerOptions.Value.EnableWriteOperations;
 
@@ -176,15 +178,32 @@
         }
 
         _suggestions = await BuildSuggestionsAsync(CancellationToken.None);
+    }
 
-        if (!string.IsNullOrWhiteSpace(InitialSql))
+    protected override async Task OnParametersSetAsync()
+    {
+        if (string.IsNullOrWhiteSpace(InitialSql))
         {
-            _sql = InitialSql;
+            _lastAppliedInitialSql = null;
+            _lastAppliedAutoExecute = false;
+            return;
+        }
 
-            if (AutoExecute)
-            {
-                await RunQuery(_sql);
-            }
+        var sqlChanged = !string.Equals(_lastAppliedInitialSql, InitialSql, StringComparison.Ordinal);
+        var autoExecuteChanged = _lastAppliedAutoExecute != AutoExecute;
+
+        if (!sqlChanged && !autoExecuteChanged)
+        {
+            return;
+        }
+
+        _sql = InitialSql;
+        _lastAppliedInitialSql = InitialSql;
+        _lastAppliedAutoExecute = AutoExecute;
+
+        if (AutoExecute)
+        {
+            await RunQuery(_sql);
         }
     }
 
