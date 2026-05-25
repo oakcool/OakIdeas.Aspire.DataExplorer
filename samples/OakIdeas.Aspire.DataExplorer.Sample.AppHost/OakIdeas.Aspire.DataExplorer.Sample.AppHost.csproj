@@ -26,6 +26,10 @@
   </ItemGroup>
 
   <Target Name="CopyLocalDataExplorerWebApp" AfterTargets="Build" Condition="Exists('$(DataExplorerLocalPublishedAppDir)')">
+    <RemoveDir Directories="$(TargetDir)data-explorer-web"
+           Condition="Exists('$(TargetDir)data-explorer-web')"
+           ContinueOnError="WarnAndContinue" />
+
     <ItemGroup>
       <_LocalDataExplorerOldScopedCssBundles Include="$(TargetDir)data-explorer-web\wwwroot\_content\OakIdeas.Aspire.DataExplorer.Web.Components\*.bundle.scp.css" />
       <_LocalDataExplorerOldScopedCssBundles Include="$(TargetDir)data-explorer-web\wwwroot\_content\OakIdeas.Aspire.DataExplorer.Web.Components\*.bundle.scp.css.br" />
@@ -41,7 +45,7 @@
 
     <MakeDir Directories="@(_LocalDataExplorerPublishedDirectories)" />
 
-    <Copy SourceFiles="@(_LocalDataExplorerPublishedFiles)" DestinationFiles="@(_LocalDataExplorerPublishedFiles->'$(TargetDir)data-explorer-web\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" ContinueOnError="WarnAndContinue" />
+    <Copy SourceFiles="@(_LocalDataExplorerPublishedFiles)" DestinationFiles="@(_LocalDataExplorerPublishedFiles->'$(TargetDir)data-explorer-web\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="false" ContinueOnError="WarnAndContinue" />
   </Target>
 
 </Project>

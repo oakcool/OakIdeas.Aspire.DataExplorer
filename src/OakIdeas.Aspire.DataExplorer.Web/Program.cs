@@ -39,8 +39,6 @@ if (HasHttpsEndpoint(builder.Configuration))
 
 app.UseStaticFiles();
 app.UseAntiforgery();
-
-app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
