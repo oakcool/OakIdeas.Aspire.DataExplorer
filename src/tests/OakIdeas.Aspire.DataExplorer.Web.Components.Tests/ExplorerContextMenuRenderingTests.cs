@@ -55,7 +55,7 @@ public sealed class ExplorerContextMenuRenderingTests : TestContext
             .Add(p => p.PositionX, 150.5)
             .Add(p => p.PositionY, 300.25));
 
-        component.Markup.Should().Contain("left:clamp(8px, 150.5px, calc(100vw - 8px))");
+        component.Markup.Should().Contain("left:clamp(8px, 150.5px, calc(100vw - 228px))");
         component.Markup.Should().Contain("top:clamp(8px, 300.25px, calc(100vh - 8px))");
     }
 
@@ -76,6 +76,7 @@ public sealed class ExplorerContextMenuRenderingTests : TestContext
         var menu = component.Find(".context-menu");
         menu.ClassList.Should().Contain("context-menu--left");
         menu.ClassList.Should().Contain("context-menu--up");
+        menu.GetAttribute("style").Should().Contain("left:clamp(228px, 0px, calc(100vw - 8px))");
     }
 
     [Fact]

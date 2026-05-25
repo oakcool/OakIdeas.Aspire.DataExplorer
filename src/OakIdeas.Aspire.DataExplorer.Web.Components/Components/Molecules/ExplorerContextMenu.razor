@@ -9,7 +9,7 @@
          @oncontextmenu="HandleBackdropClick">
     </div>
     <div class="context-menu @(OpenToLeft ? "context-menu--left" : string.Empty) @(OpenUpward ? "context-menu--up" : string.Empty)"
-         style="left:clamp(8px, @(PositionX)px, calc(100vw - 8px));top:clamp(8px, @(PositionY)px, calc(100vh - 8px));"
+         style="@BuildMenuStyle()"
          role="menu"
          aria-label="Object actions">
         @foreach (var item in Items)
@@ -61,6 +61,9 @@
     [Parameter]
     public EventCallback OnDismiss { get; set; }
 
+    private const int MenuWidth = 220;
+    private const int ViewportPadding = 8;
+
     private async Task HandleItemClick(ExplorerContextMenuItem item)
     {
         if (!item.IsEnabled || item.Action is null)
@@ -75,5 +78,12 @@
     private async Task HandleBackdropClick()
     {
         await OnDismiss.InvokeAsync();
+    }
+
+    private string BuildMenuStyle()
+    {
+        var minLeft = OpenToLeft ? $"{MenuWidth + ViewportPadding}px" : $"{ViewportPadding}px";
+        var maxLeft = OpenToLeft ? $"{ViewportPadding}px" : $"{MenuWidth + ViewportPadding}px";
+        return $"left:clamp({minLeft}, {PositionX}px, calc(100vw - {maxLeft}));top:clamp({ViewportPadding}px, {PositionY}px, calc(100vh - {ViewportPadding}px));";
     }
 }

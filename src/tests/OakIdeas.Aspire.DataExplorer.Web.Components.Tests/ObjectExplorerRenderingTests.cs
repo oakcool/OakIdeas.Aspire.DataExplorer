@@ -1,4 +1,5 @@
 using Bunit;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Atoms;
@@ -109,6 +110,36 @@ public sealed class ObjectExplorerRenderingTests : TestContext
         selected!.SchemaName.Should().Be("dbo");
         selected.ObjectName.Should().Be("Users");
         selected.ObjectKind.Should().Be(ObjectExplorer.ObjectKind.Table);
+    }
+
+    [Fact]
+    public void ContextMenuFlipsLeftAndUpNearViewportEdge()
+    {
+        var component = RenderComponent<ObjectExplorer>(parameters => parameters
+            .Add(p => p.Connections, CreateConnections()));
+
+        var tableNode = component.FindAll(".tree-node")
+            .First(node => node.TextContent.Contains("dbo.Users", StringComparison.Ordinal));
+        tableNode.TriggerEvent("oncontextmenu", new MouseEventArgs { ClientX = 1300, ClientY = 760 });
+
+        var menu = component.Find(".context-menu");
+        menu.ClassList.Should().Contain("context-menu--left");
+        menu.ClassList.Should().Contain("context-menu--up");
+    }
+
+    [Fact]
+    public void ContextMenuOpensDefaultDirectionWhenSpaceIsAvailable()
+    {
+        var component = RenderComponent<ObjectExplorer>(parameters => parameters
+            .Add(p => p.Connections, CreateConnections()));
+
+        var tableNode = component.FindAll(".tree-node")
+            .First(node => node.TextContent.Contains("dbo.Users", StringComparison.Ordinal));
+        tableNode.TriggerEvent("oncontextmenu", new MouseEventArgs { ClientX = 120, ClientY = 120 });
+
+        var menu = component.Find(".context-menu");
+        menu.ClassList.Should().NotContain("context-menu--left");
+        menu.ClassList.Should().NotContain("context-menu--up");
     }
 
     private static IReadOnlyList<ObjectExplorer.ConnectionNode> CreateConnections()
