@@ -55,8 +55,27 @@ public sealed class ExplorerContextMenuRenderingTests : TestContext
             .Add(p => p.PositionX, 150.5)
             .Add(p => p.PositionY, 300.25));
 
-        component.Markup.Should().Contain("left:clamp(8px, 150.5px, calc(100vw - 228px))");
+        component.Markup.Should().Contain("left:clamp(8px, 150.5px, calc(100vw - 8px))");
         component.Markup.Should().Contain("top:clamp(8px, 300.25px, calc(100vh - 8px))");
+    }
+
+    [Fact]
+    public void AddsFlipClassesWhenOpeningLeftAndUpward()
+    {
+        var items = new List<ExplorerContextMenuItem>
+        {
+            new() { Id = "view", Label = "View" }
+        };
+
+        var component = RenderComponent<ExplorerContextMenu>(parameters => parameters
+            .Add(p => p.Items, items)
+            .Add(p => p.IsVisible, true)
+            .Add(p => p.OpenToLeft, true)
+            .Add(p => p.OpenUpward, true));
+
+        var menu = component.Find(".context-menu");
+        menu.ClassList.Should().Contain("context-menu--left");
+        menu.ClassList.Should().Contain("context-menu--up");
     }
 
     [Fact]

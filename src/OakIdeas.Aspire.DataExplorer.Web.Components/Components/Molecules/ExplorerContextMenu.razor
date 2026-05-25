@@ -8,8 +8,8 @@
          @oncontextmenu:preventDefault="true"
          @oncontextmenu="HandleBackdropClick">
     </div>
-    <div class="context-menu"
-         style="left:clamp(8px, @(PositionX)px, calc(100vw - 228px));top:clamp(8px, @(PositionY)px, calc(100vh - 8px));"
+    <div class="context-menu @(OpenToLeft ? "context-menu--left" : string.Empty) @(OpenUpward ? "context-menu--up" : string.Empty)"
+         style="left:clamp(8px, @(PositionX)px, calc(100vw - 8px));top:clamp(8px, @(PositionY)px, calc(100vh - 8px));"
          role="menu"
          aria-label="Object actions">
         @foreach (var item in Items)
@@ -51,6 +51,12 @@
 
     [Parameter]
     public double PositionY { get; set; }
+
+    [Parameter]
+    public bool OpenToLeft { get; set; }
+
+    [Parameter]
+    public bool OpenUpward { get; set; }
 
     [Parameter]
     public EventCallback OnDismiss { get; set; }

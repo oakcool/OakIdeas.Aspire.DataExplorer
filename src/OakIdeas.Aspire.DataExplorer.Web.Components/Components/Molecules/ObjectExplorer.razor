@@ -1,5 +1,7 @@
 @* Object Explorer panel — tree of connections, databases, and object groups *@
 @using OakIdeas.Aspire.DataExplorer.Web.Components.ContextMenu
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 <div class="object-explorer @(IsMinimized ? "object-explorer--minimized" : string.Empty)">
     <div class="object-explorer__header">
         @if (IsMinimized)
@@ -112,6 +114,8 @@
                      IsVisible="@_contextMenuVisible"
                      PositionX="@_contextMenuX"
                      PositionY="@_contextMenuY"
+                     OpenToLeft="@_contextMenuOpenToLeft"
+                     OpenUpward="@_contextMenuOpenUpward"
                      OnDismiss="DismissContextMenu" />
 
 @code {
@@ -156,6 +160,9 @@
     private bool _contextMenuVisible;
     private double _contextMenuX;
     private double _contextMenuY;
+    private bool _contextMenuOpenToLeft;
+    private bool _contextMenuOpenUpward;
+    private IJSObjectReference? _viewportModule;
 
     protected override void OnParametersSet()
     {
@@ -202,11 +209,15 @@
         await OnObjectSelect.InvokeAsync(selection);
     }
 
-    private void HandleContextMenuRequest(ContextMenuRequest request)
+    private async Task HandleContextMenuRequest(ContextMenuRequest request)
     {
         _contextMenuItems = ExplorerContextMenuBuilder.Build(
             request.Selection,
             action => OnContextAction.InvokeAsync(action));
+
+        var viewport = await TryGetViewportSizeAsync();
+        _contextMenuOpenToLeft = ShouldOpenToLeft(request.ClientX, viewport.Width);
+        _contextMenuOpenUpward = ShouldOpenUpward(request.ClientY, viewport.Height, _contextMenuItems);
         _contextMenuX = request.ClientX;
         _contextMenuY = request.ClientY;
         _contextMenuVisible = true;
@@ -216,6 +227,8 @@
     {
         _contextMenuVisible = false;
         _contextMenuItems = [];
+        _contextMenuOpenToLeft = false;
+        _contextMenuOpenUpward = false;
     }
 
     private async Task Refresh()
@@ -226,6 +239,54 @@
     private async Task ToggleMinimized()
     {
         await OnMinimizeToggle.InvokeAsync(!IsMinimized);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_viewportModule is not null)
+        {
+            await _viewportModule.DisposeAsync();
+            _viewportModule = null;
+        }
+    }
+
+    private async Task<ViewportSize> TryGetViewportSizeAsync()
+    {
+        try
+        {
+            _viewportModule ??= await JS.InvokeAsync<IJSObjectReference>(
+                "import",
+                "./_content/OakIdeas.Aspire.DataExplorer.Web.Components/contextMenuViewport.js");
+            return await _viewportModule.InvokeAsync<ViewportSize>("getViewportSize");
+        }
+        catch
+        {
+            return new ViewportSize(1366, 768);
+        }
+    }
+
+    private static bool ShouldOpenToLeft(double clientX, double viewportWidth)
+    {
+        const double menuWidth = 220;
+        const double viewportPadding = 8;
+        return clientX + menuWidth + viewportPadding > viewportWidth;
+    }
+
+    private static bool ShouldOpenUpward(
+        double clientY,
+        double viewportHeight,
+        IReadOnlyList<ExplorerContextMenuItem> menuItems)
+    {
+        const double viewportPadding = 8;
+        const double itemHeight = 32;
+        const double separatorHeight = 9;
+        const double menuVerticalPadding = 8;
+
+        var separatorCount = menuItems.Count(item => item.IsSeparator);
+        var interactiveItemCount = menuItems.Count - separatorCount;
+        var estimatedHeight = menuVerticalPadding + interactiveItemCount * itemHeight + separatorCount * separatorHeight;
+
+        return clientY + estimatedHeight + viewportPadding > viewportHeight;
     }
 
     public record ConnectionNode(string Name, IReadOnlyList<DatabaseNode> Databases);
@@ -257,6 +318,8 @@
         ObjectSelection Selection,
         double ClientX,
         double ClientY);
+
+    private readonly record struct ViewportSize(double Width, double Height);
 
     public enum ObjectKind
     {
