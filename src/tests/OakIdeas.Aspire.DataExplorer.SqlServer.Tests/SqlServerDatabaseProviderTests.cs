@@ -92,6 +92,52 @@ public sealed class SqlServerDatabaseProviderTests
     }
 
     [Fact]
+    public void BuildStatisticsXmlCommandText_WrapsQueryWithStatisticsXmlStatements()
+    {
+        var commandText = SqlServerDatabaseProvider.BuildStatisticsXmlCommandText("SELECT 1");
+
+        commandText.Should().Contain("SET STATISTICS XML ON");
+        commandText.Should().Contain("SELECT 1");
+        commandText.Should().Contain("SET STATISTICS XML OFF");
+    }
+
+    [Fact]
+    public void BuildExecutionPlanResult_WhenXmlMissing_ReturnsUnavailablePlan()
+    {
+        var plan = SqlServerDatabaseProvider.BuildExecutionPlanResult(null);
+
+        plan.IsAvailable.Should().BeFalse();
+        plan.Message.Should().Contain("not available");
+    }
+
+    [Fact]
+    public void ConvertExecutionPlanXmlToMermaid_WhenRelOpsPresent_ReturnsFlowchart()
+    {
+        const string xml = """
+            <ShowPlanXML xmlns="http://schemas.microsoft.com/sqlserver/2004/07/showplan">
+              <BatchSequence>
+                <Batch>
+                  <Statements>
+                    <StmtSimple>
+                      <QueryPlan>
+                        <RelOp PhysicalOp="Index Seek" />
+                        <RelOp PhysicalOp="Nested Loops" />
+                      </QueryPlan>
+                    </StmtSimple>
+                  </Statements>
+                </Batch>
+              </BatchSequence>
+            </ShowPlanXML>
+            """;
+
+        var diagram = SqlServerDatabaseProvider.ConvertExecutionPlanXmlToMermaid(xml);
+
+        diagram.Should().Contain("flowchart TD");
+        diagram.Should().Contain("Index Seek");
+        diagram.Should().Contain("Nested Loops");
+    }
+
+    [Fact]
     public void CreateSchemaObject_IncludesSchemaIdMetadata()
     {
         var schema = SqlServerDatabaseProvider.CreateSchemaObject(schemaId: 7, schemaName: "sales");

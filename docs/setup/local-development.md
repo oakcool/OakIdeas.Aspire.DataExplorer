@@ -55,3 +55,5 @@ If using Visual Studio, use `DataExplorer + Sample (Development Debug)` solution
 - `EnableWriteOperations` (set `false` for read-only query mode)
 - `QueryTimeoutSeconds` (default `30`)
 - `MaxQueryRows` (default `1000`)
+
+When users enable **Include Execution Plan** in Query Window, the query response can include provider execution plan payloads (`MermaidDiagram`, optional `RawPlan`, and availability/message metadata).

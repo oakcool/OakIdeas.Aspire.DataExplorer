@@ -8,6 +8,7 @@ This guide describes how to add a new database provider while preserving provide
 - Keep shared layers (`Contracts`, `Core`) provider-agnostic.
 - Use request/response contracts for discovery and service operations.
 - Keep generated SQL parameterized.
+- Optional execution plan generation/rendering transforms must stay in provider projects.
 
 ## Step-by-step
 

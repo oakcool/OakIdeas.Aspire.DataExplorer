@@ -1,6 +1,8 @@
 using System.Data;
 using System.Diagnostics;
 using System.Globalization;
+using System.Text;
+using System.Xml.Linq;
 using Microsoft.Data.SqlClient;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
@@ -440,7 +442,9 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
 
         await using var command = connection.CreateCommand();
         command.CommandType = CommandType.Text;
-        command.CommandText = request.Sql;
+        command.CommandText = request.IncludeExecutionPlan
+            ? BuildStatisticsXmlCommandText(request.Sql)
+            : request.Sql;
         command.CommandTimeout = ResolveCommandTimeoutSeconds(request);
 
         var stopwatch = Stopwatch.StartNew();
@@ -450,11 +454,22 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         var rows = new List<IReadOnlyDictionary<string, object?>>();
         var maxRows = request.MaxRows;
         var isTruncated = false;
+        string? executionPlanXml = null;
 
         do
         {
             if (reader.FieldCount <= 0)
             {
+                continue;
+            }
+
+            if (request.IncludeExecutionPlan && IsExecutionPlanResultSet(reader))
+            {
+                if (await reader.ReadAsync(cancellationToken) && !reader.IsDBNull(0))
+                {
+                    executionPlanXml = Convert.ToString(reader.GetValue(0), CultureInfo.InvariantCulture);
+                }
+
                 continue;
             }
 
@@ -497,13 +512,112 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
             ? reader.RecordsAffected
             : null;
 
+        var executionPlan = request.IncludeExecutionPlan
+            ? BuildExecutionPlanResult(executionPlanXml)
+            : null;
+
         return new QueryResult(
             Columns: columns,
             Rows: rows,
             RowCount: rows.Count,
             Duration: elapsed,
             AffectedRowCount: affectedRows,
-            IsTruncated: isTruncated);
+            IsTruncated: isTruncated,
+            ExecutionPlan: executionPlan);
+    }
+
+    internal static bool IsExecutionPlanResultSet(SqlDataReader reader)
+    {
+        ArgumentNullException.ThrowIfNull(reader);
+        if (reader.FieldCount != 1)
+        {
+            return false;
+        }
+
+        var columnName = reader.GetName(0);
+        return columnName.Contains("Showplan", StringComparison.OrdinalIgnoreCase);
+    }
+
+    internal static string BuildStatisticsXmlCommandText(string sql)
+        => $"SET STATISTICS XML ON;{Environment.NewLine}{sql}{Environment.NewLine}SET STATISTICS XML OFF;";
+
+    internal static QueryExecutionPlanResult BuildExecutionPlanResult(string? executionPlanXml)
+    {
+        if (string.IsNullOrWhiteSpace(executionPlanXml))
+        {
+            return new QueryExecutionPlanResult(
+                IsAvailable: false,
+                Provider: "SqlServer",
+                MermaidDiagram: null,
+                RawPlan: null,
+                Message: "Execution plan is not available for this query or provider.");
+        }
+
+        try
+        {
+            return new QueryExecutionPlanResult(
+                IsAvailable: true,
+                Provider: "SqlServer",
+                MermaidDiagram: ConvertExecutionPlanXmlToMermaid(executionPlanXml),
+                RawPlan: executionPlanXml,
+                Message: null);
+        }
+        catch
+        {
+            return new QueryExecutionPlanResult(
+                IsAvailable: false,
+                Provider: "SqlServer",
+                MermaidDiagram: null,
+                RawPlan: executionPlanXml,
+                Message: "Execution plan is not available for this query or provider.");
+        }
+    }
+
+    internal static string ConvertExecutionPlanXmlToMermaid(string executionPlanXml)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(executionPlanXml);
+
+        var document = XDocument.Parse(executionPlanXml);
+        XNamespace ns = document.Root?.Name.Namespace ?? XNamespace.None;
+        var relOps = document
+            .Descendants(ns + "RelOp")
+            .Select(relOp => relOp.Attribute("PhysicalOp")?.Value ?? relOp.Attribute("LogicalOp")?.Value)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(12)
+            .ToList();
+
+        if (relOps.Count == 0)
+        {
+            throw new InvalidOperationException("Execution plan does not include RelOp operators.");
+        }
+
+        var builder = new StringBuilder();
+        builder.AppendLine("flowchart TD");
+        builder.AppendLine("    Q0[Query Start]");
+        for (var index = 0; index < relOps.Count; index++)
+        {
+            var nodeId = $"Q{index + 1}";
+            builder.AppendLine($"    {nodeId}[{EscapeMermaidLabel(relOps[index]!)}]");
+            builder.AppendLine($"    Q{index} --> {nodeId}");
+        }
+
+        return builder.ToString().TrimEnd();
+    }
+
+    internal static string EscapeMermaidLabel(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return "Operation";
+        }
+
+        return text
+            .Replace("\"", "'", StringComparison.Ordinal)
+            .Replace("[", "(", StringComparison.Ordinal)
+            .Replace("]", ")", StringComparison.Ordinal)
+            .Replace("{", "(", StringComparison.Ordinal)
+            .Replace("}", ")", StringComparison.Ordinal);
     }
 
     internal static int ResolveCommandTimeoutSeconds(ExecuteQueryRequest request)

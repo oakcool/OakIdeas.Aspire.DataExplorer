@@ -1,0 +1,36 @@
+@using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer
+
+<div class="execution-plan-viewer">
+    @if (IsLoading)
+    {
+        <div class="execution-plan-viewer__state">
+            <LoadingSpinner Label="Loading execution plan…" />
+        </div>
+    }
+    else if (ExecutionPlan is null)
+    {
+        <div class="execution-plan-viewer__state">
+            <HeroIcon Kind="HeroIconKind.CheckCircle" Size="16" />
+            <span>Execution plan is not available for this query or provider.</span>
+        </div>
+    }
+    else if (!ExecutionPlan.IsAvailable || string.IsNullOrWhiteSpace(ExecutionPlan.MermaidDiagram))
+    {
+        <div class="execution-plan-viewer__state">
+            <HeroIcon Kind="HeroIconKind.CheckCircle" Size="16" />
+            <span>@(ExecutionPlan.Message ?? "Execution plan is not available for this query or provider.")</span>
+        </div>
+    }
+    else
+    {
+        <div class="execution-plan-viewer__header">
+            <StatusBadge Text="@(ExecutionPlan.Provider ?? "Unknown provider")" Variant="info" />
+        </div>
+        <MermaidDiagram Diagram="ExecutionPlan.MermaidDiagram" />
+    }
+</div>
+
+@code {
+    [Parameter] public bool IsLoading { get; set; }
+    [Parameter] public ExecutionPlanResponse? ExecutionPlan { get; set; }
+}

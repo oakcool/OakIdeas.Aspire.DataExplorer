@@ -229,7 +229,7 @@ public sealed class MainLayoutDatabasePickerTests : TestContext
                 Errors: []));
         }
 
-        public Task<ExecuteDatabaseQueryResponse> ExecuteQueryAsync(string sql, CancellationToken cancellationToken)
+        public Task<ExecuteDatabaseQueryResponse> ExecuteQueryAsync(string sql, bool includeExecutionPlan, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(new ExecuteDatabaseQueryResponse(

@@ -21,6 +21,7 @@ flowchart LR
 - `IMetadataProvider` defines provider identity (`ProviderType`), capabilities, base metadata/query operations.
 - Specialized discovery interfaces (`ITableDiscoveryProvider`, `IColumnDiscoveryProvider`, etc.) are implemented only when supported.
 - Service operations use request/response contracts from `Contracts/Models`.
+- Query execution uses `ExecuteQueryRequest.IncludeExecutionPlan` to request optional provider plan data and maps it back through `QueryResult.ExecutionPlan`.
 
 ## Registration and composition-root rule
 

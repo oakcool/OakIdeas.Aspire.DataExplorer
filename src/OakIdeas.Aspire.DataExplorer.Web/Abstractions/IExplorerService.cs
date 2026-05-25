@@ -60,7 +60,8 @@ public interface IExplorerService
     /// Executes an ad-hoc SQL query for the currently selected database.
     /// </summary>
     /// <param name="sql">The SQL text to execute.</param>
+    /// <param name="includeExecutionPlan">Whether the provider should include execution plan data when supported.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A typed response containing query results and execution metrics.</returns>
-    Task<ExecuteDatabaseQueryResponse> ExecuteQueryAsync(string sql, CancellationToken cancellationToken);
+    Task<ExecuteDatabaseQueryResponse> ExecuteQueryAsync(string sql, bool includeExecutionPlan, CancellationToken cancellationToken);
 }

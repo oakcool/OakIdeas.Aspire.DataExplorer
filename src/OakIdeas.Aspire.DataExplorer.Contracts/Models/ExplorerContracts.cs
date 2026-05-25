@@ -47,4 +47,12 @@ public sealed record ExecuteDatabaseQueryResponse(
     int? AffectedRowCount,
     TimeSpan Duration,
     bool IsTruncated,
+    ExecutionPlanResponse? ExecutionPlan = null,
     DataExplorerError? Error = null);
+
+public sealed record ExecutionPlanResponse(
+    bool IsAvailable,
+    string? Provider = null,
+    string? MermaidDiagram = null,
+    string? RawPlan = null,
+    string? Message = null);

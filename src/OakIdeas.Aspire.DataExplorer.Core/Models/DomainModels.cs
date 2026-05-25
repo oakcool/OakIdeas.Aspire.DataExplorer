@@ -53,7 +53,15 @@ public sealed record QueryResult(
     int RowCount,
     TimeSpan Duration,
     int? AffectedRowCount = null,
-    bool IsTruncated = false);
+    bool IsTruncated = false,
+    QueryExecutionPlanResult? ExecutionPlan = null);
+
+public sealed record QueryExecutionPlanResult(
+    bool IsAvailable,
+    string? Provider = null,
+    string? MermaidDiagram = null,
+    string? RawPlan = null,
+    string? Message = null);
 
 public sealed record TableRowsRequest(
     string Schema,

@@ -1,0 +1,25 @@
+.mermaid-diagram {
+    width: 100%;
+    min-height: 16rem;
+    overflow: auto;
+    border: 1px solid #1f2937;
+    border-radius: 8px;
+    background: #0b1220;
+}
+
+.mermaid-diagram__surface {
+    min-width: fit-content;
+    padding: 0.75rem;
+}
+
+.mermaid-diagram__error {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: #fca5a5;
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    border-radius: 8px;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.82rem;
+}
