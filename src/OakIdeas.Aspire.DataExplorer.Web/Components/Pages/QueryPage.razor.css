@@ -53,6 +53,7 @@
 .de-query-status {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 0.5rem;
     min-height: 2rem;
     padding: 0.35rem 0.9rem;
@@ -85,6 +86,8 @@
     border-bottom: 1px solid #1f2937;
     background: #0f172a;
     flex-shrink: 0;
+    overflow-x: auto;
+    scrollbar-width: thin;
 }
 
 .de-query-tab {
@@ -205,4 +208,16 @@
 .de-query-errors__details td {
     padding: 0.4rem 0;
     font-family: 'Cascadia Code', 'Consolas', monospace;
+}
+
+@media (max-width: 1024px) {
+    .de-query-pane--editor {
+        flex-basis: 50%;
+    }
+
+    .de-query-status,
+    .de-query-pane__label,
+    .de-query-tab {
+        font-size: 0.64rem;
+    }
 }

@@ -1,20 +1,28 @@
 .dev-warning-banner {
-    background-color: #7c3aed !important;
+    background: linear-gradient(90deg, #8a4b08 0%, #a16207 45%, #854d0e 100%);
     color: #fff;
     font-size: 0.78rem;
     font-weight: 600;
     letter-spacing: 0.02em;
     padding: 0.35rem 1rem;
     display: flex;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
     z-index: 50;
-    white-space: nowrap;
+    white-space: normal;
     line-height: 1.2;
 }
 
 .dev-warning-icon {
     font-size: 0.9rem;
+}
+
+@media (max-width: 640px) {
+    .dev-warning-banner {
+        font-size: 0.72rem;
+        padding: 0.3rem 0.65rem;
+        text-align: center;
+    }
 }
