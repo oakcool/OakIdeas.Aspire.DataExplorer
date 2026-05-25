@@ -9,7 +9,7 @@
          @oncontextmenu="HandleBackdropClick">
     </div>
     <div class="context-menu"
-         style="left:@(PositionX)px;top:@(PositionY)px"
+         style="left:clamp(8px, @(PositionX)px, calc(100vw - 228px));top:clamp(8px, @(PositionY)px, calc(100vh - 8px));"
          role="menu"
          aria-label="Object actions">
         @foreach (var item in Items)

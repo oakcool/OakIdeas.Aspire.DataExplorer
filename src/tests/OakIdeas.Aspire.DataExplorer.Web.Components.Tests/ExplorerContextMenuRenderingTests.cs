@@ -55,8 +55,8 @@ public sealed class ExplorerContextMenuRenderingTests : TestContext
             .Add(p => p.PositionX, 150.5)
             .Add(p => p.PositionY, 300.25));
 
-        component.Markup.Should().Contain("left:150.5px");
-        component.Markup.Should().Contain("top:300.25px");
+        component.Markup.Should().Contain("left:clamp(8px, 150.5px, calc(100vw - 228px))");
+        component.Markup.Should().Contain("top:clamp(8px, 300.25px, calc(100vh - 8px))");
     }
 
     [Fact]
