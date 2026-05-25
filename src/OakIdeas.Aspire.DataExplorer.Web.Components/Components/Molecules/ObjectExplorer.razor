@@ -1,4 +1,5 @@
 @* Object Explorer panel — tree of connections, databases, and object groups *@
+@using OakIdeas.Aspire.DataExplorer.Web.Components.ContextMenu
 <div class="object-explorer @(IsMinimized ? "object-explorer--minimized" : string.Empty)">
     <div class="object-explorer__header">
         @if (IsMinimized)
@@ -90,7 +91,8 @@
                                             <ExplorerTreeNode Node="@node"
                                                               Depth="2"
                                                               SelectedObject="@_selectedObject"
-                                                              OnObjectSelect="HandleObjectSelect" />
+                                                              OnObjectSelect="HandleObjectSelect"
+                                                              OnObjectContextMenu="HandleContextMenuRequest" />
                                         }
                                     </TreeNode>
                                 }
@@ -105,6 +107,12 @@
         </div>
     }
 </div>
+
+<ExplorerContextMenu Items="@_contextMenuItems"
+                     IsVisible="@_contextMenuVisible"
+                     PositionX="@_contextMenuX"
+                     PositionY="@_contextMenuY"
+                     OnDismiss="DismissContextMenu" />
 
 @code {
     [Parameter]
@@ -126,6 +134,9 @@
     public EventCallback<ObjectSelection> OnObjectSelect { get; set; }
 
     [Parameter]
+    public EventCallback<ExplorerContextAction> OnContextAction { get; set; }
+
+    [Parameter]
     public EventCallback OnRefresh { get; set; }
 
     [Parameter]
@@ -140,6 +151,11 @@
     private readonly HashSet<string> _collapsedConnections = [];
     private readonly HashSet<string> _collapsedDatabases = [];
     private ObjectSelection? _selectedObject;
+
+    private IReadOnlyList<ExplorerContextMenuItem> _contextMenuItems = [];
+    private bool _contextMenuVisible;
+    private double _contextMenuX;
+    private double _contextMenuY;
 
     protected override void OnParametersSet()
     {
@@ -186,6 +202,22 @@
         await OnObjectSelect.InvokeAsync(selection);
     }
 
+    private void HandleContextMenuRequest(ContextMenuRequest request)
+    {
+        _contextMenuItems = ExplorerContextMenuBuilder.Build(
+            request.Selection,
+            action => OnContextAction.InvokeAsync(action));
+        _contextMenuX = request.ClientX;
+        _contextMenuY = request.ClientY;
+        _contextMenuVisible = true;
+    }
+
+    private void DismissContextMenu()
+    {
+        _contextMenuVisible = false;
+        _contextMenuItems = [];
+    }
+
     private async Task Refresh()
     {
         await OnRefresh.InvokeAsync();
@@ -220,6 +252,11 @@
         string ObjectId,
         string ObjectName,
         ObjectKind ObjectKind);
+
+    public record ContextMenuRequest(
+        ObjectSelection Selection,
+        double ClientX,
+        double ClientY);
 
     public enum ObjectKind
     {

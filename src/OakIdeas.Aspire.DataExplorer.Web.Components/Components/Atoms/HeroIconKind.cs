@@ -10,14 +10,17 @@ public enum HeroIconKind
     CircleStack,
     CodeBracket,
     ExclamationTriangle,
+    Eye,
     Folder,
     Home,
     LightBulb,
     Link,
     MagnifyingGlass,
     Play,
+    Plus,
     QueueList,
     ServerStack,
     TableCells,
+    Trash,
     XMark
 }

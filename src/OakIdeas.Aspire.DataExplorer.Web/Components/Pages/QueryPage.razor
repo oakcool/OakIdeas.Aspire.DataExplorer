@@ -140,6 +140,12 @@
     [Parameter]
     public string? ConnectionName { get; set; }
 
+    [SupplyParameterFromQuery(Name = "sql")]
+    public string? InitialSql { get; set; }
+
+    [SupplyParameterFromQuery(Name = "autoexec")]
+    public bool AutoExecute { get; set; }
+
     private enum ResultTab { Results, Errors }
 
     private string _sql = string.Empty;
@@ -170,6 +176,16 @@
         }
 
         _suggestions = await BuildSuggestionsAsync(CancellationToken.None);
+
+        if (!string.IsNullOrWhiteSpace(InitialSql))
+        {
+            _sql = InitialSql;
+
+            if (AutoExecute)
+            {
+                await RunQuery(_sql);
+            }
+        }
     }
 
     private async Task RunQuery(string sql)
