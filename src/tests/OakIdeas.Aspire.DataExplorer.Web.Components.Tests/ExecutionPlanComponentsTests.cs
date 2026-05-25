@@ -22,11 +22,26 @@ public sealed class ExecutionPlanComponentsTests : TestContext
     }
 
     [Fact]
-    public void MermaidDiagram_ValidateMermaidDiagram_WhenInvalid_ReturnsError()
+    public void MermaidDiagram_ValidateMermaidDiagram_WhenNonEmpty_ReturnsNull()
     {
         var validation = MermaidDiagram.ValidateMermaidDiagram("not a mermaid diagram");
 
-        validation.Should().Be("Execution plan diagram format is invalid.");
+        validation.Should().BeNull();
+    }
+
+    [Fact]
+    public void MermaidDiagram_NormalizeMermaidDiagram_WhenFenced_RemovesMarkdownFence()
+    {
+        var normalized = MermaidDiagram.NormalizeMermaidDiagram(
+            """
+            ```mermaid
+            flowchart TD
+                A[Query Start] --> B[Index Seek]
+            ```
+            """);
+
+        normalized.Should().StartWith("flowchart TD");
+        normalized.Should().NotContain("```");
     }
 
     [Fact]

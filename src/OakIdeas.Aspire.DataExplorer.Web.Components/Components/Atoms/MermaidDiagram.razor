@@ -22,18 +22,20 @@ else
     private ElementReference _containerRef;
     private IJSObjectReference? _module;
     private string? _renderedDiagram;
+    private string? _normalizedDiagram;
     private string? _validationError;
 
     protected override void OnParametersSet()
     {
-        _validationError = ValidateMermaidDiagram(Diagram);
+        _normalizedDiagram = NormalizeMermaidDiagram(Diagram);
+        _validationError = ValidateMermaidDiagram(_normalizedDiagram);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!string.IsNullOrWhiteSpace(_validationError)
-            || string.IsNullOrWhiteSpace(Diagram)
-            || string.Equals(_renderedDiagram, Diagram, StringComparison.Ordinal))
+            || string.IsNullOrWhiteSpace(_normalizedDiagram)
+            || string.Equals(_renderedDiagram, _normalizedDiagram, StringComparison.Ordinal))
         {
             return;
         }
@@ -45,7 +47,7 @@ else
 
             var renderError = _module is null
                 ? "Mermaid renderer is unavailable."
-                : await _module.InvokeAsync<string?>("renderMermaid", _containerRef, Diagram);
+                : await _module.InvokeAsync<string?>("renderMermaid", _containerRef, _normalizedDiagram);
 
             if (!string.IsNullOrWhiteSpace(renderError))
             {
@@ -54,7 +56,7 @@ else
                 return;
             }
 
-            _renderedDiagram = Diagram;
+            _renderedDiagram = _normalizedDiagram;
         }
         catch
         {
@@ -70,11 +72,44 @@ else
             return "Execution plan diagram is not available.";
         }
 
-        return diagram.Contains("flowchart", StringComparison.OrdinalIgnoreCase)
-               || diagram.Contains("graph", StringComparison.OrdinalIgnoreCase)
-               || diagram.Contains("sequenceDiagram", StringComparison.OrdinalIgnoreCase)
-            ? null
-            : "Execution plan diagram format is invalid.";
+        return null;
+    }
+
+    public static string? NormalizeMermaidDiagram(string? diagram)
+    {
+        if (string.IsNullOrWhiteSpace(diagram))
+        {
+            return diagram;
+        }
+
+        var normalized = diagram.Trim();
+        if (!normalized.StartsWith("```", StringComparison.Ordinal))
+        {
+            return normalized;
+        }
+
+        var lines = normalized
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => line.Trim())
+            .Where(line => !line.Equals("```", StringComparison.Ordinal))
+            .ToList();
+
+        if (lines.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        if (lines[0].StartsWith("```", StringComparison.Ordinal))
+        {
+            lines.RemoveAt(0);
+        }
+
+        if (lines.Count > 0 && lines[0].Equals("mermaid", StringComparison.OrdinalIgnoreCase))
+        {
+            lines.RemoveAt(0);
+        }
+
+        return string.Join(Environment.NewLine, lines).Trim();
     }
 
     public async ValueTask DisposeAsync()
