@@ -1,0 +1,100 @@
+/* Context menu backdrop — transparent full-screen overlay that captures outside clicks */
+.context-menu-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: transparent;
+}
+
+/* Context menu popup */
+.context-menu {
+    position: fixed;
+    z-index: 1001;
+    width: 220px;
+    max-width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+    background: linear-gradient(180deg, #1e2d42 0%, #18263a 100%);
+    border: 1px solid #334155;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+    padding: 4px;
+    animation: context-menu-in 0.08s ease-out;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.context-menu--left {
+    transform: translateX(calc(-100% - 4px));
+}
+
+.context-menu--up {
+    transform: translateY(calc(-100% - 4px));
+}
+
+.context-menu--left.context-menu--up {
+    transform: translate(calc(-100% - 4px), calc(-100% - 4px));
+}
+
+@keyframes context-menu-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.context-menu__separator {
+    height: 1px;
+    background-color: #2d3f58;
+    margin: 4px 6px;
+}
+
+.context-menu__item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.4rem 0.6rem;
+    background: none;
+    border: none;
+    border-radius: 5px;
+    color: #cbd5e1;
+    font-size: 0.825rem;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.1s, color 0.1s;
+    white-space: nowrap;
+}
+
+.context-menu__item:hover:not(:disabled) {
+    background-color: rgba(96, 165, 250, 0.18);
+    color: #dbeafe;
+}
+
+.context-menu__item:focus-visible {
+    outline: 2px solid rgba(96, 165, 250, 0.6);
+    outline-offset: -2px;
+}
+
+.context-menu__item--disabled,
+.context-menu__item:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.context-menu__item-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: #64748b;
+}
+
+.context-menu__item:hover:not(:disabled) .context-menu__item-icon {
+    color: #93c5fd;
+}
+
+.context-menu__item-label {
+    flex: 1;
+}

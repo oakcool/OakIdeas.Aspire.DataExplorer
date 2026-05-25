@@ -140,6 +140,12 @@
     [Parameter]
     public string? ConnectionName { get; set; }
 
+    [SupplyParameterFromQuery(Name = "sql")]
+    public string? InitialSql { get; set; }
+
+    [SupplyParameterFromQuery(Name = "autoexec")]
+    public bool AutoExecute { get; set; }
+
     private enum ResultTab { Results, Errors }
 
     private string _sql = string.Empty;
@@ -154,6 +160,8 @@
     private bool _isDestructiveConfirmationPending;
     private CancellationTokenSource? _queryCts;
     private string _activeConnectionName = string.Empty;
+    private string? _lastAppliedInitialSql;
+    private bool _lastAppliedAutoExecute;
 
     private bool IsReadOnlyMode => !DataExplorerOptions.Value.EnableWriteOperations;
 
@@ -170,6 +178,33 @@
         }
 
         _suggestions = await BuildSuggestionsAsync(CancellationToken.None);
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (string.IsNullOrWhiteSpace(InitialSql))
+        {
+            _lastAppliedInitialSql = null;
+            _lastAppliedAutoExecute = false;
+            return;
+        }
+
+        var sqlChanged = !string.Equals(_lastAppliedInitialSql, InitialSql, StringComparison.Ordinal);
+        var autoExecuteChanged = _lastAppliedAutoExecute != AutoExecute;
+
+        if (!sqlChanged && !autoExecuteChanged)
+        {
+            return;
+        }
+
+        _sql = InitialSql;
+        _lastAppliedInitialSql = InitialSql;
+        _lastAppliedAutoExecute = AutoExecute;
+
+        if (AutoExecute)
+        {
+            await RunQuery(_sql);
+        }
     }
 
     private async Task RunQuery(string sql)

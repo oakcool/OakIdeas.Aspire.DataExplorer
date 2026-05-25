@@ -2,6 +2,7 @@
 @implements IDisposable
 @using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Atoms
 @using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Molecules
+@using OakIdeas.Aspire.DataExplorer.Web.Components.ContextMenu
 @using OakIdeas.Aspire.DataExplorer.Contracts.Models
 @using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer
 @using OakIdeas.Aspire.DataExplorer.Web.Abstractions
@@ -79,6 +80,7 @@
                             OnConnectionSelect="HandleConnectionSelect"
                             IsMinimized="_isExplorerMinimized"
                             OnObjectSelect="HandleObjectSelect"
+                            OnContextAction="HandleContextAction"
                             OnRefresh="HandleRefresh"
                             OnMinimizeToggle="HandleExplorerMinimizeToggle" />
         </aside>
@@ -197,6 +199,28 @@
                     $"&databaseName={Uri.EscapeDataString(selection.DatabaseName)}";
 
         NavigationManager.NavigateTo($"/explorer?{query}");
+    }
+
+    private void HandleContextAction(ExplorerContextAction action)
+    {
+        if (action.ActionId == "view")
+        {
+            HandleObjectSelect(action.Source);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(action.Sql))
+        {
+            return;
+        }
+
+        var queryBuilder = $"sql={Uri.EscapeDataString(action.Sql)}";
+        if (action.AutoExecute)
+        {
+            queryBuilder += "&autoexec=true";
+        }
+
+        NavigationManager.NavigateTo($"/query?{queryBuilder}");
     }
 
     private void HandleExplorerMinimizeToggle(bool minimized)

@@ -1,7 +1,9 @@
 @* A single node in the object-explorer tree *@
 <div class="tree-node @(IsSelected ? "tree-node--selected" : "")"
     style="padding-left: @(Depth * 16 + LeftInsetPx)px"
-     @onclick="HandleClick">
+     @onclick="HandleClick"
+     @oncontextmenu:preventDefault="true"
+     @oncontextmenu="HandleContextMenu">
     <button class="tree-node__toggle"
             @onclick:stopPropagation="true"
             @onclick="ToggleExpand"
@@ -55,6 +57,9 @@
     [Parameter]
     public EventCallback<bool> OnExpandToggle { get; set; }
 
+    [Parameter]
+    public EventCallback<MouseEventArgs> OnContextMenu { get; set; }
+
     private async Task HandleClick()
     {
         IsSelected = true;
@@ -65,6 +70,11 @@
     {
         IsExpanded = !IsExpanded;
         await OnExpandToggle.InvokeAsync(IsExpanded);
+    }
+
+    private async Task HandleContextMenu(MouseEventArgs args)
+    {
+        await OnContextMenu.InvokeAsync(args);
     }
 
     private int IconSize => IsPrimaryNodeIcon ? 20 : 16;

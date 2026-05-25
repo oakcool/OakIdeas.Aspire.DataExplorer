@@ -1,0 +1,89 @@
+@* Floating context menu for Object Explorer — renders at a fixed position with a backdrop to close on outside click *@
+@using OakIdeas.Aspire.DataExplorer.Web.Components.ContextMenu
+
+@if (IsVisible && Items.Count > 0)
+{
+    <div class="context-menu-backdrop"
+         @onclick="HandleBackdropClick"
+         @oncontextmenu:preventDefault="true"
+         @oncontextmenu="HandleBackdropClick">
+    </div>
+    <div class="context-menu @(OpenToLeft ? "context-menu--left" : string.Empty) @(OpenUpward ? "context-menu--up" : string.Empty)"
+         style="@BuildMenuStyle()"
+         role="menu"
+         aria-label="Object actions">
+        @foreach (var item in Items)
+        {
+            @if (item.IsSeparator)
+            {
+                <div class="context-menu__separator" role="separator"></div>
+            }
+            else
+            {
+                <button type="button"
+                        class="context-menu__item @(!item.IsEnabled ? "context-menu__item--disabled" : string.Empty)"
+                        role="menuitem"
+                        disabled="@(!item.IsEnabled)"
+                        @onclick="() => HandleItemClick(item)"
+                        @onclick:stopPropagation="true">
+                    @if (item.Icon.HasValue)
+                    {
+                        <span class="context-menu__item-icon" aria-hidden="true">
+                            <HeroIcon Kind="@item.Icon.Value" Size="14" />
+                        </span>
+                    }
+                    <span class="context-menu__item-label">@item.Label</span>
+                </button>
+            }
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public IReadOnlyList<ExplorerContextMenuItem> Items { get; set; } = [];
+
+    [Parameter]
+    public bool IsVisible { get; set; }
+
+    [Parameter]
+    public double PositionX { get; set; }
+
+    [Parameter]
+    public double PositionY { get; set; }
+
+    [Parameter]
+    public bool OpenToLeft { get; set; }
+
+    [Parameter]
+    public bool OpenUpward { get; set; }
+
+    [Parameter]
+    public EventCallback OnDismiss { get; set; }
+
+    private const int MenuWidth = 220;
+    private const int ViewportPadding = 8;
+
+    private async Task HandleItemClick(ExplorerContextMenuItem item)
+    {
+        if (!item.IsEnabled || item.Action is null)
+        {
+            return;
+        }
+
+        await OnDismiss.InvokeAsync();
+        await item.Action();
+    }
+
+    private async Task HandleBackdropClick()
+    {
+        await OnDismiss.InvokeAsync();
+    }
+
+    private string BuildMenuStyle()
+    {
+        var minLeft = OpenToLeft ? $"{MenuWidth + ViewportPadding}px" : $"{ViewportPadding}px";
+        var maxLeft = OpenToLeft ? $"{ViewportPadding}px" : $"{MenuWidth + ViewportPadding}px";
+        return $"left:clamp({minLeft}, {PositionX}px, calc(100vw - {maxLeft}));top:clamp({ViewportPadding}px, {PositionY}px, calc(100vh - {ViewportPadding}px));";
+    }
+}

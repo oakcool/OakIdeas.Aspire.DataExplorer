@@ -5,13 +5,15 @@
           IsExpanded="@_isExpanded"
           IsSelected="@IsSelected"
           OnExpandToggle="HandleExpandToggle"
-          OnSelect="HandleSelect">
+          OnSelect="HandleSelect"
+          OnContextMenu="HandleContextMenu">
     @foreach (var child in Node.Children)
     {
         <ExplorerTreeNode Node="@child"
                           Depth="@(Depth + 1)"
                           SelectedObject="@SelectedObject"
-                          OnObjectSelect="OnObjectSelect" />
+                          OnObjectSelect="OnObjectSelect"
+                          OnObjectContextMenu="OnObjectContextMenu" />
     }
 </TreeNode>
 
@@ -27,6 +29,9 @@
 
     [Parameter]
     public EventCallback<ObjectExplorer.ObjectSelection> OnObjectSelect { get; set; }
+
+    [Parameter]
+    public EventCallback<ObjectExplorer.ContextMenuRequest> OnObjectContextMenu { get; set; }
 
     private bool _isExpanded = true;
 
@@ -45,4 +50,9 @@
         => Node.Selection is null
             ? Task.CompletedTask
             : OnObjectSelect.InvokeAsync(Node.Selection);
+
+    private Task HandleContextMenu(MouseEventArgs args)
+        => Node.Selection is null
+            ? Task.CompletedTask
+            : OnObjectContextMenu.InvokeAsync(new ObjectExplorer.ContextMenuRequest(Node.Selection, args.ClientX, args.ClientY));
 }
