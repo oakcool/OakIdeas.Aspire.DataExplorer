@@ -67,6 +67,12 @@ Current SQL Server MVP metadata types:
 - Triggers
 - Object definitions (when available)
 
+Object Explorer metadata details currently include:
+
+- Tables: columns, keys, constraints, triggers, and indexes
+- Procedures: parameters with type, direction, and default availability
+- Functions: parameters and return type
+
 ## Query Window (SQL Server MVP)
 
 - Execute ad-hoc SQL against the currently selected database context.

@@ -333,7 +333,7 @@
                 return;
             }
 
-            var connectionNode = BuildConnectionNode(selected, metadata);
+            var connectionNode = BuildConnectionNode(selected, metadata, metadataResponse.AggregatedMetadata);
             _connections.Clear();
             _connections.Add(connectionNode);
         }
@@ -422,13 +422,14 @@
 
     private static ObjectExplorer.ConnectionNode BuildConnectionNode(
         ExplorerDatabaseSelection selected,
-        DatabaseMetadataRoot metadata)
+        DatabaseMetadataRoot metadata,
+        DatabaseMetadata? aggregatedMetadata)
         => new(
             selected.ResourceName,
             [
                 new ObjectExplorer.DatabaseNode(
                     selected.DatabaseName,
-                    BuildExplorerNodes(metadata, selected))
+                    BuildExplorerNodes(metadata, selected, aggregatedMetadata))
             ]);
 
     private static DatabaseMetadataRoot? ResolveMetadataForExplorer(GetDatabaseMetadataResponse response)
@@ -525,7 +526,8 @@
 
     private static IReadOnlyList<ObjectExplorer.ExplorerNodeModel> BuildExplorerNodes(
         DatabaseMetadataRoot metadata,
-        ExplorerDatabaseSelection selected)
+        ExplorerDatabaseSelection selected,
+        DatabaseMetadata? aggregatedMetadata)
     {
         List<ObjectExplorer.ExplorerNodeModel> nodes = [];
 
@@ -534,14 +536,14 @@
             key: "tables",
             label: "Tables",
             icon: HeroIconKind.TableCells,
-            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.Table, ObjectExplorer.ObjectKind.Table, HeroIconKind.TableCells));
+            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.Table, ObjectExplorer.ObjectKind.Table, HeroIconKind.TableCells, aggregatedMetadata));
 
         AddFolderNode(
             nodes,
             key: "views",
             label: "Views",
             icon: HeroIconKind.QueueList,
-            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.View, ObjectExplorer.ObjectKind.View, HeroIconKind.QueueList));
+            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.View, ObjectExplorer.ObjectKind.View, HeroIconKind.QueueList, aggregatedMetadata));
 
         List<ObjectExplorer.ExplorerNodeModel> programmabilityNodes = [];
         AddFolderNode(
@@ -549,19 +551,19 @@
             key: "stored-procedures",
             label: "Stored Procedures",
             icon: HeroIconKind.Play,
-            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.Procedure, ObjectExplorer.ObjectKind.Procedure, HeroIconKind.Play));
+            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.Procedure, ObjectExplorer.ObjectKind.Procedure, HeroIconKind.Play, aggregatedMetadata));
         AddFolderNode(
             programmabilityNodes,
             key: "functions",
             label: "Functions",
             icon: HeroIconKind.CodeBracket,
-            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.Function, ObjectExplorer.ObjectKind.Function, HeroIconKind.CodeBracket));
+            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.Function, ObjectExplorer.ObjectKind.Function, HeroIconKind.CodeBracket, aggregatedMetadata));
         AddFolderNode(
             programmabilityNodes,
             key: "triggers",
             label: "Triggers",
             icon: HeroIconKind.Link,
-            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.Trigger, ObjectExplorer.ObjectKind.Trigger, HeroIconKind.Link));
+            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.Trigger, ObjectExplorer.ObjectKind.Trigger, HeroIconKind.Link, aggregatedMetadata));
 
         AddFolderNode(
             nodes,
@@ -593,7 +595,8 @@
         ExplorerDatabaseSelection selected,
         DatabaseObjectType objectType,
         ObjectExplorer.ObjectKind objectKind,
-        HeroIconKind icon)
+        HeroIconKind icon,
+        DatabaseMetadata? aggregatedMetadata)
     {
         if (!metadata.Objects.TryGetValue(objectType, out var objectsByName) || objectsByName.Count == 0)
         {
@@ -608,7 +611,7 @@
                     NodeKey: $"{objectType}:{databaseObject.ObjectId}",
                     Label: BuildObjectLabel(databaseObject, schemaName),
                     Icon: icon,
-                    Children: [],
+                    Children: BuildMetadataChildNodes(databaseObject, schemaName, objectKind, aggregatedMetadata),
                     Selection: new ObjectExplorer.ObjectSelection(
                         selected.ResourceName,
                         selected.DatabaseName,
@@ -620,6 +623,151 @@
             .OrderBy(item => item.Label, StringComparer.OrdinalIgnoreCase)
             .ThenBy(item => item.NodeKey, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+    }
+
+    private static IReadOnlyList<ObjectExplorer.ExplorerNodeModel> BuildMetadataChildNodes(
+        DatabaseObject databaseObject,
+        string schemaName,
+        ObjectExplorer.ObjectKind objectKind,
+        DatabaseMetadata? aggregatedMetadata)
+    {
+        if (aggregatedMetadata is null)
+        {
+            return [];
+        }
+
+        var fullyQualifiedName = $"{schemaName}.{databaseObject.ObjectName}";
+        List<ObjectExplorer.ExplorerNodeModel> nodes = [];
+
+        switch (objectKind)
+        {
+            case ObjectExplorer.ObjectKind.Table:
+                AddFolderNode(
+                    nodes,
+                    key: $"{databaseObject.ObjectId}:columns",
+                    label: "Columns",
+                    icon: HeroIconKind.TableCells,
+                    children: aggregatedMetadata.ColumnsByObject.TryGetValue(fullyQualifiedName, out var columns)
+                        ? columns.Select(column => new ObjectExplorer.ExplorerNodeModel(
+                            NodeKey: $"{databaseObject.ObjectId}:column:{column.Name}",
+                            Label: $"{column.Name} {FormatColumnType(column)} {(column.IsNullable ? "null" : "not null")}",
+                            Icon: HeroIconKind.TableCells,
+                            Children: []))
+                        .ToArray()
+                        : []);
+                AddFolderNode(
+                    nodes,
+                    key: $"{databaseObject.ObjectId}:keys",
+                    label: "Keys",
+                    icon: HeroIconKind.Folder,
+                    children: aggregatedMetadata.PrimaryKeysByTable.TryGetValue(fullyQualifiedName, out var primaryKeys)
+                        ? primaryKeys.Select(primaryKey => new ObjectExplorer.ExplorerNodeModel(
+                            NodeKey: $"{databaseObject.ObjectId}:key:{primaryKey.ConstraintName}",
+                            Label: primaryKey.ConstraintName,
+                            Icon: HeroIconKind.TableCells,
+                            Children: []))
+                        .ToArray()
+                        : []);
+                AddFolderNode(
+                    nodes,
+                    key: $"{databaseObject.ObjectId}:constraints",
+                    label: "Constraints",
+                    icon: HeroIconKind.Folder,
+                    children: aggregatedMetadata.Constraints
+                        .Where(constraint =>
+                            constraint.SchemaName.Equals(schemaName, StringComparison.OrdinalIgnoreCase)
+                            && constraint.TableName.Equals(databaseObject.ObjectName, StringComparison.OrdinalIgnoreCase))
+                        .Select(constraint => new ObjectExplorer.ExplorerNodeModel(
+                            NodeKey: $"{databaseObject.ObjectId}:constraint:{constraint.ConstraintName}",
+                            Label: constraint.ConstraintName,
+                            Icon: HeroIconKind.Folder,
+                            Children: []))
+                        .ToArray());
+                AddFolderNode(
+                    nodes,
+                    key: $"{databaseObject.ObjectId}:triggers",
+                    label: "Triggers",
+                    icon: HeroIconKind.Link,
+                    children: aggregatedMetadata.Triggers
+                        .Where(trigger =>
+                            trigger.ParentObjectType == TriggerParentObjectType.Table
+                            && trigger.ParentObjectName.Equals(databaseObject.ObjectName, StringComparison.OrdinalIgnoreCase)
+                            && (string.IsNullOrWhiteSpace(trigger.ParentSchemaName)
+                                || trigger.ParentSchemaName.Equals(schemaName, StringComparison.OrdinalIgnoreCase)))
+                        .Select(trigger => new ObjectExplorer.ExplorerNodeModel(
+                            NodeKey: $"{databaseObject.ObjectId}:trigger:{trigger.TriggerName}",
+                            Label: trigger.TriggerName,
+                            Icon: HeroIconKind.Link,
+                            Children: []))
+                        .ToArray());
+                AddFolderNode(
+                    nodes,
+                    key: $"{databaseObject.ObjectId}:indexes",
+                    label: "Indexes",
+                    icon: HeroIconKind.Folder,
+                    children: aggregatedMetadata.IndexesByTable.TryGetValue(fullyQualifiedName, out var indexes)
+                        ? indexes.Select(index => new ObjectExplorer.ExplorerNodeModel(
+                            NodeKey: $"{databaseObject.ObjectId}:index:{index.IndexName}",
+                            Label: index.IndexName,
+                            Icon: HeroIconKind.QueueList,
+                            Children: []))
+                        .ToArray()
+                        : []);
+                break;
+
+            case ObjectExplorer.ObjectKind.Procedure:
+                var procedure = aggregatedMetadata.ProceduresBySchema.TryGetValue(schemaName, out var procedures)
+                    ? procedures.FirstOrDefault(item => item.ProcedureName.Equals(databaseObject.ObjectName, StringComparison.OrdinalIgnoreCase))
+                    : null;
+                AddFolderNode(
+                    nodes,
+                    key: $"{databaseObject.ObjectId}:parameters",
+                    label: "Parameters",
+                    icon: HeroIconKind.Folder,
+                    children: procedure?.Parameters?.Select(parameter => new ObjectExplorer.ExplorerNodeModel(
+                        NodeKey: $"{databaseObject.ObjectId}:parameter:{parameter.Name}",
+                        Label: $"{parameter.Name} {parameter.DataType} {FormatParameterDirection(parameter.Direction)}{(parameter.HasDefault ? " has default" : string.Empty)}",
+                        Icon: HeroIconKind.Play,
+                        Children: []))
+                    .ToArray() ?? []);
+                break;
+
+            case ObjectExplorer.ObjectKind.Function:
+                FunctionMetadata? function = null;
+                if (aggregatedMetadata.FunctionsBySchema.TryGetValue(schemaName, out var byType))
+                {
+                    function = byType.Values
+                        .SelectMany(list => list)
+                        .FirstOrDefault(item => item.FunctionName.Equals(databaseObject.ObjectName, StringComparison.OrdinalIgnoreCase));
+                }
+
+                AddFolderNode(
+                    nodes,
+                    key: $"{databaseObject.ObjectId}:parameters",
+                    label: "Parameters",
+                    icon: HeroIconKind.Folder,
+                    children: function?.Parameters?.Select(parameter => new ObjectExplorer.ExplorerNodeModel(
+                        NodeKey: $"{databaseObject.ObjectId}:parameter:{parameter.Name}",
+                        Label: $"{parameter.Name} {parameter.DataType}",
+                        Icon: HeroIconKind.CodeBracket,
+                        Children: []))
+                    .ToArray() ?? []);
+                AddFolderNode(
+                    nodes,
+                    key: $"{databaseObject.ObjectId}:return-type",
+                    label: "Return Type",
+                    icon: HeroIconKind.Folder,
+                    children: string.IsNullOrWhiteSpace(function?.ReturnType)
+                        ? []
+                        : [new ObjectExplorer.ExplorerNodeModel(
+                            NodeKey: $"{databaseObject.ObjectId}:return-type:value",
+                            Label: function!.ReturnType!,
+                            Icon: HeroIconKind.CodeBracket,
+                            Children: [])]);
+                break;
+        }
+
+        return nodes;
     }
 
     private static IReadOnlyList<ObjectExplorer.ExplorerNodeModel> BuildSecurityLeafNodes(
@@ -665,6 +813,29 @@
         => string.IsNullOrWhiteSpace(schemaName) || string.Equals(schemaName, "default", StringComparison.OrdinalIgnoreCase)
             ? databaseObject.ObjectName
             : $"{schemaName}.{databaseObject.ObjectName}";
+
+    private static string FormatColumnType(OakIdeas.Aspire.DataExplorer.Contracts.Models.ColumnMetadata column)
+    {
+        if (column.MaxLength.HasValue && column.MaxLength.Value > 0)
+        {
+            return $"{column.DataType}({column.MaxLength.Value})";
+        }
+
+        if (column.Precision.HasValue && column.Scale.HasValue)
+        {
+            return $"{column.DataType}({column.Precision.Value},{column.Scale.Value})";
+        }
+
+        return column.DataType;
+    }
+
+    private static string FormatParameterDirection(RoutineParameterDirection direction)
+        => direction switch
+        {
+            RoutineParameterDirection.Output => "output",
+            RoutineParameterDirection.InputOutput => "input/output",
+            _ => "input",
+        };
 
     private static string ResolveSchemaName(DatabaseObject databaseObject)
     {

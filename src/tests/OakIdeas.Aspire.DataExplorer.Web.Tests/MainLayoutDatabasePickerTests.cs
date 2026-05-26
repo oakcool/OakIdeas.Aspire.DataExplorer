@@ -75,6 +75,31 @@ public sealed class MainLayoutDatabasePickerTests : TestContext
         });
     }
 
+    [Fact]
+    public void ObjectExplorer_RendersMetadataChildren_ForTablesProceduresAndFunctions()
+    {
+        var service = new FakeExplorerService
+        {
+            ReturnEmptyRootMetadata = true,
+            IncludeAggregatedMetadata = true,
+        };
+        Services.AddSingleton<IExplorerService>(service);
+
+        var component = RenderComponent<MainLayout>();
+
+        component.WaitForAssertion(() =>
+        {
+            component.Markup.Should().Contain("Columns");
+            component.Markup.Should().Contain("Keys");
+            component.Markup.Should().Contain("Constraints");
+            component.Markup.Should().Contain("Triggers");
+            component.Markup.Should().Contain("Indexes");
+            component.Markup.Should().Contain("@SearchText nvarchar(100) input has default");
+            component.Markup.Should().Contain("Return Type");
+            component.Markup.Should().Contain("nvarchar(200)");
+        });
+    }
+
     private sealed class FakeExplorerService : IExplorerService
     {
         private readonly List<DiscoveredDatabaseResource> _resources =
@@ -169,6 +194,26 @@ public sealed class MainLayoutDatabasePickerTests : TestContext
                     objectId: $"dbo.{objectName}",
                     schemaName: "dbo",
                     objectName: objectName);
+                var procedure = new StoredProcedureMetadata(
+                    "dbo",
+                    "SearchUsers",
+                    "dbo.SearchUsers",
+                    true,
+                    [
+                        new StoredProcedureParameterMetadata("@SearchText", "nvarchar(100)", RoutineParameterDirection.Input, true),
+                    ],
+                    DateTimeOffset.UtcNow);
+                var function = new FunctionMetadata(
+                    "dbo",
+                    "GetUserDisplayName",
+                    FunctionType.Scalar,
+                    "dbo.GetUserDisplayName",
+                    "nvarchar(200)",
+                    true,
+                    DateTimeOffset.UtcNow,
+                    [
+                        new FunctionParameterMetadata("@UserId", "int"),
+                    ]);
 
                 aggregatedMetadata = new DatabaseMetadata(
                     DatabaseName: resource.DatabaseName,
@@ -177,14 +222,47 @@ public sealed class MainLayoutDatabasePickerTests : TestContext
                     Schemas: [new SchemaObject("dbo", "dbo")],
                     Tables: [table],
                     Views: [],
-                    ProceduresBySchema: new Dictionary<string, IReadOnlyList<StoredProcedureMetadata>>(StringComparer.OrdinalIgnoreCase),
-                    FunctionsBySchema: new Dictionary<string, IReadOnlyDictionary<FunctionType, IReadOnlyList<FunctionMetadata>>>(StringComparer.OrdinalIgnoreCase),
-                    Triggers: [],
-                    Constraints: [],
-                    ColumnsByObject: new Dictionary<string, IReadOnlyList<ColumnMetadata>>(StringComparer.OrdinalIgnoreCase),
-                    PrimaryKeysByTable: new Dictionary<string, IReadOnlyList<PrimaryKeyConstraint>>(StringComparer.OrdinalIgnoreCase),
+                    ProceduresBySchema: new Dictionary<string, IReadOnlyList<StoredProcedureMetadata>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["dbo"] = [procedure],
+                    },
+                    FunctionsBySchema: new Dictionary<string, IReadOnlyDictionary<FunctionType, IReadOnlyList<FunctionMetadata>>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["dbo"] = new Dictionary<FunctionType, IReadOnlyList<FunctionMetadata>>
+                        {
+                            [FunctionType.Scalar] = [function],
+                        },
+                    },
+                    Triggers:
+                    [
+                        new TriggerMetadata("trg_Users_Audit", "dbo", objectName, TriggerParentObjectType.Table, TriggerType.After | TriggerType.Insert, true, true, "dbo.trg_Users_Audit", DateTimeOffset.UtcNow, "dbo"),
+                    ],
+                    Constraints:
+                    [
+                        new ConstraintMetadata("CHK_Users_Active", ConstraintType.Check, objectName, "dbo", null, "[IsActive]=(1)", false, "dbo.CHK_Users_Active"),
+                    ],
+                    ColumnsByObject: new Dictionary<string, IReadOnlyList<ColumnMetadata>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        [$"dbo.{objectName}"] =
+                        [
+                            new ColumnMetadata("Id", 1, "int", null, null, null, false, true, false, null, null, new Dictionary<string, object?>()),
+                        ],
+                    },
+                    PrimaryKeysByTable: new Dictionary<string, IReadOnlyList<PrimaryKeyConstraint>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        [$"dbo.{objectName}"] =
+                        [
+                            new PrimaryKeyConstraint("PK_Users", objectName, "dbo", ["Id"], true, "dbo.PK_Users"),
+                        ],
+                    },
                     ForeignKeysByTable: new Dictionary<string, IReadOnlyList<ForeignKeyConstraint>>(StringComparer.OrdinalIgnoreCase),
-                    IndexesByTable: new Dictionary<string, IReadOnlyList<IndexMetadata>>(StringComparer.OrdinalIgnoreCase),
+                    IndexesByTable: new Dictionary<string, IReadOnlyList<IndexMetadata>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        [$"dbo.{objectName}"] =
+                        [
+                            new IndexMetadata("IX_Users_Email", objectName, "dbo", false, true, false, ["Email"], [], null, "dbo.IX_Users_Email"),
+                        ],
+                    },
                     MetadataCollectionTime: DateTimeOffset.UtcNow,
                     CollectionStatus: MetadataCollectionStatus.Success,
                     FailureDetails: []);

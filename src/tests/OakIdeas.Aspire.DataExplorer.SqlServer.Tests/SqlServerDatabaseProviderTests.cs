@@ -829,7 +829,8 @@ public sealed class SqlServerDatabaseProviderTests
                 CreatedAt: new DateTime(2026, 5, 16, 0, 0, 0),
                 ParameterId: 1,
                 ParameterName: "@CustomerId",
-                ParameterDataType: "int"),
+                ParameterDataType: "int",
+                Definition: "CREATE PROCEDURE sales.usp_GetOrders @CustomerId int, @Status nvarchar(50) = NULL OUTPUT AS SELECT 1;"),
             new SqlServerDatabaseProvider.StoredProcedureDiscoveryRow(
                 ObjectId: 701,
                 SchemaName: "sales",
@@ -838,7 +839,10 @@ public sealed class SqlServerDatabaseProviderTests
                 CreatedAt: new DateTime(2026, 5, 16, 0, 0, 0),
                 ParameterId: 2,
                 ParameterName: "@Status",
-                ParameterDataType: "nvarchar"),
+                ParameterDataType: "nvarchar",
+                ParameterMaxLength: 100,
+                ParameterIsOutput: true,
+                Definition: "CREATE PROCEDURE sales.usp_GetOrders @CustomerId int, @Status nvarchar(50) = NULL OUTPUT AS SELECT 1;"),
             new SqlServerDatabaseProvider.StoredProcedureDiscoveryRow(
                 ObjectId: 702,
                 SchemaName: "analytics",
@@ -859,8 +863,8 @@ public sealed class SqlServerDatabaseProviderTests
         result[0].ObjectId.Should().Be("701");
         result[0].HasDefinitionAvailable.Should().BeTrue();
         result[0].Parameters.Should().HaveCount(2);
-        result[0].Parameters![0].Should().Be(new StoredProcedureParameterMetadata("@CustomerId", "int"));
-        result[0].Parameters![1].Should().Be(new StoredProcedureParameterMetadata("@Status", "nvarchar"));
+        result[0].Parameters![0].Should().Be(new StoredProcedureParameterMetadata("@CustomerId", "int", RoutineParameterDirection.Input, false));
+        result[0].Parameters![1].Should().Be(new StoredProcedureParameterMetadata("@Status", "nvarchar(50)", RoutineParameterDirection.Output, true));
 
         result[1].SchemaName.Should().Be("analytics");
         result[1].HasDefinitionAvailable.Should().BeFalse();
@@ -911,7 +915,10 @@ public sealed class SqlServerDatabaseProviderTests
                 FunctionTypeCode: "FN",
                 ReturnType: "int",
                 HasDefinitionAvailable: true,
-                CreatedAt: new DateTime(2026, 5, 16, 0, 0, 0)),
+                CreatedAt: new DateTime(2026, 5, 16, 0, 0, 0),
+                ParameterId: 1,
+                ParameterName: "@CustomerId",
+                ParameterDataType: "int"),
             new SqlServerDatabaseProvider.FunctionDiscoveryRow(
                 ObjectId: 812,
                 SchemaName: "sales",
@@ -937,6 +944,7 @@ public sealed class SqlServerDatabaseProviderTests
         normalized[0].FunctionType.Should().Be(FunctionType.Scalar);
         normalized[0].ObjectId.Should().Be("811");
         normalized[0].ReturnType.Should().Be("int");
+        normalized[0].Parameters.Should().ContainSingle().Which.Should().Be(new FunctionParameterMetadata("@CustomerId", "int"));
         normalized[1].FunctionType.Should().Be(FunctionType.TableValued);
         normalized[2].FunctionType.Should().Be(FunctionType.InlineTableValued);
         normalized[2].HasDefinitionAvailable.Should().BeFalse();

@@ -18,7 +18,10 @@ public sealed class FunctionDiscoveryIntegrationTests
                 FunctionTypeCode: "FN",
                 ReturnType: "int",
                 HasDefinitionAvailable: true,
-                CreatedAt: new DateTime(2026, 5, 16, 0, 0, 0)),
+                CreatedAt: new DateTime(2026, 5, 16, 0, 0, 0),
+                ParameterId: 1,
+                ParameterName: "@CustomerId",
+                ParameterDataType: "int"),
         ];
 
         var result = SqlServerDatabaseProvider.NormalizeFunctions(rows);
@@ -27,6 +30,7 @@ public sealed class FunctionDiscoveryIntegrationTests
         result[0].FunctionType.Should().Be(FunctionType.Scalar);
         result[0].FunctionName.Should().Be("fn_OrderCount");
         result[0].ReturnType.Should().Be("int");
+        result[0].Parameters.Should().ContainSingle().Which.Should().Be(new FunctionParameterMetadata("@CustomerId", "int"));
     }
 
     [Fact]

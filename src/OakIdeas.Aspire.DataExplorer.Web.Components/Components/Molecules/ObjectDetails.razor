@@ -37,14 +37,30 @@ else
                     <ColumnDetails Columns="@Metadata?.Columns" />
                 </MetadataSection>
 
-                <MetadataSection Title="Primary Key">
-                    @if (Metadata?.PrimaryKeyColumns is { Count: > 0 } pkCols)
+                <MetadataSection Title="Keys" Badge="@(Metadata?.Keys?.Count.ToString() ?? string.Empty)">
+                    @if (Metadata?.Keys is { Count: > 0 } keys)
                     {
-                        <span class="object-details__pk-cols">@string.Join(", ", pkCols)</span>
+                        <div class="object-details__constraint-list">
+                            @foreach (var key in keys)
+                            {
+                                <div class="object-details__constraint">
+                                    <span class="object-details__constraint-kind">Primary Key</span>
+                                    <span class="object-details__constraint-name">@key.KeyName</span>
+                                    @if (key.Columns.Count > 0)
+                                    {
+                                        <span class="object-details__constraint-col">(@string.Join(", ", key.Columns))</span>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                    else if (Metadata?.PrimaryKeyColumns is { Count: > 0 } primaryKeyColumns)
+                    {
+                        <span class="object-details__pk-cols">@string.Join(", ", primaryKeyColumns)</span>
                     }
                     else
                     {
-                        <EmptyMetadata Message="No primary key defined." />
+                        <EmptyMetadata Message="No keys defined." />
                     }
                 </MetadataSection>
 
@@ -82,6 +98,28 @@ else
                         <EmptyMetadata Message="No additional constraints." />
                     }
                 </MetadataSection>
+
+                <MetadataSection Title="Triggers" Badge="@(Metadata?.Triggers?.Count.ToString() ?? string.Empty)">
+                    @if (Metadata?.Triggers is { Count: > 0 } triggers)
+                    {
+                        <div class="object-details__param-list">
+                            @foreach (var trigger in triggers)
+                            {
+                                <div class="object-details__param">
+                                    <span class="object-details__param-name">@trigger.TriggerName</span>
+                                    <span class="object-details__param-type">@trigger.TriggerType</span>
+                                    <span class="object-details__info-value @(trigger.IsEnabled ? "object-details__info-value--enabled" : "object-details__info-value--disabled")">
+                                        @(trigger.IsEnabled ? "Enabled" : "Disabled")
+                                    </span>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <EmptyMetadata Message="No triggers defined." />
+                    }
+                </MetadataSection>
             }
             else if (Selection.Kind is ObjectKind.View)
             {
@@ -98,20 +136,29 @@ else
             }
             else if (Selection.Kind is ObjectKind.Procedure)
             {
-                @if (Metadata?.Parameters is { Count: > 0 } parameters)
-                {
-                    <MetadataSection Title="Parameters" Badge="@parameters.Count.ToString()">
+                <MetadataSection Title="Parameters" Badge="@(Metadata?.Parameters?.Count.ToString() ?? string.Empty)">
+                    @if (Metadata?.Parameters is { Count: > 0 } parameters)
+                    {
                         <div class="object-details__param-list">
                             @foreach (var param in parameters)
                             {
                                 <div class="object-details__param">
                                     <span class="object-details__param-name">@param.Name</span>
                                     <span class="object-details__param-type">@param.DataType</span>
+                                    @if (!string.IsNullOrWhiteSpace(param.Direction))
+                                    {
+                                        <span class="object-details__constraint-kind">@param.Direction</span>
+                                    }
+                                    <span class="object-details__constraint-col">@(param.HasDefault ? "Has default" : "No default")</span>
                                 </div>
                             }
                         </div>
-                    </MetadataSection>
-                }
+                    }
+                    else
+                    {
+                        <EmptyMetadata Message="No parameters defined." />
+                    }
+                </MetadataSection>
 
                 <MetadataSection Title="Definition">
                     <DefinitionViewer Definition="@Definition?.Definition"
@@ -122,7 +169,7 @@ else
             }
             else if (Selection.Kind is ObjectKind.Function)
             {
-                <MetadataSection Title="Details">
+                <MetadataSection Title="Overview">
                     <div class="object-details__function-info">
                         @if (!string.IsNullOrEmpty(Metadata?.FunctionType))
                         {
@@ -131,14 +178,42 @@ else
                                 <span class="object-details__info-value">@Metadata.FunctionType</span>
                             </div>
                         }
-                        @if (!string.IsNullOrEmpty(Metadata?.ReturnType))
-                        {
+                    </div>
+                </MetadataSection>
+
+                <MetadataSection Title="Parameters" Badge="@(Metadata?.Parameters?.Count.ToString() ?? string.Empty)">
+                    @if (Metadata?.Parameters is { Count: > 0 } parameters)
+                    {
+                        <div class="object-details__param-list">
+                            @foreach (var param in parameters)
+                            {
+                                <div class="object-details__param">
+                                    <span class="object-details__param-name">@param.Name</span>
+                                    <span class="object-details__param-type">@param.DataType</span>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <EmptyMetadata Message="No parameters defined." />
+                    }
+                </MetadataSection>
+
+                <MetadataSection Title="Return Type">
+                    @if (!string.IsNullOrEmpty(Metadata?.ReturnType))
+                    {
+                        <div class="object-details__function-info">
                             <div class="object-details__info-row">
                                 <span class="object-details__info-label">Returns</span>
                                 <span class="object-details__info-value object-details__info-value--code">@Metadata.ReturnType</span>
                             </div>
-                        }
-                    </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <EmptyMetadata Message="No return type metadata available." />
+                    }
                 </MetadataSection>
 
                 <MetadataSection Title="Definition">
@@ -228,15 +303,17 @@ else
 
     public sealed record ObjectMetadata(
         IReadOnlyList<ColumnDetails.ColumnModel>? Columns = null,
-        IReadOnlyList<string>? PrimaryKeyColumns = null,
-        IReadOnlyList<RelationshipDetails.ForeignKeyModel>? ForeignKeys = null,
+        IReadOnlyList<KeyModel>? Keys = null,
         IReadOnlyList<IndexDetails.IndexModel>? Indexes = null,
         IReadOnlyList<ConstraintModel>? Constraints = null,
+        IReadOnlyList<TriggerModel>? Triggers = null,
         string? TriggerType = null,
         bool? TriggerIsEnabled = null,
         string? FunctionType = null,
         string? ReturnType = null,
-        IReadOnlyList<ParameterModel>? Parameters = null);
+        IReadOnlyList<ParameterModel>? Parameters = null,
+        IReadOnlyList<string>? PrimaryKeyColumns = null,
+        IReadOnlyList<RelationshipDetails.ForeignKeyModel>? ForeignKeys = null);
 
     public sealed record DefinitionModel(
         string? Definition,
@@ -249,9 +326,20 @@ else
         string? ColumnName,
         string? Definition);
 
+    public sealed record KeyModel(
+        string KeyName,
+        IReadOnlyList<string> Columns);
+
+    public sealed record TriggerModel(
+        string TriggerName,
+        string TriggerType,
+        bool IsEnabled);
+
     public sealed record ParameterModel(
         string Name,
-        string DataType);
+        string DataType,
+        string? Direction = null,
+        bool HasDefault = false);
 
     public enum ObjectKind
     {

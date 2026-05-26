@@ -5,6 +5,11 @@ namespace OakIdeas.Aspire.DataExplorer.Web.Components.Tests;
 
 public sealed class ObjectDetailsRenderingTests : TestContext
 {
+    public ObjectDetailsRenderingTests()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+    }
+
     // ── Empty / no-selection state ──────────────────────────────────────────
 
     [Fact]
@@ -108,27 +113,31 @@ public sealed class ObjectDetailsRenderingTests : TestContext
     }
 
     [Fact]
-    public void TableDetails_RendersPrimaryKeySection()
+    public void TableDetails_RendersKeysSection()
     {
-        var metadata = new ObjectDetails.ObjectMetadata(PrimaryKeyColumns: ["Id", "TenantId"]);
+        var metadata = new ObjectDetails.ObjectMetadata(
+            Keys:
+            [
+                new ObjectDetails.KeyModel("PK_TestObject", ["Id", "TenantId"]),
+            ]);
         var component = RenderComponent<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.Table))
             .Add(p => p.Metadata, metadata));
 
-        component.Markup.Should().Contain("Primary Key");
-        component.Markup.Should().Contain("Id");
-        component.Markup.Should().Contain("TenantId");
+        component.Markup.Should().Contain("Keys");
+        component.Markup.Should().Contain("PK_TestObject");
+        component.Markup.Should().Contain("Id, TenantId");
     }
 
     [Fact]
-    public void TableDetails_RendersEmptyPrimaryKeyWhenNone()
+    public void TableDetails_RendersEmptyKeysWhenNone()
     {
-        var metadata = new ObjectDetails.ObjectMetadata(PrimaryKeyColumns: null);
+        var metadata = new ObjectDetails.ObjectMetadata(Keys: null);
         var component = RenderComponent<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.Table))
             .Add(p => p.Metadata, metadata));
 
-        component.Markup.Should().Contain("No primary key defined");
+        component.Markup.Should().Contain("No keys defined");
     }
 
     [Fact]
@@ -257,8 +266,8 @@ public sealed class ObjectDetailsRenderingTests : TestContext
         var metadata = new ObjectDetails.ObjectMetadata(
             Parameters:
             [
-                new ObjectDetails.ParameterModel("@UserId", "int"),
-                new ObjectDetails.ParameterModel("@Name", "nvarchar(100)"),
+                new ObjectDetails.ParameterModel("@UserId", "int", "Input", false),
+                new ObjectDetails.ParameterModel("@Name", "nvarchar(100)", "Output", true),
             ]);
         var component = RenderComponent<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.Procedure))
@@ -267,22 +276,50 @@ public sealed class ObjectDetailsRenderingTests : TestContext
         component.Markup.Should().Contain("Parameters");
         component.Markup.Should().Contain("@UserId");
         component.Markup.Should().Contain("@Name");
+        component.Markup.Should().Contain("Input");
+        component.Markup.Should().Contain("Output");
+        component.Markup.Should().Contain("Has default");
     }
 
     // ── Function details ─────────────────────────────────────────────────────
 
     [Fact]
-    public void FunctionDetails_RendersFunctionTypeAndReturnType()
+    public void FunctionDetails_RendersFunctionTypeParametersAndReturnType()
     {
         var metadata = new ObjectDetails.ObjectMetadata(
             FunctionType: "Scalar",
-            ReturnType: "int");
+            ReturnType: "int",
+            Parameters:
+            [
+                new ObjectDetails.ParameterModel("@UserId", "int"),
+            ]);
         var component = RenderComponent<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.Function))
             .Add(p => p.Metadata, metadata));
 
         component.Markup.Should().Contain("Scalar");
+        component.Markup.Should().Contain("Parameters");
+        component.Markup.Should().Contain("@UserId");
+        component.Markup.Should().Contain("Return Type");
         component.Markup.Should().Contain("int");
+    }
+
+    [Fact]
+    public void TableDetails_RendersTriggersSection()
+    {
+        var metadata = new ObjectDetails.ObjectMetadata(
+            Triggers:
+            [
+                new ObjectDetails.TriggerModel("trg_TestObject_Audit", "AFTER INSERT", true),
+            ]);
+        var component = RenderComponent<ObjectDetails>(parameters => parameters
+            .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.Table))
+            .Add(p => p.Metadata, metadata));
+
+        component.Markup.Should().Contain("Triggers");
+        component.Markup.Should().Contain("trg_TestObject_Audit");
+        component.Markup.Should().Contain("AFTER INSERT");
+        component.Markup.Should().Contain("Enabled");
     }
 
     [Fact]

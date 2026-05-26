@@ -185,9 +185,13 @@
                 DefaultValue: c.DefaultValue)).ToArray()
             : null;
 
+        IReadOnlyList<ObjectDetails.KeyModel>? keys = null;
         IReadOnlyList<string>? primaryKeyColumns = null;
         if (aggregated.PrimaryKeysByTable.TryGetValue(fqn, out var pks) && pks.Count > 0)
         {
+            keys = pks.Select(pk => new ObjectDetails.KeyModel(
+                KeyName: pk.ConstraintName,
+                Columns: pk.KeyColumns)).ToArray();
             primaryKeyColumns = pks.SelectMany(pk => pk.KeyColumns).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         }
 
@@ -247,12 +251,30 @@
                 triggerIsEnabled = trigger.IsEnabled;
             }
         }
-        else if (_selection.Kind is ObjectDetails.ObjectKind.Function)
-        {
-            FunctionMetadata? func = null;
-            if (aggregated.FunctionsBySchema.TryGetValue(_selection.SchemaName, out var byType))
+
+            IReadOnlyList<ObjectDetails.TriggerModel>? triggers = null;
+            if (_selection.Kind is ObjectDetails.ObjectKind.Table)
             {
-                func = byType.Values
+                var tableTriggers = aggregated.Triggers
+                    .Where(t => t.ParentObjectType == TriggerParentObjectType.Table
+                        && t.ParentObjectName.Equals(_selection.ObjectName, StringComparison.OrdinalIgnoreCase)
+                        && (string.IsNullOrWhiteSpace(t.ParentSchemaName)
+                            || t.ParentSchemaName.Equals(_selection.SchemaName, StringComparison.OrdinalIgnoreCase)))
+                    .ToArray();
+                if (tableTriggers.Length > 0)
+                {
+                    triggers = tableTriggers.Select(t => new ObjectDetails.TriggerModel(
+                        TriggerName: t.TriggerName,
+                        TriggerType: FormatTriggerType(t.TriggerType),
+                        IsEnabled: t.IsEnabled)).ToArray();
+                }
+            }
+            else if (_selection.Kind is ObjectDetails.ObjectKind.Function)
+            {
+                FunctionMetadata? func = null;
+                if (aggregated.FunctionsBySchema.TryGetValue(_selection.SchemaName, out var byType))
+                {
+                    func = byType.Values
                     .SelectMany(list => list)
                     .FirstOrDefault(f => f.FunctionName.Equals(_selection.ObjectName, StringComparison.OrdinalIgnoreCase));
             }
@@ -261,6 +283,12 @@
             {
                 functionType = func.FunctionType.ToString();
                 returnType = func.ReturnType;
+                if (func.Parameters is { Count: > 0 } functionParameters)
+                {
+                    parameters = functionParameters.Select(p => new ObjectDetails.ParameterModel(
+                        Name: p.Name,
+                        DataType: p.DataType)).ToArray();
+                }
             }
         }
         else if (_selection.Kind is ObjectDetails.ObjectKind.Procedure)
@@ -275,21 +303,25 @@
             {
                 parameters = procParams.Select(p => new ObjectDetails.ParameterModel(
                     Name: p.Name,
-                    DataType: p.DataType)).ToArray();
+                    DataType: p.DataType,
+                    Direction: FormatParameterDirection(p.Direction),
+                    HasDefault: p.HasDefault)).ToArray();
             }
         }
 
         _objectMetadata = new ObjectDetails.ObjectMetadata(
             Columns: columns,
-            PrimaryKeyColumns: primaryKeyColumns,
-            ForeignKeys: foreignKeys,
+            Keys: keys,
             Indexes: indexes,
             Constraints: constraints,
+            Triggers: triggers,
             TriggerType: triggerType,
             TriggerIsEnabled: triggerIsEnabled,
             FunctionType: functionType,
             ReturnType: returnType,
-            Parameters: parameters);
+            Parameters: parameters,
+            PrimaryKeyColumns: primaryKeyColumns,
+            ForeignKeys: foreignKeys);
 
         _isLoading = false;
         await InvokeAsync(StateHasChanged);
@@ -361,6 +393,14 @@
         var prefix = type.HasFlag(TriggerType.InsteadOf) ? "INSTEAD OF" : "AFTER";
         return parts.Count > 0 ? $"{prefix} {string.Join(", ", parts)}" : type.ToString();
     }
+
+    private static string FormatParameterDirection(RoutineParameterDirection direction)
+        => direction switch
+        {
+            RoutineParameterDirection.Output => "Output",
+            RoutineParameterDirection.InputOutput => "Input/Output",
+            _ => "Input",
+        };
 
     public void Dispose()
     {
