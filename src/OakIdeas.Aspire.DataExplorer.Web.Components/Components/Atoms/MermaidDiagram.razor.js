@@ -1,5 +1,16 @@
 let initialized = false;
 
+function applyPreferredDirection(source) {
+  if (!source) {
+    return source;
+  }
+
+  const wideLayout = globalThis?.matchMedia?.("(min-width: 1100px)")?.matches ?? true;
+  const preferredDirection = wideLayout ? "LR" : "TB";
+
+  return source.replace(/(^\s*flowchart\s+)(TB|TD|BT|RL|LR)\b/i, `$1${preferredDirection}`);
+}
+
 export async function renderMermaid(container, source) {
   if (!container || !source) {
     return "Missing container or diagram";
@@ -25,19 +36,22 @@ export async function renderMermaid(container, source) {
       themeVariables: {
         background: "#0b1220",
         primaryColor: "#0f172a",
-        primaryTextColor: "#e2e8f0",
+        primaryTextColor: "#f1f5f9",
         primaryBorderColor: "#60a5fa",
-        lineColor: "#64748b",
-        fontFamily: "Inter, Segoe UI, sans-serif"
+        lineColor: "#94a3b8",
+        fontSize: "11px",
+        fontFamily: "JetBrains Mono, Cascadia Mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
       }
     });
     initialized = true;
   }
 
+  const directionAwareSource = applyPreferredDirection(source);
+
   try {
-    await mermaid.parse(source);
+    await mermaid.parse(directionAwareSource);
     const id = `de-mermaid-${Math.random().toString(36).slice(2, 10)}`;
-    const result = await mermaid.render(id, source);
+    const result = await mermaid.render(id, directionAwareSource);
     container.innerHTML = result.svg;
     return null;
   } catch (error) {

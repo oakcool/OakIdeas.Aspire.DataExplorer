@@ -3,30 +3,33 @@
 <div class="execution-plan-viewer">
     @if (IsLoading)
     {
-        <div class="execution-plan-viewer__state">
+        <div class="execution-plan-viewer__state rounded-xl border border-slate-700/60 bg-slate-900/75 px-3 py-2 text-slate-300">
             <LoadingSpinner Label="Loading execution plan…" />
         </div>
     }
     else if (ExecutionPlan is null)
     {
-        <div class="execution-plan-viewer__state">
+        <div class="execution-plan-viewer__state rounded-xl border border-slate-700/60 bg-slate-900/75 px-3 py-2 text-slate-300">
             <HeroIcon Kind="HeroIconKind.CheckCircle" Size="16" />
             <span>Execution plan is not available for this query or provider.</span>
         </div>
     }
     else if (!ExecutionPlan.IsAvailable || string.IsNullOrWhiteSpace(ExecutionPlan.MermaidDiagram))
     {
-        <div class="execution-plan-viewer__state">
+        <div class="execution-plan-viewer__state rounded-xl border border-slate-700/60 bg-slate-900/75 px-3 py-2 text-slate-300">
             <HeroIcon Kind="HeroIconKind.CheckCircle" Size="16" />
             <span>@(ExecutionPlan.Message ?? "Execution plan is not available for this query or provider.")</span>
         </div>
     }
     else
     {
-        <div class="execution-plan-viewer__header">
+        <div class="execution-plan-viewer__header rounded-xl border border-slate-700/70 bg-slate-900/80 px-3 py-2 backdrop-blur-sm">
             <StatusBadge Text="@(ExecutionPlan.Provider ?? "Unknown provider")" Variant="info" />
+            <span class="ml-2 hidden text-xs text-slate-400 md:inline">Horizontal-first layout. Scroll for full graph.</span>
         </div>
-        <MermaidDiagram Diagram="@ExecutionPlan.MermaidDiagram" OnError="HandleRenderErrorAsync" />
+        <MermaidDiagram Diagram="@ExecutionPlan.MermaidDiagram"
+                        Class="max-h-[72vh] rounded-2xl border border-slate-700/80 bg-gradient-to-br from-slate-900 via-slate-950 to-sky-950/35 shadow-[0_18px_45px_rgba(2,6,23,0.55)] ring-1 ring-inset ring-sky-400/15"
+                        OnError="HandleRenderErrorAsync" />
     }
 </div>
 

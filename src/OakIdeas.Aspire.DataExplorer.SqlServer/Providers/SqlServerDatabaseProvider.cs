@@ -590,7 +590,7 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         }
 
         var builder = new StringBuilder();
-        builder.AppendLine("flowchart TD");
+        builder.AppendLine("flowchart LR");
         builder.AppendLine("    classDef epOperator fill:#0f172a,stroke:#60a5fa,stroke-width:1px,color:#e2e8f0;");
         builder.AppendLine("    classDef epAccess fill:#0b1b33,stroke:#38bdf8,stroke-width:1px,color:#e0f2fe;");
         builder.AppendLine("    classDef epJoin fill:#2a1736,stroke:#c084fc,stroke-width:1px,color:#f5e8ff;");
@@ -642,6 +642,7 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
     private static string BuildExecutionPlanNodeLabel(XElement relOp, XNamespace ns)
     {
         var lines = new List<string>();
+        const string metricIndent = "&nbsp;&nbsp;";
         var physicalOp = relOp.Attribute("PhysicalOp")?.Value;
         var logicalOp = relOp.Attribute("LogicalOp")?.Value;
 
@@ -661,35 +662,40 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
             lines.Add($"Logical: {logicalOp}");
         }
 
-        var estimateParts = new List<string>();
-        AddAttributePart(estimateParts, relOp, "EstimateRows", "Rows");
-        AddAttributePart(estimateParts, relOp, "EstimatedTotalSubtreeCost", "Cost");
-        AddAttributePart(estimateParts, relOp, "EstimateIO", "I/O");
-        AddAttributePart(estimateParts, relOp, "EstimateCPU", "CPU");
-
-        if (estimateParts.Count > 0)
-        {
-            lines.Add($"Estimated: {string.Join(" • ", estimateParts)}");
-        }
+        AddAttributePart(lines, relOp, "EstimateRows", $"{metricIndent}Estimated Rows");
+        AddAttributePart(lines, relOp, "EstimatedTotalSubtreeCost", $"{metricIndent}Estimated Cost");
+        AddAttributePart(lines, relOp, "EstimateIO", $"{metricIndent}Estimated I/O");
+        AddAttributePart(lines, relOp, "EstimateCPU", $"{metricIndent}Estimated CPU");
 
         var runtimeCounters = relOp
             .Descendants(ns + "RunTimeCountersPerThread")
             .Take(64)
             .ToList();
 
-        var actualParts = new List<string>();
-        AddRuntimeCounterPart(actualParts, runtimeCounters, "ActualRows", "Rows");
-        AddRuntimeCounterPart(actualParts, runtimeCounters, "ActualExecutions", "Execs");
-        AddRuntimeCounterPart(actualParts, runtimeCounters, "ActualElapsedms", "Elapsed ms");
-        AddRuntimeCounterPart(actualParts, runtimeCounters, "ActualCPUms", "CPU ms");
-        AddRuntimeCounterPart(actualParts, runtimeCounters, "ActualLogicalReads", "Reads");
+        AddRuntimeCounterPart(lines, runtimeCounters, "ActualRows", $"{metricIndent}Actual Rows");
+        AddRuntimeCounterPart(lines, runtimeCounters, "ActualExecutions", $"{metricIndent}Actual Execs");
+        AddRuntimeCounterPart(lines, runtimeCounters, "ActualElapsedms", $"{metricIndent}Actual Elapsed ms");
+        AddRuntimeCounterPart(lines, runtimeCounters, "ActualCPUms", $"{metricIndent}Actual CPU ms");
+        AddRuntimeCounterPart(lines, runtimeCounters, "ActualLogicalReads", $"{metricIndent}Actual Reads");
 
-        if (actualParts.Count > 0)
+        return JoinExecutionPlanLabelLines(lines);
+    }
+
+    private static string JoinExecutionPlanLabelLines(IReadOnlyList<string> lines)
+    {
+        ArgumentNullException.ThrowIfNull(lines);
+
+        if (lines.Count == 0)
         {
-            lines.Add($"Actual: {string.Join(" • ", actualParts)}");
+            return string.Empty;
         }
 
-        return string.Join("<br/>", lines);
+        if (lines.Count == 1)
+        {
+            return lines[0];
+        }
+
+        return string.Join("<br/>--------<br/>", lines);
     }
 
     private static string BuildMermaidNodeId(XElement relOp, int index, ISet<string> usedNodeIds)
@@ -720,7 +726,7 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         var value = relOp.Attribute(attributeName)?.Value;
         if (!string.IsNullOrWhiteSpace(value))
         {
-            parts.Add($"{label} {value}");
+            parts.Add($"{label}: {value}");
         }
     }
 
@@ -732,7 +738,7 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         var value = AggregateRuntimeCounter(runtimeCounters, attributeName);
         if (!string.IsNullOrWhiteSpace(value))
         {
-            parts.Add($"{label} {value}");
+            parts.Add($"{label}: {value}");
         }
     }
 

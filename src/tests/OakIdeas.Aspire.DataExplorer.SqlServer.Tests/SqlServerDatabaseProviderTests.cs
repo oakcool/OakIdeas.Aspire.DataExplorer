@@ -132,7 +132,7 @@ public sealed class SqlServerDatabaseProviderTests
 
         var diagram = SqlServerDatabaseProvider.ConvertExecutionPlanXmlToMermaid(xml);
 
-        diagram.Should().Contain("flowchart TD");
+        diagram.Should().Contain("flowchart LR");
         diagram.Should().Contain("Index Seek");
         diagram.Should().Contain("Nested Loops");
     }
@@ -182,9 +182,12 @@ public sealed class SqlServerDatabaseProviderTests
         diagram.Should().Contain("classDef epOperator");
         diagram.Should().Contain("classDef epAccess");
         diagram.Should().Contain("class N1 epAccess");
-        diagram.Should().Contain("Estimated: Rows 12.5 • Cost 0.004125");
-        diagram.Should().Contain("Actual: Rows 15 • Execs 2");
-        diagram.Should().Contain("Reads 20");
+        diagram.Should().Contain("Estimated Rows: 12.5");
+        diagram.Should().Contain("Estimated Cost: 0.004125");
+        diagram.Should().Contain("Actual Rows: 15");
+        diagram.Should().Contain("Actual Execs: 2");
+        diagram.Should().Contain("Actual Reads: 20");
+        diagram.Should().Contain("--------");
         diagram.Should().Contain("Object: dbo.Users (IX_Users_Name)");
     }
 
