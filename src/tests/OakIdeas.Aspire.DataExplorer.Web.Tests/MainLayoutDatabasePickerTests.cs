@@ -147,6 +147,28 @@ public sealed class MainLayoutDatabasePickerTests : TestContext
         });
     }
 
+    [Fact]
+    public void ObjectExplorer_ShowsFolderGroups_WhenMetadataContainsNoObjects()
+    {
+        var service = new FakeExplorerService
+        {
+            ReturnEmptyRootMetadata = true,
+            IncludeAggregatedMetadata = false,
+        };
+        Services.AddSingleton<IExplorerService>(service);
+
+        var component = RenderComponent<MainLayout>();
+
+        component.WaitForAssertion(() =>
+        {
+            component.Markup.Should().Contain("Tables");
+            component.Markup.Should().Contain("Views");
+            component.Markup.Should().Contain("Programmability");
+            component.Markup.Should().Contain("Security");
+            component.Markup.Should().NotContain("No database objects were discovered.");
+        });
+    }
+
     private sealed class FakeExplorerService : IExplorerService
     {
         private readonly List<DiscoveredDatabaseResource> _resources =

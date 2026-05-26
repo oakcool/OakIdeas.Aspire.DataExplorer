@@ -915,9 +915,9 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
                     ReferencedTableName: reader.GetString(5),
                     ParentColumnName: reader.GetString(6),
                     ReferencedColumnName: reader.GetString(7),
-                    ConstraintColumnId: reader.GetInt32(8),
-                    DeleteReferentialAction: reader.GetInt32(9),
-                    UpdateReferentialAction: reader.GetInt32(10),
+                    ConstraintColumnId: Convert.ToInt32(reader.GetValue(8), CultureInfo.InvariantCulture),
+                    DeleteReferentialAction: Convert.ToInt32(reader.GetValue(9), CultureInfo.InvariantCulture),
+                    UpdateReferentialAction: Convert.ToInt32(reader.GetValue(10), CultureInfo.InvariantCulture),
                     IsDisabled: reader.GetBoolean(11)));
             }
 
@@ -1001,8 +1001,8 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
                     IsClustered: reader.GetBoolean(7),
                     ColumnName: reader.GetString(8),
                     IsIncludedColumn: reader.GetBoolean(9),
-                    KeyOrdinal: reader.GetInt32(10),
-                    IndexColumnId: reader.GetInt32(11),
+                    KeyOrdinal: Convert.ToInt32(reader.GetValue(10), CultureInfo.InvariantCulture),
+                    IndexColumnId: Convert.ToInt32(reader.GetValue(11), CultureInfo.InvariantCulture),
                     FilterDefinition: reader.IsDBNull(12) ? null : reader.GetString(12)));
             }
 
@@ -1040,7 +1040,7 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
                     TableName: reader.GetString(3),
                     IsClustered: reader.GetBoolean(4),
                     ColumnName: reader.GetString(5),
-                    KeyOrdinal: reader.GetInt32(6)));
+                    KeyOrdinal: Convert.ToInt32(reader.GetValue(6), CultureInfo.InvariantCulture)));
             }
 
             return new DiscoverPrimaryKeysResponse(NormalizePrimaryKeys(rows));

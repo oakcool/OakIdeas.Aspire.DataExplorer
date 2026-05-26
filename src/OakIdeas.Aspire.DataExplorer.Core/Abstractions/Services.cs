@@ -177,7 +177,7 @@ public interface ISelectedDatabaseService
 
 public interface IMetadataCache
 {
-    Task<DatabaseMetadataRoot?> GetAsync(
+    Task<DiscoverDatabaseMetadataResponse?> GetAsync(
         string resourceId,
         string databaseName,
         CancellationToken cancellationToken);
@@ -185,7 +185,7 @@ public interface IMetadataCache
     Task SetAsync(
         string resourceId,
         string databaseName,
-        DatabaseMetadataRoot metadata,
+        DiscoverDatabaseMetadataResponse metadata,
         CancellationToken cancellationToken);
 
     Task InvalidateAsync(

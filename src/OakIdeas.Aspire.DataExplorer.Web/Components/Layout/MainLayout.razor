@@ -277,10 +277,11 @@
             }
 
             var metadataResponse = await ExplorerService.GetDatabaseMetadataAsync(token);
-            if (metadataResponse.Errors.Any())
+            if (metadataResponse.Metadata is null && metadataResponse.AggregatedMetadata is null)
             {
                 _explorerError = metadataResponse.Error;
-                _explorerErrorMessage = string.Join(" ", metadataResponse.Errors);
+                _explorerErrorMessage = metadataResponse.Error?.Message
+                    ?? string.Join(" ", metadataResponse.Errors);
                 _connections.Clear();
                 return;
             }
@@ -307,10 +308,11 @@
                 }
 
                 metadataResponse = await ExplorerService.GetDatabaseMetadataAsync(token);
-                if (metadataResponse.Errors.Any())
+                if (metadataResponse.Metadata is null && metadataResponse.AggregatedMetadata is null)
                 {
                     _explorerError = metadataResponse.Error;
-                    _explorerErrorMessage = string.Join(" ", metadataResponse.Errors);
+                    _explorerErrorMessage = metadataResponse.Error?.Message
+                        ?? string.Join(" ", metadataResponse.Errors);
                     _connections.Clear();
                     return;
                 }
@@ -536,14 +538,16 @@
             key: "tables",
             label: "Tables",
             icon: HeroIconKind.TableCells,
-            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.Table, ObjectExplorer.ObjectKind.Table, HeroIconKind.TableCells, aggregatedMetadata));
+            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.Table, ObjectExplorer.ObjectKind.Table, HeroIconKind.TableCells, aggregatedMetadata),
+            includeWhenEmpty: true);
 
         AddFolderNode(
             nodes,
             key: "views",
             label: "Views",
             icon: HeroIconKind.QueueList,
-            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.View, ObjectExplorer.ObjectKind.View, HeroIconKind.QueueList, aggregatedMetadata));
+            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.View, ObjectExplorer.ObjectKind.View, HeroIconKind.QueueList, aggregatedMetadata),
+            includeWhenEmpty: true);
 
         List<ObjectExplorer.ExplorerNodeModel> programmabilityNodes = [];
         AddFolderNode(
@@ -551,26 +555,30 @@
             key: "stored-procedures",
             label: "Stored Procedures",
             icon: HeroIconKind.Play,
-            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.Procedure, ObjectExplorer.ObjectKind.Procedure, HeroIconKind.Play, aggregatedMetadata));
+            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.Procedure, ObjectExplorer.ObjectKind.Procedure, HeroIconKind.Play, aggregatedMetadata),
+            includeWhenEmpty: true);
         AddFolderNode(
             programmabilityNodes,
             key: "functions",
             label: "Functions",
             icon: HeroIconKind.CodeBracket,
-            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.Function, ObjectExplorer.ObjectKind.Function, HeroIconKind.CodeBracket, aggregatedMetadata));
+            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.Function, ObjectExplorer.ObjectKind.Function, HeroIconKind.CodeBracket, aggregatedMetadata),
+            includeWhenEmpty: true);
         AddFolderNode(
             programmabilityNodes,
             key: "triggers",
             label: "Triggers",
             icon: HeroIconKind.Link,
-            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.Trigger, ObjectExplorer.ObjectKind.Trigger, HeroIconKind.Link, aggregatedMetadata));
+            children: BuildObjectLeafNodes(metadata, selected, DatabaseObjectType.Trigger, ObjectExplorer.ObjectKind.Trigger, HeroIconKind.Link, aggregatedMetadata),
+            includeWhenEmpty: true);
 
         AddFolderNode(
             nodes,
             key: "programmability",
             label: "Programmability",
             icon: HeroIconKind.Folder,
-            children: programmabilityNodes);
+            children: programmabilityNodes,
+            includeWhenEmpty: true);
 
         List<ObjectExplorer.ExplorerNodeModel> securityNodes = [];
         AddFolderNode(
@@ -578,14 +586,16 @@
             key: "schemas",
             label: "Schemas",
             icon: HeroIconKind.Folder,
-            children: BuildSecurityLeafNodes(metadata, DatabaseObjectType.Schema));
+            children: BuildSecurityLeafNodes(metadata, DatabaseObjectType.Schema),
+            includeWhenEmpty: true);
 
         AddFolderNode(
             nodes,
             key: "security",
             label: "Security",
             icon: HeroIconKind.Folder,
-            children: securityNodes);
+            children: securityNodes,
+            includeWhenEmpty: true);
 
         return nodes;
     }
@@ -720,6 +730,23 @@
                     includeWhenEmpty: true);
                 break;
 
+            case ObjectExplorer.ObjectKind.View:
+                AddFolderNode(
+                    nodes,
+                    key: $"{databaseObject.ObjectId}:columns",
+                    label: "Columns",
+                    icon: HeroIconKind.TableCells,
+                    children: TryGetMetadataItems(aggregatedMetadata.ColumnsByObject, databaseObject, schemaName, fullyQualifiedName, out var viewColumns)
+                        ? viewColumns.Select(column => new ObjectExplorer.ExplorerNodeModel(
+                            NodeKey: $"{databaseObject.ObjectId}:column:{column.Name}",
+                            Label: $"{column.Name} {FormatColumnType(column)} {(column.IsNullable ? "null" : "not null")}",
+                            Icon: HeroIconKind.TableCells,
+                            Children: []))
+                        .ToArray()
+                        : [],
+                    includeWhenEmpty: true);
+                break;
+
             case ObjectExplorer.ObjectKind.Procedure:
                 var procedure = aggregatedMetadata.ProceduresBySchema.TryGetValue(schemaName, out var procedures)
                     ? procedures.FirstOrDefault(item => item.ProcedureName.Equals(databaseObject.ObjectName, StringComparison.OrdinalIgnoreCase))
@@ -771,6 +798,34 @@
                             Label: function!.ReturnType!,
                             Icon: HeroIconKind.CodeBracket,
                             Children: [])],
+                    includeWhenEmpty: true);
+                break;
+
+            case ObjectExplorer.ObjectKind.Trigger:
+                var trigger = aggregatedMetadata.Triggers.FirstOrDefault(item =>
+                    item.SchemaName.Equals(schemaName, StringComparison.OrdinalIgnoreCase)
+                    && item.TriggerName.Equals(databaseObject.ObjectName, StringComparison.OrdinalIgnoreCase));
+
+                AddFolderNode(
+                    nodes,
+                    key: $"{databaseObject.ObjectId}:properties",
+                    label: "Properties",
+                    icon: HeroIconKind.Folder,
+                    children: trigger is null
+                        ? []
+                        :
+                        [
+                            new ObjectExplorer.ExplorerNodeModel(
+                                NodeKey: $"{databaseObject.ObjectId}:trigger-type",
+                                Label: $"Type: {trigger.TriggerType}",
+                                Icon: HeroIconKind.Link,
+                                Children: []),
+                            new ObjectExplorer.ExplorerNodeModel(
+                                NodeKey: $"{databaseObject.ObjectId}:trigger-enabled",
+                                Label: $"Enabled: {(trigger.IsEnabled ? "Yes" : "No")}",
+                                Icon: HeroIconKind.Link,
+                                Children: []),
+                        ],
                     includeWhenEmpty: true);
                 break;
         }

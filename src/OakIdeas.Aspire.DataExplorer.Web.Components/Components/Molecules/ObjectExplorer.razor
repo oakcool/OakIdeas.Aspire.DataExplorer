@@ -174,7 +174,7 @@
 
     private bool HasObjects => Connections
         .SelectMany(connection => connection.Databases)
-        .Any(database => database.HasAnyObjects);
+        .Any();
 
     private bool IsConnectionExpanded(string key) => !_collapsedConnections.Contains(key);
     private bool IsDatabaseExpanded(string key) => !_collapsedDatabases.Contains(key);

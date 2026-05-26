@@ -73,7 +73,7 @@ public sealed class MetadataRefreshService(
                 await _metadataCache.SetAsync(
                     selectedDbContext.Resource.ResourceId,
                     selectedDbContext.Resource.DatabaseName,
-                    aggregationResponse.Metadata,
+                    aggregationResponse,
                     cancellationToken);
             }
 
