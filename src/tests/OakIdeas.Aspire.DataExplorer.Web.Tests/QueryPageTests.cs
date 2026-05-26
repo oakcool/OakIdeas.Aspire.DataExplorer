@@ -206,7 +206,11 @@ public sealed class QueryPageTests : TestContext
 
         service.ExecuteCalls.Should().Be(0);
 
-        navigationManager.NavigateTo($"/query?sql={Uri.EscapeDataString("SELECT COUNT(*) FROM dbo.Users")}&autoexec=true");
+        navigationManager.NavigateTo(navigationManager.GetUriWithQueryParameters(new Dictionary<string, object?>
+        {
+            ["sql"] = "SELECT COUNT(*) FROM dbo.Users",
+            ["autoexec"] = true,
+        }));
         component.Render();
 
         component.WaitForAssertion(() => service.ExecuteCalls.Should().Be(1));
