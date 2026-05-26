@@ -581,10 +581,7 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         XNamespace ns = document.Root?.Name.Namespace ?? XNamespace.None;
         var relOps = document
             .Descendants(ns + "RelOp")
-            .Select(relOp => relOp.Attribute("PhysicalOp")?.Value ?? relOp.Attribute("LogicalOp")?.Value)
-            .Where(value => !string.IsNullOrWhiteSpace(value))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(12)
+            .Take(32)
             .ToList();
 
         if (relOps.Count == 0)
@@ -594,15 +591,211 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
 
         var builder = new StringBuilder();
         builder.AppendLine("flowchart TD");
-        builder.AppendLine("    Q0[Query Start]");
+
+        var nodeIds = new Dictionary<XElement, string>();
+        var usedNodeIds = new HashSet<string>(StringComparer.Ordinal);
+
         for (var index = 0; index < relOps.Count; index++)
         {
-            var nodeId = $"Q{index + 1}";
-            builder.AppendLine($"    {nodeId}[{EscapeMermaidLabel(relOps[index]!)}]");
-            builder.AppendLine($"    Q{index} --> {nodeId}");
+            var relOp = relOps[index];
+            var nodeId = BuildMermaidNodeId(relOp, index, usedNodeIds);
+            nodeIds[relOp] = nodeId;
+            builder.AppendLine($"    {nodeId}[{EscapeMermaidLabel(BuildExecutionPlanNodeLabel(relOp, ns))}]");
+        }
+
+        var hasEdges = false;
+        foreach (var relOp in relOps)
+        {
+            var parentNodeId = nodeIds[relOp];
+            var childRelOps = relOp
+                .Descendants(ns + "RelOp")
+                .Where(child => !ReferenceEquals(child, relOp) && ReferenceEquals(child.Ancestors(ns + "RelOp").FirstOrDefault(), relOp));
+
+            foreach (var childRelOp in childRelOps)
+            {
+                if (!nodeIds.TryGetValue(childRelOp, out var childNodeId))
+                {
+                    continue;
+                }
+
+                builder.AppendLine($"    {parentNodeId} --> {childNodeId}");
+                hasEdges = true;
+            }
+        }
+
+        if (!hasEdges)
+        {
+            for (var index = 1; index < relOps.Count; index++)
+            {
+                builder.AppendLine($"    {nodeIds[relOps[index - 1]]} --> {nodeIds[relOps[index]]}");
+            }
         }
 
         return builder.ToString().TrimEnd();
+    }
+
+    private static string BuildExecutionPlanNodeLabel(XElement relOp, XNamespace ns)
+    {
+        var lines = new List<string>();
+        var physicalOp = relOp.Attribute("PhysicalOp")?.Value;
+        var logicalOp = relOp.Attribute("LogicalOp")?.Value;
+
+        lines.Add(!string.IsNullOrWhiteSpace(physicalOp)
+            ? physicalOp!
+            : logicalOp ?? "Operation");
+
+        if (!string.IsNullOrWhiteSpace(logicalOp)
+            && !string.Equals(logicalOp, physicalOp, StringComparison.OrdinalIgnoreCase))
+        {
+            lines.Add($"Logical: {logicalOp}");
+        }
+
+        AddAttributeLine(lines, relOp, "NodeId", "NodeId");
+        AddAttributeLine(lines, relOp, "EstimateRows", "Estimated Rows");
+        AddAttributeLine(lines, relOp, "EstimateRowsWithoutRowGoal", "Estimated Rows (No Row Goal)");
+        AddAttributeLine(lines, relOp, "EstimatedRowsRead", "Estimated Rows Read");
+        AddAttributeLine(lines, relOp, "EstimateIO", "Estimated I/O Cost");
+        AddAttributeLine(lines, relOp, "EstimateCPU", "Estimated CPU Cost");
+        AddAttributeLine(lines, relOp, "EstimatedTotalSubtreeCost", "Estimated Subtree Cost");
+        AddAttributeLine(lines, relOp, "AvgRowSize", "Average Row Size");
+        AddAttributeLine(lines, relOp, "Parallel", "Parallel");
+        AddAttributeLine(lines, relOp, "EstimatedExecutionMode", "Estimated Execution Mode");
+        AddAttributeLine(lines, relOp, "TableCardinality", "Table Cardinality");
+
+        var objectName = TryBuildObjectName(relOp, ns);
+        if (!string.IsNullOrWhiteSpace(objectName))
+        {
+            lines.Add($"Object: {objectName}");
+        }
+
+        var runtimeCounters = relOp
+            .Descendants(ns + "RunTimeCountersPerThread")
+            .Take(64)
+            .ToList();
+
+        AddRuntimeCounterLine(lines, runtimeCounters, "ActualRows", "Actual Rows");
+        AddRuntimeCounterLine(lines, runtimeCounters, "ActualExecutions", "Actual Executions");
+        AddRuntimeCounterLine(lines, runtimeCounters, "ActualElapsedms", "Actual Elapsed (ms)");
+        AddRuntimeCounterLine(lines, runtimeCounters, "ActualCPUms", "Actual CPU (ms)");
+        AddRuntimeCounterLine(lines, runtimeCounters, "ActualLogicalReads", "Actual Logical Reads");
+        AddRuntimeCounterLine(lines, runtimeCounters, "ActualPhysicalReads", "Actual Physical Reads");
+        AddRuntimeCounterLine(lines, runtimeCounters, "ActualScans", "Actual Scans");
+
+        return string.Join("<br/>", lines);
+    }
+
+    private static string BuildMermaidNodeId(XElement relOp, int index, ISet<string> usedNodeIds)
+    {
+        ArgumentNullException.ThrowIfNull(relOp);
+        ArgumentNullException.ThrowIfNull(usedNodeIds);
+
+        var rawNodeId = relOp.Attribute("NodeId")?.Value;
+        var seed = int.TryParse(rawNodeId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedNodeId)
+            ? parsedNodeId
+            : index + 1;
+
+        var candidate = $"N{seed}";
+        var duplicateIndex = 2;
+        while (!usedNodeIds.Add(candidate))
+        {
+            candidate = $"N{seed}_{duplicateIndex++}";
+        }
+
+        return candidate;
+    }
+
+    private static void AddAttributeLine(ICollection<string> lines, XElement relOp, string attributeName, string label)
+    {
+        ArgumentNullException.ThrowIfNull(lines);
+        ArgumentNullException.ThrowIfNull(relOp);
+
+        var value = relOp.Attribute(attributeName)?.Value;
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            lines.Add($"{label}: {value}");
+        }
+    }
+
+    private static void AddRuntimeCounterLine(ICollection<string> lines, IReadOnlyCollection<XElement> runtimeCounters, string attributeName, string label)
+    {
+        ArgumentNullException.ThrowIfNull(lines);
+        ArgumentNullException.ThrowIfNull(runtimeCounters);
+
+        var value = AggregateRuntimeCounter(runtimeCounters, attributeName);
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            lines.Add($"{label}: {value}");
+        }
+    }
+
+    private static string? AggregateRuntimeCounter(IReadOnlyCollection<XElement> runtimeCounters, string attributeName)
+    {
+        if (runtimeCounters.Count == 0)
+        {
+            return null;
+        }
+
+        var values = runtimeCounters
+            .Select(counter => counter.Attribute(attributeName)?.Value)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value!)
+            .ToList();
+
+        if (values.Count == 0)
+        {
+            return null;
+        }
+
+        var sum = 0d;
+        foreach (var value in values)
+        {
+            if (!double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
+            {
+                return value;
+            }
+
+            sum += parsed;
+        }
+
+        return sum.ToString("0.###", CultureInfo.InvariantCulture);
+    }
+
+    private static string? TryBuildObjectName(XElement relOp, XNamespace ns)
+    {
+        var objectElement = relOp.Descendants(ns + "Object").FirstOrDefault();
+        if (objectElement is null)
+        {
+            return null;
+        }
+
+        var schema = SanitizeSqlIdentifier(objectElement.Attribute("Schema")?.Value);
+        var table = SanitizeSqlIdentifier(objectElement.Attribute("Table")?.Value);
+        var index = SanitizeSqlIdentifier(objectElement.Attribute("Index")?.Value);
+
+        var objectName = !string.IsNullOrWhiteSpace(schema) && !string.IsNullOrWhiteSpace(table)
+            ? $"{schema}.{table}"
+            : table ?? schema;
+
+        if (string.IsNullOrWhiteSpace(objectName))
+        {
+            objectName = SanitizeSqlIdentifier(objectElement.Attribute("Alias")?.Value);
+        }
+
+        return string.IsNullOrWhiteSpace(index)
+            ? objectName
+            : $"{objectName} ({index})";
+    }
+
+    private static string? SanitizeSqlIdentifier(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return value
+            .Trim()
+            .Trim('[', ']');
     }
 
     internal static string EscapeMermaidLabel(string text)
