@@ -1977,10 +1977,13 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
 
         var asIndex = definition.IndexOf(" AS ", firstParameterIndex, StringComparison.OrdinalIgnoreCase);
         var returnsIndex = definition.IndexOf(" RETURNS ", firstParameterIndex, StringComparison.OrdinalIgnoreCase);
-        var endIndex = new[] { asIndex, returnsIndex }
-            .Where(index => index >= 0)
-            .DefaultIfEmpty(definition.Length)
-            .Min();
+        var endIndex = asIndex >= 0 && returnsIndex >= 0
+            ? Math.Min(asIndex, returnsIndex)
+            : asIndex >= 0
+                ? asIndex
+                : returnsIndex >= 0
+                    ? returnsIndex
+                    : definition.Length;
 
         return definition[..endIndex];
     }

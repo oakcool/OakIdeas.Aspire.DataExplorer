@@ -186,13 +186,11 @@
             : null;
 
         IReadOnlyList<ObjectDetails.KeyModel>? keys = null;
-        IReadOnlyList<string>? primaryKeyColumns = null;
         if (aggregated.PrimaryKeysByTable.TryGetValue(fqn, out var pks) && pks.Count > 0)
         {
             keys = pks.Select(pk => new ObjectDetails.KeyModel(
                 KeyName: pk.ConstraintName,
                 Columns: pk.KeyColumns)).ToArray();
-            primaryKeyColumns = pks.SelectMany(pk => pk.KeyColumns).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         }
 
         IReadOnlyList<RelationshipDetails.ForeignKeyModel>? foreignKeys = null;
@@ -320,7 +318,6 @@
             FunctionType: functionType,
             ReturnType: returnType,
             Parameters: parameters,
-            PrimaryKeyColumns: primaryKeyColumns,
             ForeignKeys: foreignKeys);
 
         _isLoading = false;

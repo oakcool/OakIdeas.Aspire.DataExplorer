@@ -54,10 +54,6 @@ else
                             }
                         </div>
                     }
-                    else if (Metadata?.PrimaryKeyColumns is { Count: > 0 } primaryKeyColumns)
-                    {
-                        <span class="object-details__pk-cols">@string.Join(", ", primaryKeyColumns)</span>
-                    }
                     else
                     {
                         <EmptyMetadata Message="No keys defined." />
@@ -312,7 +308,6 @@ else
         string? FunctionType = null,
         string? ReturnType = null,
         IReadOnlyList<ParameterModel>? Parameters = null,
-        IReadOnlyList<string>? PrimaryKeyColumns = null,
         IReadOnlyList<RelationshipDetails.ForeignKeyModel>? ForeignKeys = null);
 
     public sealed record DefinitionModel(
