@@ -27,7 +27,10 @@
 
     var metadata = await explorerService.GetDatabaseMetadataAsync(cancellationToken);
     var refresh = await explorerService.RefreshDatabaseMetadataAsync(cancellationToken);
-    var query = await explorerService.ExecuteQueryAsync("SELECT TOP 10 name FROM sys.tables ORDER BY name;", cancellationToken);
+    var query = await explorerService.ExecuteQueryAsync(
+        "SELECT TOP 10 name FROM sys.tables ORDER BY name;",
+        includeExecutionPlan: false,
+        cancellationToken);
     ```
 
 4. In Object Explorer, browse metadata by:
@@ -41,6 +44,8 @@
 6. Open **Query** in the top navigation to run ad-hoc SQL against the selected database.
    - `Ctrl+Enter` executes the current query.
    - `Cancel` requests query cancellation.
+   - `Include Execution Plan` requests provider execution plan data (when supported).
+   - Execution plan output is shown in the **Execution Plan** result tab.
    - Destructive statements require an explicit confirmation run.
 
 ## Running the sample with metadata exploration

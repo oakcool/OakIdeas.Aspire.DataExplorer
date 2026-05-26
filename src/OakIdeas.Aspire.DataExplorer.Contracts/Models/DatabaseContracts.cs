@@ -58,4 +58,5 @@ public sealed record ExecuteQueryRequest(
     string ConnectionName,
     string Sql,
     int MaxRows,
-    int? TimeoutSeconds = null);
+    int? TimeoutSeconds = null,
+    bool IncludeExecutionPlan = false);

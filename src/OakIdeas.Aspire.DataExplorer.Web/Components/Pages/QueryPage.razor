@@ -1,6 +1,7 @@
 @page "/query/{connectionName?}"
 @using Microsoft.Extensions.Options
 @using OakIdeas.Aspire.DataExplorer.Contracts.Models
+@using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer
 @using OakIdeas.Aspire.DataExplorer.Core.Configuration
 @using OakIdeas.Aspire.DataExplorer.Web.Abstractions
 @inject IExplorerService ExplorerService
@@ -37,6 +38,8 @@
         <QueryPanel ConnectionName="@_activeConnectionName"
                     @bind-Sql="_sql"
                     IsExecuting="_running"
+                    IncludeExecutionPlan="_includeExecutionPlan"
+                    IncludeExecutionPlanChanged="HandleIncludeExecutionPlanChanged"
                     OnExecute="RunQuery"
                     OnCancel="CancelQuery"
                     Suggestions="_suggestions" />
@@ -54,19 +57,30 @@
                 <HeroIcon Kind="HeroIconKind.TableCells" Size="13" />
                 Results
             </button>
-            <button type="button"
-                    role="tab"
-                    aria-selected="@(_activeResultTab == ResultTab.Errors)"
-                    class="de-query-tab de-query-tab--errors @(_activeResultTab == ResultTab.Errors ? "de-query-tab--errors-active" : string.Empty)"
-                    @onclick="() => _activeResultTab = ResultTab.Errors">
-                <HeroIcon Kind="HeroIconKind.ExclamationTriangle" Size="13" />
-                Errors
-                @if (_queryError is not null)
-                {
-                    <span class="de-query-tab__badge">!</span>
-                }
-            </button>
-        </div>
+            @if (_includeExecutionPlan)
+            {
+                <button type="button"
+                        role="tab"
+                        aria-selected="@(_activeResultTab == ResultTab.ExecutionPlan)"
+                        class="de-query-tab @(_activeResultTab == ResultTab.ExecutionPlan ? "de-query-tab--active" : string.Empty)"
+                        @onclick="() => _activeResultTab = ResultTab.ExecutionPlan">
+                    <HeroIcon Kind="HeroIconKind.CodeBracket" Size="13" />
+                    Execution Plan
+                </button>
+            }
+        <button type="button"
+                role="tab"
+                aria-selected="@(_activeResultTab == ResultTab.Errors)"
+                class="de-query-tab de-query-tab--errors @(_activeResultTab == ResultTab.Errors ? "de-query-tab--errors-active" : string.Empty)"
+                @onclick="() => _activeResultTab = ResultTab.Errors">
+            <HeroIcon Kind="HeroIconKind.ExclamationTriangle" Size="13" />
+            Errors
+            @if (_queryError is not null)
+            {
+                <span class="de-query-tab__badge">!</span>
+            }
+        </button>
+    </div>
 
         @if (_activeResultTab == ResultTab.Results)
         {
@@ -74,6 +88,10 @@
                           Rows="@_rows"
                           IsLoading="_running"
                           ElapsedMilliseconds="_lastDurationMs" />
+        }
+        else if (_activeResultTab == ResultTab.ExecutionPlan)
+        {
+            <ExecutionPlanViewer IsLoading="_running" ExecutionPlan="_executionPlan" OnRenderError="HandleExecutionPlanRenderErrorAsync" />
         }
         else
         {
@@ -146,11 +164,13 @@
     [SupplyParameterFromQuery(Name = "autoexec")]
     public bool AutoExecute { get; set; }
 
-    private enum ResultTab { Results, Errors }
+    private enum ResultTab { Results, Errors, ExecutionPlan }
 
     private string _sql = string.Empty;
     private bool _running;
     private DataExplorerError? _queryError;
+    private ExecutionPlanResponse? _executionPlan;
+    private bool _includeExecutionPlan;
     private ResultTab _activeResultTab = ResultTab.Results;
     private string _status = string.Empty;
     private double? _lastDurationMs;
@@ -239,6 +259,7 @@
         _isDestructiveConfirmationPending = false;
         _running = true;
         _queryError = null;
+        _executionPlan = null;
         _status = string.Empty;
         _columns = [];
         _rows = [];
@@ -248,16 +269,18 @@
 
         try
         {
-            var response = await ExplorerService.ExecuteQueryAsync(sql, _queryCts.Token);
+            var response = await ExplorerService.ExecuteQueryAsync(sql, _includeExecutionPlan, _queryCts.Token);
             if (response.Error is not null)
             {
                 _queryError = response.Error;
+                _executionPlan = response.ExecutionPlan;
                 _status = response.Error.RecoverySuggestion ?? "Query execution failed.";
                 _activeResultTab = ResultTab.Errors;
                 return;
             }
 
             _queryError = null;
+            _executionPlan = response.ExecutionPlan;
             _activeResultTab = ResultTab.Results;
 
             _columns = response.Columns;
@@ -289,6 +312,17 @@
         {
             _queryCts?.Cancel();
         }
+    }
+
+    private Task HandleIncludeExecutionPlanChanged(bool includeExecutionPlan)
+    {
+        _includeExecutionPlan = includeExecutionPlan;
+        if (!_includeExecutionPlan && _activeResultTab == ResultTab.ExecutionPlan)
+        {
+            _activeResultTab = ResultTab.Results;
+        }
+
+        return Task.CompletedTask;
     }
 
     private async Task<IReadOnlyList<string>> BuildSuggestionsAsync(CancellationToken cancellationToken)
@@ -360,5 +394,24 @@
             byte[] bytes => Convert.ToBase64String(bytes),
             _ => Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture)
         };
+
+    private async Task HandleExecutionPlanRenderErrorAsync(string details)
+    {
+        var detailText = string.IsNullOrWhiteSpace(details)
+            ? "No additional details provided."
+            : details.Trim();
+
+        _queryError = new DataExplorerError(
+            Category: ErrorCategory.UnknownError,
+            Message: $"Execution plan rendering failed. {detailText}",
+            RecoverySuggestion: "Review the error details and raw execution plan, then retry the query.",
+            Operation: "render-execution-plan",
+            Target: string.IsNullOrWhiteSpace(_activeConnectionName) ? null : _activeConnectionName,
+            Timestamp: DateTimeOffset.UtcNow,
+            DiagnosticCode: "execution-plan-render-error");
+        _status = "Execution plan rendering failed. See Errors tab for details.";
+        _activeResultTab = ResultTab.Errors;
+        await InvokeAsync(StateHasChanged);
+    }
 
 }

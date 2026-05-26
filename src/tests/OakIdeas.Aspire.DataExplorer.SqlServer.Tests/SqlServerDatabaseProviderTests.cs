@@ -92,6 +92,106 @@ public sealed class SqlServerDatabaseProviderTests
     }
 
     [Fact]
+    public void BuildStatisticsXmlCommandText_WrapsQueryWithStatisticsXmlStatements()
+    {
+        var commandText = SqlServerDatabaseProvider.BuildStatisticsXmlCommandText("SELECT 1");
+
+        commandText.Should().Contain("SET STATISTICS XML ON");
+        commandText.Should().Contain("SELECT 1");
+        commandText.Should().Contain("SET STATISTICS XML OFF");
+    }
+
+    [Fact]
+    public void BuildExecutionPlanResult_WhenXmlMissing_ReturnsUnavailablePlan()
+    {
+        var plan = SqlServerDatabaseProvider.BuildExecutionPlanResult(null);
+
+        plan.IsAvailable.Should().BeFalse();
+        plan.Message.Should().Contain("not available");
+    }
+
+    [Fact]
+    public void ConvertExecutionPlanXmlToMermaid_WhenRelOpsPresent_ReturnsFlowchart()
+    {
+        const string xml = """
+            <ShowPlanXML xmlns="http://schemas.microsoft.com/sqlserver/2004/07/showplan">
+              <BatchSequence>
+                <Batch>
+                  <Statements>
+                    <StmtSimple>
+                      <QueryPlan>
+                        <RelOp PhysicalOp="Index Seek" />
+                        <RelOp PhysicalOp="Nested Loops" />
+                      </QueryPlan>
+                    </StmtSimple>
+                  </Statements>
+                </Batch>
+              </BatchSequence>
+            </ShowPlanXML>
+            """;
+
+        var diagram = SqlServerDatabaseProvider.ConvertExecutionPlanXmlToMermaid(xml);
+
+        diagram.Should().Contain("flowchart LR");
+        diagram.Should().Contain("Index Seek");
+        diagram.Should().Contain("Nested Loops");
+    }
+
+    [Fact]
+    public void ConvertExecutionPlanXmlToMermaid_WhenStatisticsAvailable_IncludesEstimatedAndActualMetrics()
+    {
+        const string xml = """
+            <ShowPlanXML xmlns="http://schemas.microsoft.com/sqlserver/2004/07/showplan">
+              <BatchSequence>
+                <Batch>
+                  <Statements>
+                    <StmtSimple>
+                      <QueryPlan>
+                        <RelOp
+                          NodeId="1"
+                          PhysicalOp="Clustered Index Scan"
+                          LogicalOp="Clustered Index Scan"
+                          EstimateRows="12.5"
+                          EstimateRowsWithoutRowGoal="12.5"
+                          EstimatedRowsRead="20"
+                          EstimateIO="0.003125"
+                          EstimateCPU="0.001"
+                          EstimatedTotalSubtreeCost="0.004125"
+                          AvgRowSize="32"
+                          Parallel="false"
+                          EstimatedExecutionMode="Row">
+                          <RunTimeInformation>
+                            <RunTimeCountersPerThread Thread="0" ActualRows="10" ActualExecutions="1" ActualElapsedms="3" ActualCPUms="2" ActualLogicalReads="15" ActualPhysicalReads="0" />
+                            <RunTimeCountersPerThread Thread="1" ActualRows="5" ActualExecutions="1" ActualElapsedms="1" ActualCPUms="1" ActualLogicalReads="5" ActualPhysicalReads="0" />
+                          </RunTimeInformation>
+                          <IndexScan>
+                            <Object Database="[Demo]" Schema="[dbo]" Table="[Users]" Index="[IX_Users_Name]" />
+                          </IndexScan>
+                        </RelOp>
+                      </QueryPlan>
+                    </StmtSimple>
+                  </Statements>
+                </Batch>
+              </BatchSequence>
+            </ShowPlanXML>
+            """;
+
+        var diagram = SqlServerDatabaseProvider.ConvertExecutionPlanXmlToMermaid(xml);
+
+        diagram.Should().Contain("N1[\"");
+        diagram.Should().Contain("classDef epOperator");
+        diagram.Should().Contain("classDef epAccess");
+        diagram.Should().Contain("class N1 epAccess");
+        diagram.Should().Contain("Estimated Rows: 12.5");
+        diagram.Should().Contain("Estimated Cost: 0.004125");
+        diagram.Should().Contain("Actual Rows: 15");
+        diagram.Should().Contain("Actual Execs: 2");
+        diagram.Should().Contain("Actual Reads: 20");
+        diagram.Should().Contain("--------");
+        diagram.Should().Contain("Object: dbo.Users (IX_Users_Name)");
+    }
+
+    [Fact]
     public void CreateSchemaObject_IncludesSchemaIdMetadata()
     {
         var schema = SqlServerDatabaseProvider.CreateSchemaObject(schemaId: 7, schemaName: "sales");

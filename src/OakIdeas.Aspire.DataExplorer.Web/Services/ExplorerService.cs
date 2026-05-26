@@ -331,7 +331,7 @@ public sealed class ExplorerService(
         }
     }
 
-    public async Task<ExecuteDatabaseQueryResponse> ExecuteQueryAsync(string sql, CancellationToken cancellationToken)
+    public async Task<ExecuteDatabaseQueryResponse> ExecuteQueryAsync(string sql, bool includeExecutionPlan, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -430,7 +430,8 @@ public sealed class ExplorerService(
                     ConnectionName: selected.Resource.DatabaseName,
                     Sql: sql.Trim(),
                     MaxRows: Math.Max(1, _options.MaxQueryRows),
-                    TimeoutSeconds: Math.Max(1, _options.QueryTimeoutSeconds)),
+                    TimeoutSeconds: Math.Max(1, _options.QueryTimeoutSeconds),
+                    IncludeExecutionPlan: includeExecutionPlan),
                 cancellationToken);
 
             return new ExecuteDatabaseQueryResponse(
@@ -440,7 +441,15 @@ public sealed class ExplorerService(
                 RowCount: result.RowCount,
                 AffectedRowCount: result.AffectedRowCount,
                 Duration: result.Duration,
-                IsTruncated: result.IsTruncated);
+                IsTruncated: result.IsTruncated,
+                ExecutionPlan: result.ExecutionPlan is null
+                    ? null
+                    : new ExecutionPlanResponse(
+                        IsAvailable: result.ExecutionPlan.IsAvailable,
+                        Provider: result.ExecutionPlan.Provider,
+                        MermaidDiagram: result.ExecutionPlan.MermaidDiagram,
+                        RawPlan: result.ExecutionPlan.RawPlan,
+                        Message: result.ExecutionPlan.Message));
         }
         catch (OperationCanceledException)
         {

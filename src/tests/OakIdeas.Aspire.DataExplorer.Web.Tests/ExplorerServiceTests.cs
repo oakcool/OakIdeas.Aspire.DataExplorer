@@ -170,7 +170,7 @@ public sealed class ExplorerServiceTests
     {
         var service = CreateService(selectedDatabaseService: new StubSelectedDatabaseService(selectedContext: null));
 
-        var response = await service.ExecuteQueryAsync("SELECT 1", CancellationToken.None);
+        var response = await service.ExecuteQueryAsync("SELECT 1", includeExecutionPlan: false, CancellationToken.None);
 
         response.Error.Should().NotBeNull();
         response.Error!.Category.Should().Be(ErrorCategory.ResourceNotFound);
@@ -191,7 +191,7 @@ public sealed class ExplorerServiceTests
 
         var service = CreateService(providerFactory: new StubProviderFactory(provider));
 
-        var response = await service.ExecuteQueryAsync("SELECT id FROM dbo.Users", CancellationToken.None);
+        var response = await service.ExecuteQueryAsync("SELECT id FROM dbo.Users", includeExecutionPlan: false, CancellationToken.None);
 
         response.Error.Should().BeNull();
         response.Columns.Should().ContainSingle().Which.Should().Be("id");
@@ -205,7 +205,7 @@ public sealed class ExplorerServiceTests
         var provider = new DefinitionProvider("SELECT 1", null, new InvalidOperationException("Server=secret;Database=app"));
         var service = CreateService(providerFactory: new StubProviderFactory(provider));
 
-        var response = await service.ExecuteQueryAsync("SELECT 1", CancellationToken.None);
+        var response = await service.ExecuteQueryAsync("SELECT 1", includeExecutionPlan: false, CancellationToken.None);
 
         response.Error.Should().NotBeNull();
         response.Error!.Message.Should().NotContain("Server=secret");
@@ -233,7 +233,7 @@ public sealed class ExplorerServiceTests
                 selectedDatabaseService: new StubSelectedDatabaseService(selected),
                 providerFactory: new StubProviderFactory(provider));
 
-            var response = await service.ExecuteQueryAsync("SELECT 1", CancellationToken.None);
+            var response = await service.ExecuteQueryAsync("SELECT 1", includeExecutionPlan: false, CancellationToken.None);
 
             response.Error.Should().BeNull();
             provider.LastExecutedConnectionString.Should().Be(expectedConnectionString);
@@ -242,6 +242,34 @@ public sealed class ExplorerServiceTests
         {
             Environment.SetEnvironmentVariable(envVarName, null);
         }
+    }
+
+    [Fact]
+    public async Task ExecuteQueryAsync_WhenExecutionPlanRequested_MapsRequestAndResponse()
+    {
+        var provider = new DefinitionProvider(
+            "SELECT 1",
+            new QueryResult(
+                Columns: ["id"],
+                Rows: [new Dictionary<string, object?> { ["id"] = 1 }],
+                RowCount: 1,
+                Duration: TimeSpan.FromMilliseconds(8),
+                ExecutionPlan: new QueryExecutionPlanResult(
+                    IsAvailable: true,
+                    Provider: "SqlServer",
+                    MermaidDiagram: "flowchart TD\nA[Query Start]-->B[Index Seek]",
+                    RawPlan: "<ShowPlanXML />",
+                    Message: null)));
+
+        var service = CreateService(providerFactory: new StubProviderFactory(provider));
+
+        var response = await service.ExecuteQueryAsync("SELECT id FROM dbo.Users", includeExecutionPlan: true, CancellationToken.None);
+
+        provider.LastRequest.Should().NotBeNull();
+        provider.LastRequest!.IncludeExecutionPlan.Should().BeTrue();
+        response.ExecutionPlan.Should().NotBeNull();
+        response.ExecutionPlan!.IsAvailable.Should().BeTrue();
+        response.ExecutionPlan.Provider.Should().Be("SqlServer");
     }
 
     private static ExplorerService CreateService(
@@ -436,6 +464,7 @@ public sealed class ExplorerServiceTests
         private readonly QueryResult _queryResult = queryResult ?? new QueryResult([], [], 0, TimeSpan.Zero);
         private readonly Exception? _queryException = queryException;
         public string? LastExecutedConnectionString { get; private set; }
+        public ExecuteQueryRequest? LastRequest { get; private set; }
 
         public DatabaseProviderType ProviderType => DatabaseProviderType.SqlServer;
 
@@ -450,6 +479,7 @@ public sealed class ExplorerServiceTests
         public Task<QueryResult> ExecuteQueryAsync(DatabaseResource resource, ExecuteQueryRequest request, CancellationToken cancellationToken)
         {
             LastExecutedConnectionString = resource.ConnectionString;
+            LastRequest = request;
             return _queryException is null
                 ? Task.FromResult(_queryResult)
                 : Task.FromException<QueryResult>(_queryException);

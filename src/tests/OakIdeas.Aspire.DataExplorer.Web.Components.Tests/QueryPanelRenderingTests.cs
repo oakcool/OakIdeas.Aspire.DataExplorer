@@ -145,5 +145,17 @@ public sealed class QueryPanelRenderingTests : TestContext
         // Ghost text should show something (from a matched suggestion)
         component.Markup.Should().Contain("query-panel__ghost");
     }
-}
 
+    [Fact]
+    public void IncludeExecutionPlanToggle_InvokesChangedCallback()
+    {
+        var includeExecutionPlan = false;
+        var component = RenderComponent<QueryPanel>(parameters => parameters
+            .Add(p => p.IncludeExecutionPlan, includeExecutionPlan)
+            .Add(p => p.IncludeExecutionPlanChanged, EventCallback.Factory.Create<bool>(this, value => includeExecutionPlan = value)));
+
+        component.Find("input[type='checkbox']").Change(true);
+
+        includeExecutionPlan.Should().BeTrue();
+    }
+}

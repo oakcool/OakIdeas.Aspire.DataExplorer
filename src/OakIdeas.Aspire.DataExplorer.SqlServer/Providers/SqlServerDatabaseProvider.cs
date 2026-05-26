@@ -1,6 +1,8 @@
 using System.Data;
 using System.Diagnostics;
 using System.Globalization;
+using System.Text;
+using System.Xml.Linq;
 using Microsoft.Data.SqlClient;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
@@ -440,7 +442,9 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
 
         await using var command = connection.CreateCommand();
         command.CommandType = CommandType.Text;
-        command.CommandText = request.Sql;
+        command.CommandText = request.IncludeExecutionPlan
+            ? BuildStatisticsXmlCommandText(request.Sql)
+            : request.Sql;
         command.CommandTimeout = ResolveCommandTimeoutSeconds(request);
 
         var stopwatch = Stopwatch.StartNew();
@@ -450,11 +454,22 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         var rows = new List<IReadOnlyDictionary<string, object?>>();
         var maxRows = request.MaxRows;
         var isTruncated = false;
+        string? executionPlanXml = null;
 
         do
         {
             if (reader.FieldCount <= 0)
             {
+                continue;
+            }
+
+            if (request.IncludeExecutionPlan && IsExecutionPlanResultSet(reader))
+            {
+                if (await reader.ReadAsync(cancellationToken) && !reader.IsDBNull(0))
+                {
+                    executionPlanXml = Convert.ToString(reader.GetValue(0), CultureInfo.InvariantCulture);
+                }
+
                 continue;
             }
 
@@ -497,13 +512,351 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
             ? reader.RecordsAffected
             : null;
 
+        var executionPlan = request.IncludeExecutionPlan
+            ? BuildExecutionPlanResult(executionPlanXml)
+            : null;
+
         return new QueryResult(
             Columns: columns,
             Rows: rows,
             RowCount: rows.Count,
             Duration: elapsed,
             AffectedRowCount: affectedRows,
-            IsTruncated: isTruncated);
+            IsTruncated: isTruncated,
+            ExecutionPlan: executionPlan);
+    }
+
+    internal static bool IsExecutionPlanResultSet(SqlDataReader reader)
+    {
+        ArgumentNullException.ThrowIfNull(reader);
+        if (reader.FieldCount != 1)
+        {
+            return false;
+        }
+
+        var columnName = reader.GetName(0);
+        return columnName.Contains("Showplan", StringComparison.OrdinalIgnoreCase);
+    }
+
+    internal static string BuildStatisticsXmlCommandText(string sql)
+        => $"SET STATISTICS XML ON;{Environment.NewLine}{sql}{Environment.NewLine}SET STATISTICS XML OFF;";
+
+    internal static QueryExecutionPlanResult BuildExecutionPlanResult(string? executionPlanXml)
+    {
+        if (string.IsNullOrWhiteSpace(executionPlanXml))
+        {
+            return new QueryExecutionPlanResult(
+                IsAvailable: false,
+                Provider: "SqlServer",
+                MermaidDiagram: null,
+                RawPlan: null,
+                Message: "Execution plan is not available for this query or provider.");
+        }
+
+        try
+        {
+            return new QueryExecutionPlanResult(
+                IsAvailable: true,
+                Provider: "SqlServer",
+                MermaidDiagram: ConvertExecutionPlanXmlToMermaid(executionPlanXml),
+                RawPlan: executionPlanXml,
+                Message: null);
+        }
+        catch
+        {
+            return new QueryExecutionPlanResult(
+                IsAvailable: false,
+                Provider: "SqlServer",
+                MermaidDiagram: null,
+                RawPlan: executionPlanXml,
+                Message: "Execution plan is not available for this query or provider.");
+        }
+    }
+
+    internal static string ConvertExecutionPlanXmlToMermaid(string executionPlanXml)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(executionPlanXml);
+
+        var document = XDocument.Parse(executionPlanXml);
+        XNamespace ns = document.Root?.Name.Namespace ?? XNamespace.None;
+        var relOps = document
+            .Descendants(ns + "RelOp")
+            .Take(32)
+            .ToList();
+
+        if (relOps.Count == 0)
+        {
+            throw new InvalidOperationException("Execution plan does not include RelOp operators.");
+        }
+
+        var builder = new StringBuilder();
+        builder.AppendLine("flowchart LR");
+        builder.AppendLine("    classDef epOperator fill:#0f172a,stroke:#60a5fa,stroke-width:1px,color:#e2e8f0;");
+        builder.AppendLine("    classDef epAccess fill:#0b1b33,stroke:#38bdf8,stroke-width:1px,color:#e0f2fe;");
+        builder.AppendLine("    classDef epJoin fill:#2a1736,stroke:#c084fc,stroke-width:1px,color:#f5e8ff;");
+        builder.AppendLine("    classDef epCompute fill:#1f2937,stroke:#34d399,stroke-width:1px,color:#ecfeff;");
+
+        var nodeIds = new Dictionary<XElement, string>();
+        var usedNodeIds = new HashSet<string>(StringComparer.Ordinal);
+
+        for (var index = 0; index < relOps.Count; index++)
+        {
+            var relOp = relOps[index];
+            var nodeId = BuildMermaidNodeId(relOp, index, usedNodeIds);
+            nodeIds[relOp] = nodeId;
+            builder.AppendLine($"    {nodeId}[\"{EscapeMermaidLabel(BuildExecutionPlanNodeLabel(relOp, ns))}\"]");
+            builder.AppendLine($"    class {nodeId} {ResolveExecutionPlanNodeClass(relOp)}");
+        }
+
+        var hasEdges = false;
+        foreach (var relOp in relOps)
+        {
+            var parentNodeId = nodeIds[relOp];
+            var childRelOps = relOp
+                .Descendants(ns + "RelOp")
+                .Where(child => !ReferenceEquals(child, relOp) && ReferenceEquals(child.Ancestors(ns + "RelOp").FirstOrDefault(), relOp));
+
+            foreach (var childRelOp in childRelOps)
+            {
+                if (!nodeIds.TryGetValue(childRelOp, out var childNodeId))
+                {
+                    continue;
+                }
+
+                builder.AppendLine($"    {parentNodeId} --> {childNodeId}");
+                hasEdges = true;
+            }
+        }
+
+        if (!hasEdges)
+        {
+            for (var index = 1; index < relOps.Count; index++)
+            {
+                builder.AppendLine($"    {nodeIds[relOps[index - 1]]} --> {nodeIds[relOps[index]]}");
+            }
+        }
+
+        return builder.ToString().TrimEnd();
+    }
+
+    private static string BuildExecutionPlanNodeLabel(XElement relOp, XNamespace ns)
+    {
+        var lines = new List<string>();
+        const string metricIndent = "&nbsp;&nbsp;";
+        var physicalOp = relOp.Attribute("PhysicalOp")?.Value;
+        var logicalOp = relOp.Attribute("LogicalOp")?.Value;
+
+        lines.Add(!string.IsNullOrWhiteSpace(physicalOp)
+            ? physicalOp!
+            : logicalOp ?? "Operation");
+
+        var objectName = TryBuildObjectName(relOp, ns);
+        if (!string.IsNullOrWhiteSpace(objectName))
+        {
+            lines.Add($"Object: {objectName}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(logicalOp)
+            && !string.Equals(logicalOp, physicalOp, StringComparison.OrdinalIgnoreCase))
+        {
+            lines.Add($"Logical: {logicalOp}");
+        }
+
+        AddAttributePart(lines, relOp, "EstimateRows", $"{metricIndent}Estimated Rows");
+        AddAttributePart(lines, relOp, "EstimatedTotalSubtreeCost", $"{metricIndent}Estimated Cost");
+        AddAttributePart(lines, relOp, "EstimateIO", $"{metricIndent}Estimated I/O");
+        AddAttributePart(lines, relOp, "EstimateCPU", $"{metricIndent}Estimated CPU");
+
+        var runtimeCounters = relOp
+            .Descendants(ns + "RunTimeCountersPerThread")
+            .Take(64)
+            .ToList();
+
+        AddRuntimeCounterPart(lines, runtimeCounters, "ActualRows", $"{metricIndent}Actual Rows");
+        AddRuntimeCounterPart(lines, runtimeCounters, "ActualExecutions", $"{metricIndent}Actual Execs");
+        AddRuntimeCounterPart(lines, runtimeCounters, "ActualElapsedms", $"{metricIndent}Actual Elapsed ms");
+        AddRuntimeCounterPart(lines, runtimeCounters, "ActualCPUms", $"{metricIndent}Actual CPU ms");
+        AddRuntimeCounterPart(lines, runtimeCounters, "ActualLogicalReads", $"{metricIndent}Actual Reads");
+
+        return JoinExecutionPlanLabelLines(lines);
+    }
+
+    private static string JoinExecutionPlanLabelLines(IReadOnlyList<string> lines)
+    {
+        ArgumentNullException.ThrowIfNull(lines);
+
+        if (lines.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        if (lines.Count == 1)
+        {
+            return lines[0];
+        }
+
+        return string.Join("<br/>--------<br/>", lines);
+    }
+
+    private static string BuildMermaidNodeId(XElement relOp, int index, ISet<string> usedNodeIds)
+    {
+        ArgumentNullException.ThrowIfNull(relOp);
+        ArgumentNullException.ThrowIfNull(usedNodeIds);
+
+        var rawNodeId = relOp.Attribute("NodeId")?.Value;
+        var seed = int.TryParse(rawNodeId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedNodeId)
+            ? parsedNodeId
+            : index + 1;
+
+        var candidate = $"N{seed}";
+        var duplicateIndex = 2;
+        while (!usedNodeIds.Add(candidate))
+        {
+            candidate = $"N{seed}_{duplicateIndex++}";
+        }
+
+        return candidate;
+    }
+
+    private static void AddAttributePart(ICollection<string> parts, XElement relOp, string attributeName, string label)
+    {
+        ArgumentNullException.ThrowIfNull(parts);
+        ArgumentNullException.ThrowIfNull(relOp);
+
+        var value = relOp.Attribute(attributeName)?.Value;
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            parts.Add($"{label}: {value}");
+        }
+    }
+
+    private static void AddRuntimeCounterPart(ICollection<string> parts, IReadOnlyCollection<XElement> runtimeCounters, string attributeName, string label)
+    {
+        ArgumentNullException.ThrowIfNull(parts);
+        ArgumentNullException.ThrowIfNull(runtimeCounters);
+
+        var value = AggregateRuntimeCounter(runtimeCounters, attributeName);
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            parts.Add($"{label}: {value}");
+        }
+    }
+
+    private static string ResolveExecutionPlanNodeClass(XElement relOp)
+    {
+        ArgumentNullException.ThrowIfNull(relOp);
+
+        var operation = relOp.Attribute("PhysicalOp")?.Value
+            ?? relOp.Attribute("LogicalOp")?.Value
+            ?? string.Empty;
+
+        if (operation.Contains("Join", StringComparison.OrdinalIgnoreCase)
+            || operation.Contains("Apply", StringComparison.OrdinalIgnoreCase))
+        {
+            return "epJoin";
+        }
+
+        if (operation.Contains("Scan", StringComparison.OrdinalIgnoreCase)
+            || operation.Contains("Seek", StringComparison.OrdinalIgnoreCase)
+            || operation.Contains("Lookup", StringComparison.OrdinalIgnoreCase))
+        {
+            return "epAccess";
+        }
+
+        if (operation.Contains("Sort", StringComparison.OrdinalIgnoreCase)
+            || operation.Contains("Aggregate", StringComparison.OrdinalIgnoreCase)
+            || operation.Contains("Compute", StringComparison.OrdinalIgnoreCase)
+            || operation.Contains("Filter", StringComparison.OrdinalIgnoreCase))
+        {
+            return "epCompute";
+        }
+
+        return "epOperator";
+    }
+
+    private static string? AggregateRuntimeCounter(IReadOnlyCollection<XElement> runtimeCounters, string attributeName)
+    {
+        if (runtimeCounters.Count == 0)
+        {
+            return null;
+        }
+
+        var values = runtimeCounters
+            .Select(counter => counter.Attribute(attributeName)?.Value)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value!)
+            .ToList();
+
+        if (values.Count == 0)
+        {
+            return null;
+        }
+
+        var sum = 0d;
+        foreach (var value in values)
+        {
+            if (!double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
+            {
+                return value;
+            }
+
+            sum += parsed;
+        }
+
+        return sum.ToString("0.###", CultureInfo.InvariantCulture);
+    }
+
+    private static string? TryBuildObjectName(XElement relOp, XNamespace ns)
+    {
+        var objectElement = relOp.Descendants(ns + "Object").FirstOrDefault();
+        if (objectElement is null)
+        {
+            return null;
+        }
+
+        var schema = SanitizeSqlIdentifier(objectElement.Attribute("Schema")?.Value);
+        var table = SanitizeSqlIdentifier(objectElement.Attribute("Table")?.Value);
+        var index = SanitizeSqlIdentifier(objectElement.Attribute("Index")?.Value);
+
+        var objectName = !string.IsNullOrWhiteSpace(schema) && !string.IsNullOrWhiteSpace(table)
+            ? $"{schema}.{table}"
+            : table ?? schema;
+
+        if (string.IsNullOrWhiteSpace(objectName))
+        {
+            objectName = SanitizeSqlIdentifier(objectElement.Attribute("Alias")?.Value);
+        }
+
+        return string.IsNullOrWhiteSpace(index)
+            ? objectName
+            : $"{objectName} ({index})";
+    }
+
+    private static string? SanitizeSqlIdentifier(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return value
+            .Trim()
+            .Trim('[', ']');
+    }
+
+    internal static string EscapeMermaidLabel(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return "Operation";
+        }
+
+        return text
+            .Replace("\"", "'", StringComparison.Ordinal)
+            .Replace("[", "(", StringComparison.Ordinal)
+            .Replace("]", ")", StringComparison.Ordinal)
+            .Replace("{", "(", StringComparison.Ordinal)
+            .Replace("}", ")", StringComparison.Ordinal);
     }
 
     internal static int ResolveCommandTimeoutSeconds(ExecuteQueryRequest request)

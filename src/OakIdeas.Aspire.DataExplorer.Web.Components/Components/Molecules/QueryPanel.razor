@@ -22,6 +22,13 @@
                     Variant="ghost"
                     Disabled="IsExecuting"
                     OnClick="Clear" />
+        <label class="query-panel__execution-plan-toggle" title="Include execution plan in query response when supported.">
+            <input type="checkbox"
+                   checked="@IncludeExecutionPlan"
+                   disabled="@IsExecuting"
+                   @onchange="HandleIncludeExecutionPlanChanged" />
+            <span>Include Execution Plan</span>
+        </label>
         @if (!string.IsNullOrEmpty(ConnectionName))
         {
             <StatusBadge Text="@ConnectionName" Variant="connected" />
@@ -84,6 +91,8 @@
     [Parameter] public EventCallback<string> SqlChanged { get; set; }
     [Parameter] public string ConnectionName { get; set; } = string.Empty;
     [Parameter] public bool IsExecuting { get; set; }
+    [Parameter] public bool IncludeExecutionPlan { get; set; }
+    [Parameter] public EventCallback<bool> IncludeExecutionPlanChanged { get; set; }
     [Parameter] public EventCallback<string> OnExecute { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
     [Parameter] public IReadOnlyList<string> Suggestions { get; set; } = [];
@@ -153,6 +162,18 @@
     }
 
     private Task Cancel() => OnCancel.InvokeAsync();
+
+    private Task HandleIncludeExecutionPlanChanged(ChangeEventArgs args)
+    {
+        var isEnabled = args.Value switch
+        {
+            bool value => value,
+            string value => string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) || value == "on",
+            _ => false,
+        };
+
+        return IncludeExecutionPlanChanged.InvokeAsync(isEnabled);
+    }
 
     private async Task Clear()
     {
