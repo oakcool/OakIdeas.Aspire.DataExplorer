@@ -14,7 +14,22 @@ export async function renderMermaid(container, source) {
     mermaid.initialize({
       startOnLoad: false,
       securityLevel: "strict",
-      theme: "dark"
+      theme: "base",
+      flowchart: {
+        htmlLabels: true,
+        nodeSpacing: 35,
+        rankSpacing: 55,
+        curve: "basis",
+        padding: 12
+      },
+      themeVariables: {
+        background: "#0b1220",
+        primaryColor: "#0f172a",
+        primaryTextColor: "#e2e8f0",
+        primaryBorderColor: "#60a5fa",
+        lineColor: "#64748b",
+        fontFamily: "Inter, Segoe UI, sans-serif"
+      }
     });
     initialized = true;
   }

@@ -179,11 +179,12 @@ public sealed class SqlServerDatabaseProviderTests
         var diagram = SqlServerDatabaseProvider.ConvertExecutionPlanXmlToMermaid(xml);
 
         diagram.Should().Contain("N1[\"");
-        diagram.Should().Contain("Estimated Rows: 12.5");
-        diagram.Should().Contain("Estimated Subtree Cost: 0.004125");
-        diagram.Should().Contain("Actual Rows: 15");
-        diagram.Should().Contain("Actual Executions: 2");
-        diagram.Should().Contain("Actual Logical Reads: 20");
+        diagram.Should().Contain("classDef epOperator");
+        diagram.Should().Contain("classDef epAccess");
+        diagram.Should().Contain("class N1 epAccess");
+        diagram.Should().Contain("Estimated: Rows 12.5 • Cost 0.004125");
+        diagram.Should().Contain("Actual: Rows 15 • Execs 2");
+        diagram.Should().Contain("Reads 20");
         diagram.Should().Contain("Object: dbo.Users (IX_Users_Name)");
     }
 

@@ -591,6 +591,10 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
 
         var builder = new StringBuilder();
         builder.AppendLine("flowchart TD");
+        builder.AppendLine("    classDef epOperator fill:#0f172a,stroke:#60a5fa,stroke-width:1px,color:#e2e8f0;");
+        builder.AppendLine("    classDef epAccess fill:#0b1b33,stroke:#38bdf8,stroke-width:1px,color:#e0f2fe;");
+        builder.AppendLine("    classDef epJoin fill:#2a1736,stroke:#c084fc,stroke-width:1px,color:#f5e8ff;");
+        builder.AppendLine("    classDef epCompute fill:#1f2937,stroke:#34d399,stroke-width:1px,color:#ecfeff;");
 
         var nodeIds = new Dictionary<XElement, string>();
         var usedNodeIds = new HashSet<string>(StringComparer.Ordinal);
@@ -601,6 +605,7 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
             var nodeId = BuildMermaidNodeId(relOp, index, usedNodeIds);
             nodeIds[relOp] = nodeId;
             builder.AppendLine($"    {nodeId}[\"{EscapeMermaidLabel(BuildExecutionPlanNodeLabel(relOp, ns))}\"]");
+            builder.AppendLine($"    class {nodeId} {ResolveExecutionPlanNodeClass(relOp)}");
         }
 
         var hasEdges = false;
@@ -644,28 +649,27 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
             ? physicalOp!
             : logicalOp ?? "Operation");
 
+        var objectName = TryBuildObjectName(relOp, ns);
+        if (!string.IsNullOrWhiteSpace(objectName))
+        {
+            lines.Add($"Object: {objectName}");
+        }
+
         if (!string.IsNullOrWhiteSpace(logicalOp)
             && !string.Equals(logicalOp, physicalOp, StringComparison.OrdinalIgnoreCase))
         {
             lines.Add($"Logical: {logicalOp}");
         }
 
-        AddAttributeLine(lines, relOp, "NodeId", "NodeId");
-        AddAttributeLine(lines, relOp, "EstimateRows", "Estimated Rows");
-        AddAttributeLine(lines, relOp, "EstimateRowsWithoutRowGoal", "Estimated Rows (No Row Goal)");
-        AddAttributeLine(lines, relOp, "EstimatedRowsRead", "Estimated Rows Read");
-        AddAttributeLine(lines, relOp, "EstimateIO", "Estimated I/O Cost");
-        AddAttributeLine(lines, relOp, "EstimateCPU", "Estimated CPU Cost");
-        AddAttributeLine(lines, relOp, "EstimatedTotalSubtreeCost", "Estimated Subtree Cost");
-        AddAttributeLine(lines, relOp, "AvgRowSize", "Average Row Size");
-        AddAttributeLine(lines, relOp, "Parallel", "Parallel");
-        AddAttributeLine(lines, relOp, "EstimatedExecutionMode", "Estimated Execution Mode");
-        AddAttributeLine(lines, relOp, "TableCardinality", "Table Cardinality");
+        var estimateParts = new List<string>();
+        AddAttributePart(estimateParts, relOp, "EstimateRows", "Rows");
+        AddAttributePart(estimateParts, relOp, "EstimatedTotalSubtreeCost", "Cost");
+        AddAttributePart(estimateParts, relOp, "EstimateIO", "I/O");
+        AddAttributePart(estimateParts, relOp, "EstimateCPU", "CPU");
 
-        var objectName = TryBuildObjectName(relOp, ns);
-        if (!string.IsNullOrWhiteSpace(objectName))
+        if (estimateParts.Count > 0)
         {
-            lines.Add($"Object: {objectName}");
+            lines.Add($"Estimated: {string.Join(" • ", estimateParts)}");
         }
 
         var runtimeCounters = relOp
@@ -673,13 +677,17 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
             .Take(64)
             .ToList();
 
-        AddRuntimeCounterLine(lines, runtimeCounters, "ActualRows", "Actual Rows");
-        AddRuntimeCounterLine(lines, runtimeCounters, "ActualExecutions", "Actual Executions");
-        AddRuntimeCounterLine(lines, runtimeCounters, "ActualElapsedms", "Actual Elapsed (ms)");
-        AddRuntimeCounterLine(lines, runtimeCounters, "ActualCPUms", "Actual CPU (ms)");
-        AddRuntimeCounterLine(lines, runtimeCounters, "ActualLogicalReads", "Actual Logical Reads");
-        AddRuntimeCounterLine(lines, runtimeCounters, "ActualPhysicalReads", "Actual Physical Reads");
-        AddRuntimeCounterLine(lines, runtimeCounters, "ActualScans", "Actual Scans");
+        var actualParts = new List<string>();
+        AddRuntimeCounterPart(actualParts, runtimeCounters, "ActualRows", "Rows");
+        AddRuntimeCounterPart(actualParts, runtimeCounters, "ActualExecutions", "Execs");
+        AddRuntimeCounterPart(actualParts, runtimeCounters, "ActualElapsedms", "Elapsed ms");
+        AddRuntimeCounterPart(actualParts, runtimeCounters, "ActualCPUms", "CPU ms");
+        AddRuntimeCounterPart(actualParts, runtimeCounters, "ActualLogicalReads", "Reads");
+
+        if (actualParts.Count > 0)
+        {
+            lines.Add($"Actual: {string.Join(" • ", actualParts)}");
+        }
 
         return string.Join("<br/>", lines);
     }
@@ -704,28 +712,60 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         return candidate;
     }
 
-    private static void AddAttributeLine(ICollection<string> lines, XElement relOp, string attributeName, string label)
+    private static void AddAttributePart(ICollection<string> parts, XElement relOp, string attributeName, string label)
     {
-        ArgumentNullException.ThrowIfNull(lines);
+        ArgumentNullException.ThrowIfNull(parts);
         ArgumentNullException.ThrowIfNull(relOp);
 
         var value = relOp.Attribute(attributeName)?.Value;
         if (!string.IsNullOrWhiteSpace(value))
         {
-            lines.Add($"{label}: {value}");
+            parts.Add($"{label} {value}");
         }
     }
 
-    private static void AddRuntimeCounterLine(ICollection<string> lines, IReadOnlyCollection<XElement> runtimeCounters, string attributeName, string label)
+    private static void AddRuntimeCounterPart(ICollection<string> parts, IReadOnlyCollection<XElement> runtimeCounters, string attributeName, string label)
     {
-        ArgumentNullException.ThrowIfNull(lines);
+        ArgumentNullException.ThrowIfNull(parts);
         ArgumentNullException.ThrowIfNull(runtimeCounters);
 
         var value = AggregateRuntimeCounter(runtimeCounters, attributeName);
         if (!string.IsNullOrWhiteSpace(value))
         {
-            lines.Add($"{label}: {value}");
+            parts.Add($"{label} {value}");
         }
+    }
+
+    private static string ResolveExecutionPlanNodeClass(XElement relOp)
+    {
+        ArgumentNullException.ThrowIfNull(relOp);
+
+        var operation = relOp.Attribute("PhysicalOp")?.Value
+            ?? relOp.Attribute("LogicalOp")?.Value
+            ?? string.Empty;
+
+        if (operation.Contains("Join", StringComparison.OrdinalIgnoreCase)
+            || operation.Contains("Apply", StringComparison.OrdinalIgnoreCase))
+        {
+            return "epJoin";
+        }
+
+        if (operation.Contains("Scan", StringComparison.OrdinalIgnoreCase)
+            || operation.Contains("Seek", StringComparison.OrdinalIgnoreCase)
+            || operation.Contains("Lookup", StringComparison.OrdinalIgnoreCase))
+        {
+            return "epAccess";
+        }
+
+        if (operation.Contains("Sort", StringComparison.OrdinalIgnoreCase)
+            || operation.Contains("Aggregate", StringComparison.OrdinalIgnoreCase)
+            || operation.Contains("Compute", StringComparison.OrdinalIgnoreCase)
+            || operation.Contains("Filter", StringComparison.OrdinalIgnoreCase))
+        {
+            return "epCompute";
+        }
+
+        return "epOperator";
     }
 
     private static string? AggregateRuntimeCounter(IReadOnlyCollection<XElement> runtimeCounters, string attributeName)
