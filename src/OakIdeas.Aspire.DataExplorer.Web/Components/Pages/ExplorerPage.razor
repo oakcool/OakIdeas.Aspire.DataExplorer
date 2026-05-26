@@ -174,7 +174,7 @@
 
         var fqn = $"{_selection.SchemaName}.{_selection.ObjectName}";
 
-        var columns = aggregated.ColumnsByObject.TryGetValue(fqn, out var cols)
+        var columns = TryGetMetadataItems(aggregated.ColumnsByObject, _selection.SchemaName, _selection.ObjectName, fqn, out var cols)
             ? cols.Select(c => new ColumnDetails.ColumnModel(
                 Name: c.Name,
                 Ordinal: c.Ordinal,
@@ -186,7 +186,7 @@
             : null;
 
         IReadOnlyList<ObjectDetails.KeyModel>? keys = null;
-        if (aggregated.PrimaryKeysByTable.TryGetValue(fqn, out var pks) && pks.Count > 0)
+        if (TryGetMetadataItems(aggregated.PrimaryKeysByTable, _selection.SchemaName, _selection.ObjectName, fqn, out var pks) && pks.Count > 0)
         {
             keys = pks.Select(pk => new ObjectDetails.KeyModel(
                 KeyName: pk.ConstraintName,
@@ -194,7 +194,7 @@
         }
 
         IReadOnlyList<RelationshipDetails.ForeignKeyModel>? foreignKeys = null;
-        if (aggregated.ForeignKeysByTable.TryGetValue(fqn, out var fks) && fks.Count > 0)
+        if (TryGetMetadataItems(aggregated.ForeignKeysByTable, _selection.SchemaName, _selection.ObjectName, fqn, out var fks) && fks.Count > 0)
         {
             foreignKeys = fks.Select(fk => new RelationshipDetails.ForeignKeyModel(
                 ConstraintName: fk.ConstraintName,
@@ -208,7 +208,7 @@
         }
 
         IReadOnlyList<IndexDetails.IndexModel>? indexes = null;
-        if (aggregated.IndexesByTable.TryGetValue(fqn, out var idxList) && idxList.Count > 0)
+        if (TryGetMetadataItems(aggregated.IndexesByTable, _selection.SchemaName, _selection.ObjectName, fqn, out var idxList) && idxList.Count > 0)
         {
             indexes = idxList.Select(idx => new IndexDetails.IndexModel(
                 Name: idx.IndexName,
@@ -398,6 +398,41 @@
             RoutineParameterDirection.InputOutput => "Input/Output",
             _ => "Input",
         };
+
+    private static bool TryGetMetadataItems<T>(
+        IReadOnlyDictionary<string, IReadOnlyList<T>> itemsByObject,
+        string schemaName,
+        string objectName,
+        string fullyQualifiedName,
+        out IReadOnlyList<T> items)
+    {
+        if (itemsByObject.TryGetValue(fullyQualifiedName, out items))
+        {
+            return true;
+        }
+
+        var normalizedRequestedName = NormalizeQualifiedName($"{schemaName}.{objectName}");
+        foreach (var pair in itemsByObject)
+        {
+            if (string.Equals(NormalizeQualifiedName(pair.Key), normalizedRequestedName, StringComparison.Ordinal))
+            {
+                items = pair.Value;
+                return true;
+            }
+        }
+
+        items = [];
+        return false;
+    }
+
+    private static string NormalizeQualifiedName(string value)
+    {
+        var segments = value
+            .Split('.', StringSplitOptions.RemoveEmptyEntries)
+            .Select(segment => segment.Trim().Trim('[', ']', '"', '`'))
+            .Where(segment => segment.Length > 0);
+        return string.Join(".", segments).ToUpperInvariant();
+    }
 
     public void Dispose()
     {

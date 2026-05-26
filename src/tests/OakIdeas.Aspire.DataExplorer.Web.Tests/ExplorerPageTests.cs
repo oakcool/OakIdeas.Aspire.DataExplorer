@@ -69,8 +69,33 @@ public sealed class ExplorerPageTests : TestContext
         });
     }
 
+    [Fact]
+    public void TableSelection_LoadsMetadata_WhenAggregatedTableKeysUseQuotedNames()
+    {
+        Services.AddSingleton<IExplorerService>(new FakeExplorerService(useQuotedObjectKeys: true));
+        var navigationManager = Services.GetRequiredService<NavigationManager>();
+        navigationManager.NavigateTo("/explorer?objectId=dbo.Users&objectType=table&objectName=Users&schemaName=dbo&connectionName=sql-main&databaseName=applicationdb");
+
+        var component = RenderComponent<ExplorerPage>();
+
+        component.WaitForAssertion(() =>
+        {
+            component.Markup.Should().Contain("Columns");
+            component.Markup.Should().Contain("Id");
+            component.Markup.Should().Contain("Keys");
+            component.Markup.Should().Contain("PK_Users");
+        });
+    }
+
     private sealed class FakeExplorerService : IExplorerService
     {
+        private readonly bool _useQuotedObjectKeys;
+
+        public FakeExplorerService(bool useQuotedObjectKeys = false)
+        {
+            _useQuotedObjectKeys = useQuotedObjectKeys;
+        }
+
         public Task<GetAvailableDatabasesResponse> GetAvailableDatabasesAsync(CancellationToken cancellationToken)
             => Task.FromResult(new GetAvailableDatabasesResponse([]));
 
@@ -83,7 +108,7 @@ public sealed class ExplorerPageTests : TestContext
         public Task<GetDatabaseMetadataResponse> GetDatabaseMetadataAsync(CancellationToken cancellationToken)
             => Task.FromResult(new GetDatabaseMetadataResponse(
                 Metadata: null,
-                AggregatedMetadata: CreateMetadata(),
+                AggregatedMetadata: CreateMetadata(_useQuotedObjectKeys),
                 CollectionStatus: MetadataCollectionStatus.Success,
                 FailureDetails: [],
                 Errors: []));
@@ -97,9 +122,10 @@ public sealed class ExplorerPageTests : TestContext
         public Task<ExecuteDatabaseQueryResponse> ExecuteQueryAsync(string sql, bool includeExecutionPlan, CancellationToken cancellationToken)
             => throw new NotSupportedException();
 
-        private static DatabaseMetadata CreateMetadata()
+        private static DatabaseMetadata CreateMetadata(bool useQuotedObjectKeys)
         {
             var table = new TableObject("dbo.Users", "dbo", "Users");
+            var tableKey = useQuotedObjectKeys ? "[dbo].[Users]" : "dbo.Users";
             var procedure = new StoredProcedureMetadata(
                 "dbo",
                 "SearchUsers",
@@ -146,14 +172,14 @@ public sealed class ExplorerPageTests : TestContext
                 Constraints: [],
                 ColumnsByObject: new Dictionary<string, IReadOnlyList<ColumnMetadata>>(StringComparer.OrdinalIgnoreCase)
                 {
-                    ["dbo.Users"] =
+                    [tableKey] =
                     [
                         new ColumnMetadata("Id", 1, "int", null, null, null, false, true, false, null, null, new Dictionary<string, object?>()),
                     ],
                 },
                 PrimaryKeysByTable: new Dictionary<string, IReadOnlyList<PrimaryKeyConstraint>>(StringComparer.OrdinalIgnoreCase)
                 {
-                    ["dbo.Users"] =
+                    [tableKey] =
                     [
                         new PrimaryKeyConstraint("PK_Users", "Users", "dbo", ["Id"], true, "dbo.PK_Users"),
                     ],
