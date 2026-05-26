@@ -406,8 +406,9 @@
         string fullyQualifiedName,
         out IReadOnlyList<T> items)
     {
-        if (itemsByObject.TryGetValue(fullyQualifiedName, out items))
+        if (itemsByObject.TryGetValue(fullyQualifiedName, out var requestedItems))
         {
+            items = requestedItems ?? [];
             return true;
         }
 
@@ -416,7 +417,7 @@
         {
             if (string.Equals(NormalizeQualifiedName(pair.Key), normalizedRequestedName, StringComparison.Ordinal))
             {
-                items = pair.Value;
+                items = pair.Value ?? [];
                 return true;
             }
         }
