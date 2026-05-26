@@ -1,5 +1,6 @@
 using Bunit;
 using FluentAssertions;
+using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
@@ -179,14 +180,15 @@ public sealed class QueryPageTests : TestContext
         var service = new FakeExplorerService();
         Services.AddSingleton<IExplorerService>(service);
         Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
+        var navigationManager = Services.GetRequiredService<NavigationManager>();
+        navigationManager.NavigateTo(navigationManager.GetUriWithQueryParameter("sql", "SELECT 1"));
 
-        var component = RenderComponent<QueryPage>(parameters => parameters
-            .Add(page => page.InitialSql, "SELECT 1"));
+        var component = RenderComponent<QueryPage>();
 
         component.Find("textarea").GetAttribute("value").Should().Be("SELECT 1");
 
-        component.SetParametersAndRender(parameters => parameters
-            .Add(page => page.InitialSql, "SELECT TOP 1000 * FROM dbo.Users"));
+        navigationManager.NavigateTo(navigationManager.GetUriWithQueryParameter("sql", "SELECT TOP 1000 * FROM dbo.Users"));
+        component.Render();
 
         component.Find("textarea").GetAttribute("value").Should().Be("SELECT TOP 1000 * FROM dbo.Users");
     }
@@ -197,16 +199,15 @@ public sealed class QueryPageTests : TestContext
         var service = new FakeExplorerService();
         Services.AddSingleton<IExplorerService>(service);
         Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
+        var navigationManager = Services.GetRequiredService<NavigationManager>();
+        navigationManager.NavigateTo(navigationManager.GetUriWithQueryParameter("sql", "SELECT 1"));
 
-        var component = RenderComponent<QueryPage>(parameters => parameters
-            .Add(page => page.InitialSql, "SELECT 1")
-            .Add(page => page.AutoExecute, false));
+        var component = RenderComponent<QueryPage>();
 
         service.ExecuteCalls.Should().Be(0);
 
-        component.SetParametersAndRender(parameters => parameters
-            .Add(page => page.InitialSql, "SELECT COUNT(*) FROM dbo.Users")
-            .Add(page => page.AutoExecute, true));
+        navigationManager.NavigateTo($"/query?sql={Uri.EscapeDataString("SELECT COUNT(*) FROM dbo.Users")}&autoexec=true");
+        component.Render();
 
         component.WaitForAssertion(() => service.ExecuteCalls.Should().Be(1));
         component.Find("textarea").GetAttribute("value").Should().Be("SELECT COUNT(*) FROM dbo.Users");
