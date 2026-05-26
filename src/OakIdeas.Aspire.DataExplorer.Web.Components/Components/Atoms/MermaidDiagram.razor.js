@@ -25,8 +25,8 @@ export async function renderMermaid(container, source) {
     const result = await mermaid.render(id, source);
     container.innerHTML = result.svg;
     return null;
-  } catch (_error) {
+  } catch (error) {
     container.innerHTML = "";
-    return "invalid";
+    return error?.message ? `invalid: ${error.message}` : "invalid";
   }
 }

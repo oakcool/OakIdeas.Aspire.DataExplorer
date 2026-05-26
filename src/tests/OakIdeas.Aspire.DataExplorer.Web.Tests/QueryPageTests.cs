@@ -279,6 +279,54 @@ public sealed class QueryPageTests : TestContext
         component.Markup.Should().Contain("Execution plan is not available for this query or provider.");
     }
 
+    [Fact]
+    public void ResultTabs_WhenExecutionPlanEnabled_KeepErrorsTabAsLastTab()
+    {
+        var service = new FakeExplorerService();
+        Services.AddSingleton<IExplorerService>(service);
+        Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
+
+        var component = RenderComponent<QueryPage>();
+        component.Find("input[type='checkbox']").Change(true);
+
+        var tabButtons = component.FindAll(".de-query-pane__tabs button");
+        tabButtons.Should().HaveCount(3);
+        tabButtons[0].TextContent.Should().Contain("Results");
+        tabButtons[1].TextContent.Should().Contain("Execution Plan");
+        tabButtons[2].TextContent.Should().Contain("Errors");
+    }
+
+    [Fact]
+    public void ExecutionPlanRenderFailure_SwitchesToErrorsTab_WithDetailedDiagnostics()
+    {
+        var mermaidModule = JSInterop.SetupModule("./_content/OakIdeas.Aspire.DataExplorer.Web.Components/Components/Atoms/MermaidDiagram.razor.js");
+        mermaidModule.Setup<string?>("renderMermaid", _ => true).SetResult("invalid: simulated parse failure");
+
+        var service = new FakeExplorerService();
+        Services.AddSingleton<IExplorerService>(service);
+        Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
+
+        var component = RenderComponent<QueryPage>();
+        component.Find("input[type='checkbox']").Change(true);
+        component.Find("textarea").Input("SELECT 1");
+        component.Find("button[title='Execute (Ctrl+Enter)']").Click();
+        component.WaitForAssertion(() => component.Markup.Should().Contain("Execution Plan"));
+
+        component.FindAll("button")
+            .Single(button => button.TextContent.Contains("Execution Plan", StringComparison.Ordinal))
+            .Click();
+
+        component.WaitForAssertion(() =>
+        {
+            component.Markup.Should().Contain("de-query-errors__panel");
+            component.Markup.Should().Contain("Execution plan rendering failed.");
+            component.Markup.Should().Contain("Unable to render execution plan diagram.");
+            component.Markup.Should().Contain("simulated parse failure");
+            component.Markup.Should().Contain("render-execution-plan");
+            component.Markup.Should().Contain("execution-plan-render-error");
+        });
+    }
+
 
     private sealed class FakeExplorerService(bool returnError = false) : IExplorerService
     {

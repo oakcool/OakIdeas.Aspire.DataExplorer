@@ -26,11 +26,15 @@
         <div class="execution-plan-viewer__header">
             <StatusBadge Text="@(ExecutionPlan.Provider ?? "Unknown provider")" Variant="info" />
         </div>
-        <MermaidDiagram Diagram="ExecutionPlan.MermaidDiagram" />
+        <MermaidDiagram Diagram="ExecutionPlan.MermaidDiagram" OnError="HandleRenderErrorAsync" />
     }
 </div>
 
 @code {
     [Parameter] public bool IsLoading { get; set; }
     [Parameter] public ExecutionPlanResponse? ExecutionPlan { get; set; }
+    [Parameter] public EventCallback<string> OnRenderError { get; set; }
+
+    private Task HandleRenderErrorAsync(string error)
+        => OnRenderError.InvokeAsync(error);
 }

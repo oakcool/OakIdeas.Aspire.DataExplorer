@@ -57,18 +57,6 @@
                 <HeroIcon Kind="HeroIconKind.TableCells" Size="13" />
                 Results
             </button>
-            <button type="button"
-                    role="tab"
-                    aria-selected="@(_activeResultTab == ResultTab.Errors)"
-                    class="de-query-tab de-query-tab--errors @(_activeResultTab == ResultTab.Errors ? "de-query-tab--errors-active" : string.Empty)"
-                    @onclick="() => _activeResultTab = ResultTab.Errors">
-                <HeroIcon Kind="HeroIconKind.ExclamationTriangle" Size="13" />
-                Errors
-                @if (_queryError is not null)
-                {
-                    <span class="de-query-tab__badge">!</span>
-                }
-            </button>
             @if (_includeExecutionPlan)
             {
                 <button type="button"
@@ -80,7 +68,19 @@
                     Execution Plan
                 </button>
             }
-        </div>
+        <button type="button"
+                role="tab"
+                aria-selected="@(_activeResultTab == ResultTab.Errors)"
+                class="de-query-tab de-query-tab--errors @(_activeResultTab == ResultTab.Errors ? "de-query-tab--errors-active" : string.Empty)"
+                @onclick="() => _activeResultTab = ResultTab.Errors">
+            <HeroIcon Kind="HeroIconKind.ExclamationTriangle" Size="13" />
+            Errors
+            @if (_queryError is not null)
+            {
+                <span class="de-query-tab__badge">!</span>
+            }
+        </button>
+    </div>
 
         @if (_activeResultTab == ResultTab.Results)
         {
@@ -91,7 +91,7 @@
         }
         else if (_activeResultTab == ResultTab.ExecutionPlan)
         {
-            <ExecutionPlanViewer IsLoading="_running" ExecutionPlan="_executionPlan" />
+            <ExecutionPlanViewer IsLoading="_running" ExecutionPlan="_executionPlan" OnRenderError="HandleExecutionPlanRenderErrorAsync" />
         }
         else
         {
@@ -394,5 +394,24 @@
             byte[] bytes => Convert.ToBase64String(bytes),
             _ => Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture)
         };
+
+    private async Task HandleExecutionPlanRenderErrorAsync(string details)
+    {
+        var detailText = string.IsNullOrWhiteSpace(details)
+            ? "No additional details provided."
+            : details.Trim();
+
+        _queryError = new DataExplorerError(
+            Category: ErrorCategory.UnknownError,
+            Message: $"Execution plan rendering failed. {detailText}",
+            RecoverySuggestion: "Review the error details and raw execution plan, then retry the query.",
+            Operation: "render-execution-plan",
+            Target: string.IsNullOrWhiteSpace(_activeConnectionName) ? null : _activeConnectionName,
+            Timestamp: DateTimeOffset.UtcNow,
+            DiagnosticCode: "execution-plan-render-error");
+        _status = "Execution plan rendering failed. See Errors tab for details.";
+        _activeResultTab = ResultTab.Errors;
+        await InvokeAsync(StateHasChanged);
+    }
 
 }
