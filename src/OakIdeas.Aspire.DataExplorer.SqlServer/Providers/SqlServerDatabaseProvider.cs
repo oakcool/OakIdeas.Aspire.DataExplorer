@@ -600,7 +600,7 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
             var relOp = relOps[index];
             var nodeId = BuildMermaidNodeId(relOp, index, usedNodeIds);
             nodeIds[relOp] = nodeId;
-            builder.AppendLine($"    {nodeId}[{EscapeMermaidLabel(BuildExecutionPlanNodeLabel(relOp, ns))}]");
+            builder.AppendLine($"    {nodeId}[\"{EscapeMermaidLabel(BuildExecutionPlanNodeLabel(relOp, ns))}\"]");
         }
 
         var hasEdges = false;

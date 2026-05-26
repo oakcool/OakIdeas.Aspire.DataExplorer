@@ -178,6 +178,7 @@ public sealed class SqlServerDatabaseProviderTests
 
         var diagram = SqlServerDatabaseProvider.ConvertExecutionPlanXmlToMermaid(xml);
 
+        diagram.Should().Contain("N1[\"");
         diagram.Should().Contain("Estimated Rows: 12.5");
         diagram.Should().Contain("Estimated Subtree Cost: 0.004125");
         diagram.Should().Contain("Actual Rows: 15");
