@@ -26,7 +26,7 @@
         <div class="execution-plan-viewer__header">
             <StatusBadge Text="@(ExecutionPlan.Provider ?? "Unknown provider")" Variant="info" />
         </div>
-        <MermaidDiagram Diagram="ExecutionPlan.MermaidDiagram" OnError="HandleRenderErrorAsync" />
+        <MermaidDiagram Diagram="@ExecutionPlan.MermaidDiagram" OnError="HandleRenderErrorAsync" />
     }
 </div>
 

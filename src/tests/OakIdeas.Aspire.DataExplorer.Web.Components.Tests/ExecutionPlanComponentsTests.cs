@@ -71,4 +71,36 @@ public sealed class ExecutionPlanComponentsTests : TestContext
 
         component.Markup.Should().Contain("mermaid-diagram");
     }
+
+    [Fact]
+    public void ExecutionPlanViewer_WhenPlanAvailable_PassesDiagramValueToRenderer()
+    {
+        var expectedDiagram = "flowchart TD\nA-->B";
+        var mermaidModule = JSInterop.SetupModule("./_content/OakIdeas.Aspire.DataExplorer.Web.Components/Components/Atoms/MermaidDiagram.razor.js");
+        mermaidModule.Setup<string?>("renderMermaid", invocation =>
+        {
+            if (invocation.Arguments.Count < 2)
+            {
+                return false;
+            }
+
+            return invocation.Arguments[1] is string source
+                && string.Equals(source, expectedDiagram, StringComparison.Ordinal);
+        }).SetResult(null);
+
+        RenderComponent<ExecutionPlanViewer>(parameters => parameters
+            .Add(p => p.ExecutionPlan, new ExecutionPlanResponse(
+                IsAvailable: true,
+                Provider: "SqlServer",
+                MermaidDiagram: expectedDiagram,
+                RawPlan: "<ShowPlanXML />",
+                Message: null)));
+
+        var matchingInvocationCount = mermaidModule.Invocations.Count(invocation =>
+            invocation.Identifier == "renderMermaid"
+            && invocation.Arguments.Count >= 2
+            && string.Equals(invocation.Arguments[1]?.ToString(), expectedDiagram, StringComparison.Ordinal));
+
+        matchingInvocationCount.Should().Be(1);
+    }
 }
