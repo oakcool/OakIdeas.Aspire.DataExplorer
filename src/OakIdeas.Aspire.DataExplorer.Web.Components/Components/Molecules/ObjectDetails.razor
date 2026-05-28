@@ -44,12 +44,11 @@ else
                             @foreach (var key in keys)
                             {
                                 <div class="object-details__constraint">
-                                    <span class="object-details__constraint-kind">Primary Key</span>
+                                    <span class="object-details__meta-icon" aria-hidden="true">
+                                        <HeroIcon Kind="HeroIconKind.Key" Size="12" />
+                                    </span>
                                     <span class="object-details__constraint-name">@key.KeyName</span>
-                                    @if (key.Columns.Count > 0)
-                                    {
-                                        <span class="object-details__constraint-col">(@string.Join(", ", key.Columns))</span>
-                                    }
+                                    <span class="object-details__constraint-col">(@(key.Columns.Count > 0 ? string.Join(", ", key.Columns) : "Primary key"))</span>
                                 </div>
                             }
                         </div>
@@ -75,16 +74,11 @@ else
                             @foreach (var constraint in constraints)
                             {
                                 <div class="object-details__constraint">
-                                    <span class="object-details__constraint-kind">@constraint.ConstraintKind</span>
+                                    <span class="object-details__meta-icon" aria-hidden="true">
+                                        <HeroIcon Kind="HeroIconKind.CheckCircle" Size="12" />
+                                    </span>
                                     <span class="object-details__constraint-name">@constraint.ConstraintName</span>
-                                    @if (!string.IsNullOrEmpty(constraint.ColumnName))
-                                    {
-                                        <span class="object-details__constraint-col">on @constraint.ColumnName</span>
-                                    }
-                                    @if (!string.IsNullOrEmpty(constraint.Definition))
-                                    {
-                                        <span class="object-details__constraint-def">@constraint.Definition</span>
-                                    }
+                                    <span class="object-details__constraint-col">(@FormatConstraintDetails(constraint))</span>
                                 </div>
                             }
                         </div>
@@ -102,11 +96,11 @@ else
                             @foreach (var trigger in triggers)
                             {
                                 <div class="object-details__param">
-                                    <span class="object-details__param-name">@trigger.TriggerName</span>
-                                    <span class="object-details__param-type">@trigger.TriggerType</span>
-                                    <span class="object-details__info-value @(trigger.IsEnabled ? "object-details__info-value--enabled" : "object-details__info-value--disabled")">
-                                        @(trigger.IsEnabled ? "Enabled" : "Disabled")
+                                    <span class="object-details__meta-icon" aria-hidden="true">
+                                        <HeroIcon Kind="HeroIconKind.Link" Size="12" />
                                     </span>
+                                    <span class="object-details__param-name">@trigger.TriggerName</span>
+                                    <span class="object-details__constraint-col">(@FormatTriggerDetails(trigger))</span>
                                 </div>
                             }
                         </div>
@@ -139,13 +133,11 @@ else
                             @foreach (var param in parameters)
                             {
                                 <div class="object-details__param">
+                                    <span class="object-details__meta-icon" aria-hidden="true">
+                                        <HeroIcon Kind="HeroIconKind.AtSymbol" Size="12" />
+                                    </span>
                                     <span class="object-details__param-name">@param.Name</span>
-                                    <span class="object-details__param-type">@param.DataType</span>
-                                    @if (!string.IsNullOrWhiteSpace(param.Direction))
-                                    {
-                                        <span class="object-details__constraint-kind">@param.Direction</span>
-                                    }
-                                    <span class="object-details__constraint-col">@(param.HasDefault ? "Has default" : "No default")</span>
+                                    <span class="object-details__constraint-col">(@FormatParameterDetails(param))</span>
                                 </div>
                             }
                         </div>
@@ -184,8 +176,11 @@ else
                             @foreach (var param in parameters)
                             {
                                 <div class="object-details__param">
+                                    <span class="object-details__meta-icon" aria-hidden="true">
+                                        <HeroIcon Kind="HeroIconKind.AtSymbol" Size="12" />
+                                    </span>
                                     <span class="object-details__param-name">@param.Name</span>
-                                    <span class="object-details__param-type">@param.DataType</span>
+                                    <span class="object-details__constraint-col">(@FormatParameterDetails(param, includeDefault: false))</span>
                                 </div>
                             }
                         </div>
@@ -288,6 +283,41 @@ else
         ObjectKind.Trigger => "Trigger",
         _ => string.Empty,
     };
+
+    private static string FormatConstraintDetails(ConstraintModel constraint)
+    {
+        var details = new List<string> { constraint.ConstraintKind };
+        if (!string.IsNullOrWhiteSpace(constraint.ColumnName))
+        {
+            details.Add($"on {constraint.ColumnName}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(constraint.Definition))
+        {
+            details.Add(constraint.Definition);
+        }
+
+        return string.Join(", ", details);
+    }
+
+    private static string FormatTriggerDetails(TriggerModel trigger)
+        => $"{trigger.TriggerType}, {(trigger.IsEnabled ? "Enabled" : "Disabled")}";
+
+    private static string FormatParameterDetails(ParameterModel param, bool includeDefault = true)
+    {
+        var details = new List<string> { param.DataType };
+        if (!string.IsNullOrWhiteSpace(param.Direction))
+        {
+            details.Add(param.Direction.ToLowerInvariant());
+        }
+
+        if (includeDefault)
+        {
+            details.Add(param.HasDefault ? "Has default" : "No default");
+        }
+
+        return string.Join(", ", details);
+    }
 
     public sealed record ObjectModel(
         string ObjectId,

@@ -97,7 +97,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
     {
         var columns = new[]
         {
-            new ColumnDetails.ColumnModel("Id", 1, "int", false, true, false, null),
+            new ColumnDetails.ColumnModel("Id", 1, "int", false, true, false, null, IsPrimaryKey: true, IsForeignKey: true),
             new ColumnDetails.ColumnModel("Name", 2, "nvarchar(100)", true, false, false, null),
         };
         var metadata = new ObjectDetails.ObjectMetadata(Columns: columns);
@@ -110,6 +110,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
         component.Markup.Should().Contain("Name");
         component.Markup.Should().Contain("int");
         component.Markup.Should().Contain("nvarchar(100)");
+        component.Markup.Should().Contain("PK, FK, identity, int, not null");
     }
 
     [Fact]
@@ -176,6 +177,8 @@ public sealed class ObjectDetailsRenderingTests : TestContext
         component.Markup.Should().Contain("Indexes");
         component.Markup.Should().Contain("PK_Orders");
         component.Markup.Should().Contain("IX_Orders_CustomerId");
+        component.Markup.Should().Contain("PK, Clustered");
+        component.Markup.Should().Contain("Non-clustered");
     }
 
     [Fact]
@@ -276,8 +279,9 @@ public sealed class ObjectDetailsRenderingTests : TestContext
         component.Markup.Should().Contain("Parameters");
         component.Markup.Should().Contain("@UserId");
         component.Markup.Should().Contain("@Name");
-        component.Markup.Should().Contain("Input");
-        component.Markup.Should().Contain("Output");
+        component.Markup.Should().Contain("input");
+        component.Markup.Should().Contain("output");
+        component.Markup.Should().Contain("No default");
         component.Markup.Should().Contain("Has default");
     }
 

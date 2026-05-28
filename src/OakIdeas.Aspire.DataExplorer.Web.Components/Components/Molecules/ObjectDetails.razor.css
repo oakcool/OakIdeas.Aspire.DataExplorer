@@ -98,6 +98,22 @@
     display: flex;
     flex-direction: column;
     gap: 0.6rem;
+    scrollbar-width: thin;
+    scrollbar-color: #30363d #0d1117;
+}
+
+.object-details__body::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.object-details__body::-webkit-scrollbar-track {
+    background: #0d1117;
+}
+
+.object-details__body::-webkit-scrollbar-thumb {
+    background-color: #30363d;
+    border-radius: 4px;
 }
 
 .object-details__pk-cols {
@@ -115,10 +131,16 @@
 .object-details__constraint {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    font-size: 0.8rem;
+    gap: 0.35rem;
+    font-size: 0.76rem;
     color: #c9d1d9;
     flex-wrap: wrap;
+}
+
+.object-details__meta-icon {
+    display: inline-flex;
+    align-items: center;
+    color: #8b949e;
 }
 
 .object-details__constraint-kind {
@@ -134,11 +156,13 @@
 
 .object-details__constraint-name {
     font-weight: 500;
+    color: #e6edf3;
 }
 
 .object-details__constraint-col {
     color: #8b949e;
-    font-size: 0.77rem;
+    font-size: 0.72rem;
+    font-family: 'Cascadia Code', 'Consolas', 'SFMono-Regular', monospace;
 }
 
 .object-details__constraint-def {
@@ -156,14 +180,15 @@
 .object-details__param {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    font-size: 0.8rem;
+    gap: 0.35rem;
+    font-size: 0.76rem;
+    flex-wrap: wrap;
 }
 
 .object-details__param-name {
     font-weight: 500;
     color: #e6edf3;
-    min-width: 8rem;
+    min-width: 0;
 }
 
 .object-details__param-type {

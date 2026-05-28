@@ -174,26 +174,25 @@
 
         var fqn = $"{_selection.SchemaName}.{_selection.ObjectName}";
 
-        var columns = TryGetMetadataItems(aggregated.ColumnsByObject, _selection.SchemaName, _selection.ObjectName, fqn, out var cols)
-            ? cols.Select(c => new ColumnDetails.ColumnModel(
-                Name: c.Name,
-                Ordinal: c.Ordinal,
-                DataType: FormatDataType(c),
-                IsNullable: c.IsNullable,
-                IsIdentity: c.IsIdentity,
-                IsComputed: c.IsComputed,
-                DefaultValue: c.DefaultValue)).ToArray()
-            : null;
-
         IReadOnlyList<ObjectDetails.KeyModel>? keys = null;
+        var primaryKeyColumnNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         if (TryGetMetadataItems(aggregated.PrimaryKeysByTable, _selection.SchemaName, _selection.ObjectName, fqn, out var pks) && pks.Count > 0)
         {
             keys = pks.Select(pk => new ObjectDetails.KeyModel(
                 KeyName: pk.ConstraintName,
                 Columns: pk.KeyColumns)).ToArray();
+
+            foreach (var column in pks.SelectMany(pk => pk.KeyColumns))
+            {
+                if (!string.IsNullOrWhiteSpace(column))
+                {
+                    primaryKeyColumnNames.Add(column);
+                }
+            }
         }
 
         IReadOnlyList<RelationshipDetails.ForeignKeyModel>? foreignKeys = null;
+        var foreignKeyColumnNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         if (TryGetMetadataItems(aggregated.ForeignKeysByTable, _selection.SchemaName, _selection.ObjectName, fqn, out var fks) && fks.Count > 0)
         {
             foreignKeys = fks.Select(fk => new RelationshipDetails.ForeignKeyModel(
@@ -205,7 +204,28 @@
                 ColumnMappings: fk.KeyColumns.Select(kc => new RelationshipDetails.ColumnMappingModel(
                     ParentColumnName: kc.ParentColumnName,
                     ReferencedColumnName: kc.ReferencedColumnName)).ToArray())).ToArray();
+
+            foreach (var parentColumn in fks.SelectMany(fk => fk.KeyColumns.Select(kc => kc.ParentColumnName)))
+            {
+                if (!string.IsNullOrWhiteSpace(parentColumn))
+                {
+                    foreignKeyColumnNames.Add(parentColumn);
+                }
+            }
         }
+
+        var columns = TryGetMetadataItems(aggregated.ColumnsByObject, _selection.SchemaName, _selection.ObjectName, fqn, out var cols)
+            ? cols.Select(c => new ColumnDetails.ColumnModel(
+                Name: c.Name,
+                Ordinal: c.Ordinal,
+                DataType: FormatDataType(c),
+                IsNullable: c.IsNullable,
+                IsIdentity: c.IsIdentity,
+                IsComputed: c.IsComputed,
+                DefaultValue: c.DefaultValue,
+                IsPrimaryKey: primaryKeyColumnNames.Contains(c.Name),
+                IsForeignKey: foreignKeyColumnNames.Contains(c.Name))).ToArray()
+            : null;
 
         IReadOnlyList<IndexDetails.IndexModel>? indexes = null;
         if (TryGetMetadataItems(aggregated.IndexesByTable, _selection.SchemaName, _selection.ObjectName, fqn, out var idxList) && idxList.Count > 0)

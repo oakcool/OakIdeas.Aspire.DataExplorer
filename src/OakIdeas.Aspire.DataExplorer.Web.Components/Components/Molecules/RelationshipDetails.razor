@@ -20,7 +20,13 @@
                     @foreach (var fk in ForeignKeys)
                     {
                         <tr>
-                            <td class="relationship-details__name">@fk.ConstraintName</td>
+                            <td class="relationship-details__name">
+                                <span class="relationship-details__icon" aria-hidden="true">
+                                    <HeroIcon Kind="HeroIconKind.Link" Size="12" />
+                                </span>
+                                <span class="relationship-details__name-text">@fk.ConstraintName</span>
+                                <span class="relationship-details__name-meta">(@fk.ParentSchemaName.@fk.ParentTableName → @fk.ReferencedSchemaName.@fk.ReferencedTableName)</span>
+                            </td>
                             <td class="relationship-details__table">@fk.ParentSchemaName.@fk.ParentTableName</td>
                             <td class="relationship-details__table">@fk.ReferencedSchemaName.@fk.ReferencedTableName</td>
                             <td class="relationship-details__columns">

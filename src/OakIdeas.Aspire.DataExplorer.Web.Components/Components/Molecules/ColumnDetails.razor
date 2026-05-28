@@ -14,10 +14,7 @@
                 <thead>
                     <tr>
                         <th class="column-details__ordinal">#</th>
-                        <th>Name</th>
-                        <th>Data Type</th>
-                        <th>Nullable</th>
-                        <th>Default</th>
+                        <th>Column</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -26,21 +23,12 @@
                         <tr>
                             <td class="column-details__ordinal">@col.Ordinal</td>
                             <td class="column-details__name">
-                                @col.Name
-                                @if (col.IsIdentity)
-                                {
-                                    <span class="column-details__tag column-details__tag--identity">ID</span>
-                                }
-                                @if (col.IsComputed)
-                                {
-                                    <span class="column-details__tag column-details__tag--computed">CALC</span>
-                                }
+                                <span class="column-details__item-icon" aria-hidden="true">
+                                    <HeroIcon Kind="@GetColumnIcon(col)" Size="12" />
+                                </span>
+                                <span class="column-details__item-name">@col.Name</span>
+                                <span class="column-details__item-meta">(@FormatColumnDetails(col))</span>
                             </td>
-                            <td class="column-details__type">@col.DataType</td>
-                            <td class="column-details__nullable @(col.IsNullable ? "column-details__nullable--yes" : "column-details__nullable--no")">
-                                @(col.IsNullable ? "Yes" : "No")
-                            </td>
-                            <td class="column-details__default">@(col.DefaultValue ?? "-")</td>
                         </tr>
                     }
                 </tbody>
@@ -104,6 +92,32 @@
         }
     }
 
+    private static HeroIconKind GetColumnIcon(ColumnModel col)
+        => (col.IsPrimaryKey, col.IsForeignKey, col.IsIdentity) switch
+        {
+            (true, _, _) => HeroIconKind.Key,
+            (_, true, _) => HeroIconKind.Link,
+            (_, _, true) => HeroIconKind.Key,
+            _ => HeroIconKind.TableCells
+        };
+
+    private static string FormatColumnDetails(ColumnModel col)
+    {
+        var details = new List<string>();
+        if (col.IsPrimaryKey) details.Add("PK");
+        if (col.IsForeignKey) details.Add("FK");
+        if (col.IsIdentity) details.Add("identity");
+        if (col.IsComputed) details.Add("computed");
+        details.Add(col.DataType);
+        details.Add(col.IsNullable ? "null" : "not null");
+        if (!string.IsNullOrWhiteSpace(col.DefaultValue))
+        {
+            details.Add($"default {col.DefaultValue}");
+        }
+
+        return string.Join(", ", details);
+    }
+
     public sealed record ColumnModel(
         string Name,
         int Ordinal,
@@ -111,5 +125,7 @@
         bool IsNullable,
         bool IsIdentity,
         bool IsComputed,
-        string? DefaultValue);
+        string? DefaultValue,
+        bool IsPrimaryKey = false,
+        bool IsForeignKey = false);
 }
