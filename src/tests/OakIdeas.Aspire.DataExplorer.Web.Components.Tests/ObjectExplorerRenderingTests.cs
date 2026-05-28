@@ -65,6 +65,18 @@ public sealed class ObjectExplorerRenderingTests : TestContext
         var component = RenderComponent<ObjectExplorer>(parameters => parameters
             .Add(p => p.Connections, connections));
 
+        component.Markup.Should().NotContain("dbo.Users");
+        ExpandNode(component, "sql-main");
+        ExpandNode(component, "applicationdb");
+        ExpandNode(component, "Tables");
+        ExpandNode(component, "Views");
+        ExpandNode(component, "Programmability");
+        ExpandNode(component, "Stored Procedures");
+        ExpandNode(component, "Functions");
+        ExpandNode(component, "Triggers");
+        ExpandNode(component, "Security");
+        ExpandNode(component, "Schemas");
+
         component.Markup.Should().Contain("Tables");
         component.Markup.Should().Contain("Views");
         component.Markup.Should().Contain("Programmability");
@@ -102,6 +114,10 @@ public sealed class ObjectExplorerRenderingTests : TestContext
             .Add(p => p.Connections, CreateConnections())
             .Add(p => p.OnObjectSelect, EventCallback.Factory.Create<ObjectExplorer.ObjectSelection>(this, value => selected = value)));
 
+        ExpandNode(component, "sql-main");
+        ExpandNode(component, "applicationdb");
+        ExpandNode(component, "Tables");
+
         component.FindAll(".tree-node")
             .First(node => node.TextContent.Contains("dbo.Users", StringComparison.Ordinal))
             .Click();
@@ -118,6 +134,10 @@ public sealed class ObjectExplorerRenderingTests : TestContext
         var component = RenderComponent<ObjectExplorer>(parameters => parameters
             .Add(p => p.Connections, CreateConnections()));
 
+        ExpandNode(component, "sql-main");
+        ExpandNode(component, "applicationdb");
+        ExpandNode(component, "Tables");
+
         var tableNode = component.FindAll(".tree-node")
             .First(node => node.TextContent.Contains("dbo.Users", StringComparison.Ordinal));
         tableNode.TriggerEvent("oncontextmenu", new MouseEventArgs { ClientX = 1300, ClientY = 760 });
@@ -132,6 +152,10 @@ public sealed class ObjectExplorerRenderingTests : TestContext
     {
         var component = RenderComponent<ObjectExplorer>(parameters => parameters
             .Add(p => p.Connections, CreateConnections()));
+
+        ExpandNode(component, "sql-main");
+        ExpandNode(component, "applicationdb");
+        ExpandNode(component, "Tables");
 
         var tableNode = component.FindAll(".tree-node")
             .First(node => node.TextContent.Contains("dbo.Users", StringComparison.Ordinal));
@@ -210,4 +234,11 @@ public sealed class ObjectExplorerRenderingTests : TestContext
                 label,
                 objectName,
                 kind));
+
+    private static void ExpandNode(IRenderedComponent<ObjectExplorer> component, string label)
+    {
+        var node = component.FindAll(".tree-node")
+            .First(item => item.TextContent.Contains(label, StringComparison.Ordinal));
+        node.QuerySelector("button.tree-node__toggle")!.Click();
+    }
 }
