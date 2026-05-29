@@ -28,7 +28,7 @@
 .column-details__grid {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.76rem;
+    font-size: 0.74rem;
     color: #c9d1d9;
 }
 
@@ -82,7 +82,7 @@
 
 .column-details__item-meta {
     color: #8b949e;
-    font-size: 0.72rem;
+    font-size: 0.70rem;
     font-family: 'Cascadia Code', 'Consolas', 'SFMono-Regular', monospace;
 }
 

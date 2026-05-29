@@ -88,3 +88,12 @@
     padding: 0.05rem 0.35rem;
     border-radius: 9999px;
 }
+
+.tree-node--metadata {
+    font-size: 0.74rem;
+}
+
+.tree-node--metadata .tree-node__label {
+    color: #b8c3d6;
+    font-family: 'Cascadia Code', 'Consolas', 'SFMono-Regular', monospace;
+}

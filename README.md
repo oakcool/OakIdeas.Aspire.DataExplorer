@@ -72,6 +72,9 @@ Object Explorer metadata details currently include:
 - Tables: columns, keys, constraints, triggers, and indexes
 - Procedures: parameters with type, direction, and default availability
 - Functions: parameters and return type
+- Metadata values use compact parenthetical formatting (for example: `Id (PK, identity, int(4), not null)`)
+- Metadata icons are semantic: common columns use `ViewColumns`, PK/FK/parameters use `Key`/`Link`/`AtSymbol`
+- Scrollbars are styled consistently across Object Explorer, Explorer details, Query results, and Execution Plan surfaces
 
 ## Query Window (SQL Server MVP)
 

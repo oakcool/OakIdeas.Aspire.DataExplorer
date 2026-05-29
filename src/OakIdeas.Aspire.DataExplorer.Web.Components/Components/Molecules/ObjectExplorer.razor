@@ -154,6 +154,8 @@
 
     private readonly HashSet<string> _expandedConnections = [];
     private readonly HashSet<string> _expandedDatabases = [];
+    private readonly HashSet<string> _knownConnections = [];
+    private readonly HashSet<string> _knownDatabases = [];
     private ObjectSelection? _selectedObject;
 
     private IReadOnlyList<ExplorerContextMenuItem> _contextMenuItems = [];
@@ -166,9 +168,31 @@
 
     protected override void OnParametersSet()
     {
+        SeedExpansionStateForNewNodes();
+
         if (SelectedObject is not null)
         {
             _selectedObject = SelectedObject;
+        }
+    }
+
+    private void SeedExpansionStateForNewNodes()
+    {
+        foreach (var connection in Connections)
+        {
+            if (_knownConnections.Add(connection.Name))
+            {
+                _expandedConnections.Add(connection.Name);
+            }
+
+            foreach (var database in connection.Databases)
+            {
+                var databaseKey = $"{connection.Name}/{database.Name}";
+                if (_knownDatabases.Add(databaseKey))
+                {
+                    _expandedDatabases.Add(databaseKey);
+                }
+            }
         }
     }
 

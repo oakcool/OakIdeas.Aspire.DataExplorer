@@ -660,8 +660,8 @@
                     children: TryGetMetadataItems(aggregatedMetadata.ColumnsByObject, databaseObject, schemaName, fullyQualifiedName, out var columns)
                         ? columns.Select(column => new ObjectExplorer.ExplorerNodeModel(
                             NodeKey: $"{databaseObject.ObjectId}:column:{column.Name}",
-                            Label: $"{column.Name} {FormatColumnType(column)} {(column.IsNullable ? "null" : "not null")}",
-                            Icon: HeroIconKind.TableCells,
+                            Label: $"{column.Name} ({FormatColumnDetails(column)})",
+                            Icon: GetColumnIcon(column),
                             Children: []))
                         .ToArray()
                         : [],
@@ -674,8 +674,8 @@
                     children: TryGetMetadataItems(aggregatedMetadata.PrimaryKeysByTable, databaseObject, schemaName, fullyQualifiedName, out var primaryKeys)
                         ? primaryKeys.Select(primaryKey => new ObjectExplorer.ExplorerNodeModel(
                             NodeKey: $"{databaseObject.ObjectId}:key:{primaryKey.ConstraintName}",
-                            Label: primaryKey.ConstraintName,
-                            Icon: HeroIconKind.TableCells,
+                            Label: $"{primaryKey.ConstraintName} ({(primaryKey.IsClustered ? "Clustered" : "Non-clustered")})",
+                            Icon: HeroIconKind.Key,
                             Children: []))
                         .ToArray()
                         : [],
@@ -691,8 +691,8 @@
                             && constraint.TableName.Equals(databaseObject.ObjectName, StringComparison.OrdinalIgnoreCase))
                         .Select(constraint => new ObjectExplorer.ExplorerNodeModel(
                             NodeKey: $"{databaseObject.ObjectId}:constraint:{constraint.ConstraintName}",
-                            Label: constraint.ConstraintName,
-                            Icon: HeroIconKind.Folder,
+                            Label: $"{constraint.ConstraintName} ({FormatConstraintDetails(constraint)})",
+                            Icon: HeroIconKind.CheckCircle,
                             Children: []))
                         .ToArray(),
                     includeWhenEmpty: true);
@@ -709,7 +709,7 @@
                                 || trigger.ParentSchemaName.Equals(schemaName, StringComparison.OrdinalIgnoreCase)))
                         .Select(trigger => new ObjectExplorer.ExplorerNodeModel(
                             NodeKey: $"{databaseObject.ObjectId}:trigger:{trigger.TriggerName}",
-                            Label: trigger.TriggerName,
+                            Label: $"{trigger.TriggerName} ({FormatTriggerDetails(trigger)})",
                             Icon: HeroIconKind.Link,
                             Children: []))
                         .ToArray(),
@@ -722,8 +722,8 @@
                     children: TryGetMetadataItems(aggregatedMetadata.IndexesByTable, databaseObject, schemaName, fullyQualifiedName, out var indexes)
                         ? indexes.Select(index => new ObjectExplorer.ExplorerNodeModel(
                             NodeKey: $"{databaseObject.ObjectId}:index:{index.IndexName}",
-                            Label: index.IndexName,
-                            Icon: HeroIconKind.QueueList,
+                            Label: $"{index.IndexName} ({FormatIndexDetails(index)})",
+                            Icon: index.IsPrimaryKey ? HeroIconKind.Key : HeroIconKind.QueueList,
                             Children: []))
                         .ToArray()
                         : [],
@@ -739,8 +739,8 @@
                     children: TryGetMetadataItems(aggregatedMetadata.ColumnsByObject, databaseObject, schemaName, fullyQualifiedName, out var viewColumns)
                         ? viewColumns.Select(column => new ObjectExplorer.ExplorerNodeModel(
                             NodeKey: $"{databaseObject.ObjectId}:column:{column.Name}",
-                            Label: $"{column.Name} {FormatColumnType(column)} {(column.IsNullable ? "null" : "not null")}",
-                            Icon: HeroIconKind.TableCells,
+                            Label: $"{column.Name} ({FormatColumnDetails(column)})",
+                            Icon: GetColumnIcon(column),
                             Children: []))
                         .ToArray()
                         : [],
@@ -758,8 +758,8 @@
                     icon: HeroIconKind.Folder,
                     children: procedure?.Parameters?.Select(parameter => new ObjectExplorer.ExplorerNodeModel(
                         NodeKey: $"{databaseObject.ObjectId}:parameter:{parameter.Name}",
-                        Label: $"{parameter.Name} {parameter.DataType} {FormatParameterDirection(parameter.Direction)}{(parameter.HasDefault ? " has default" : string.Empty)}",
-                        Icon: HeroIconKind.Play,
+                        Label: $"{parameter.Name} ({FormatRoutineParameterDetails(parameter.DataType, parameter.Direction, parameter.HasDefault)})",
+                        Icon: HeroIconKind.AtSymbol,
                         Children: []))
                     .ToArray() ?? [],
                     includeWhenEmpty: true);
@@ -781,8 +781,8 @@
                     icon: HeroIconKind.Folder,
                     children: function?.Parameters?.Select(parameter => new ObjectExplorer.ExplorerNodeModel(
                         NodeKey: $"{databaseObject.ObjectId}:parameter:{parameter.Name}",
-                        Label: $"{parameter.Name} {parameter.DataType}",
-                        Icon: HeroIconKind.CodeBracket,
+                        Label: $"{parameter.Name} ({parameter.DataType})",
+                        Icon: HeroIconKind.AtSymbol,
                         Children: []))
                     .ToArray() ?? [],
                     includeWhenEmpty: true);
@@ -795,7 +795,7 @@
                         ? []
                         : [new ObjectExplorer.ExplorerNodeModel(
                             NodeKey: $"{databaseObject.ObjectId}:return-type:value",
-                            Label: function!.ReturnType!,
+                            Label: $"Returns ({function!.ReturnType!})",
                             Icon: HeroIconKind.CodeBracket,
                             Children: [])],
                     includeWhenEmpty: true);
@@ -817,12 +817,12 @@
                         [
                             new ObjectExplorer.ExplorerNodeModel(
                                 NodeKey: $"{databaseObject.ObjectId}:trigger-type",
-                                Label: $"Type: {trigger.TriggerType}",
+                                Label: $"Type ({trigger.TriggerType})",
                                 Icon: HeroIconKind.Link,
                                 Children: []),
                             new ObjectExplorer.ExplorerNodeModel(
                                 NodeKey: $"{databaseObject.ObjectId}:trigger-enabled",
-                                Label: $"Enabled: {(trigger.IsEnabled ? "Yes" : "No")}",
+                                Label: $"Enabled ({(trigger.IsEnabled ? "Yes" : "No")})",
                                 Icon: HeroIconKind.Link,
                                 Children: []),
                         ],
@@ -935,13 +935,113 @@
         return column.DataType;
     }
 
+    private static HeroIconKind GetColumnIcon(OakIdeas.Aspire.DataExplorer.Contracts.Models.ColumnMetadata column)
+        => (column.IsIdentity, TryGetProviderFlag(column.ProviderMetadata, "isPrimaryKey"), TryGetProviderFlag(column.ProviderMetadata, "isForeignKey")) switch
+        {
+            (_, true, _) => HeroIconKind.Key,
+            (_, _, true) => HeroIconKind.Link,
+            (true, _, _) => HeroIconKind.Key,
+            _ => HeroIconKind.ViewColumns,
+        };
+
+    private static string FormatColumnDetails(OakIdeas.Aspire.DataExplorer.Contracts.Models.ColumnMetadata column)
+    {
+        var details = new List<string>();
+        if (TryGetProviderFlag(column.ProviderMetadata, "isPrimaryKey"))
+        {
+            details.Add("PK");
+        }
+
+        if (TryGetProviderFlag(column.ProviderMetadata, "isForeignKey"))
+        {
+            details.Add("FK");
+        }
+
+        if (column.IsIdentity)
+        {
+            details.Add("identity");
+        }
+
+        if (column.IsComputed)
+        {
+            details.Add("computed");
+        }
+
+        details.Add(FormatColumnType(column));
+        details.Add(column.IsNullable ? "null" : "not null");
+
+        if (!string.IsNullOrWhiteSpace(column.DefaultValue))
+        {
+            details.Add($"default {column.DefaultValue}");
+        }
+
+        return string.Join(", ", details);
+    }
+
+    private static string FormatIndexDetails(IndexMetadata index)
+    {
+        var details = new List<string>();
+        if (index.IsUnique && !index.IsPrimaryKey)
+        {
+            details.Add("Unique");
+        }
+
+        details.Add(index.IsClustered ? "Clustered" : "Non-clustered");
+        return string.Join(", ", details);
+    }
+
+    private static string FormatConstraintDetails(ConstraintMetadata constraint)
+    {
+        var details = new List<string> { constraint.ConstraintType.ToString() };
+        if (!string.IsNullOrWhiteSpace(constraint.ColumnName))
+        {
+            details.Add($"on {constraint.ColumnName}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(constraint.Definition))
+        {
+            details.Add(constraint.Definition);
+        }
+
+        return string.Join(", ", details);
+    }
+
+    private static string FormatTriggerDetails(TriggerMetadata trigger)
+        => $"{trigger.TriggerType}, {(trigger.IsEnabled ? "Enabled" : "Disabled")}";
+
+    private static string FormatRoutineParameterDetails(string dataType, RoutineParameterDirection direction, bool hasDefault)
+        => $"{dataType}, {FormatParameterDirection(direction)}, {(hasDefault ? "Has default" : "No default")}";
+
     private static string FormatParameterDirection(RoutineParameterDirection direction)
         => direction switch
         {
-            RoutineParameterDirection.Output => "output",
-            RoutineParameterDirection.InputOutput => "input/output",
-            _ => "input",
+            RoutineParameterDirection.Output => "Output",
+            RoutineParameterDirection.InputOutput => "Input/Output",
+            _ => "Input",
         };
+
+    private static bool TryGetProviderFlag(IReadOnlyDictionary<string, object?> providerMetadata, string key)
+    {
+        if (!providerMetadata.TryGetValue(key, out var value) || value is null)
+        {
+            return false;
+        }
+
+        return value switch
+        {
+            bool boolValue => boolValue,
+            string text when bool.TryParse(text, out var parsed) => parsed,
+            sbyte number => number != 0,
+            byte number => number != 0,
+            short number => number != 0,
+            ushort number => number != 0,
+            int number => number != 0,
+            uint number => number != 0,
+            long number => number != 0,
+            ulong number => number != 0,
+            _ => false,
+        };
+    }
 
     private static string ResolveSchemaName(DatabaseObject databaseObject)
     {

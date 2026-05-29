@@ -22,7 +22,7 @@
 .index-details__grid {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.76rem;
+    font-size: 0.74rem;
     color: #c9d1d9;
 }
 
@@ -68,13 +68,13 @@
 }
 
 .index-details__name-meta {
-    font-size: 0.72rem;
+    font-size: 0.70rem;
     color: #8b949e;
     font-family: 'Cascadia Code', 'Consolas', 'SFMono-Regular', monospace;
 }
 
 .index-details__columns {
     font-family: 'Cascadia Code', 'Consolas', 'SFMono-Regular', monospace;
-    font-size: 0.72rem;
+    font-size: 0.70rem;
     color: #a5d6ff;
 }

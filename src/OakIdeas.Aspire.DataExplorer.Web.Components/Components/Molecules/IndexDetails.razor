@@ -41,7 +41,6 @@
     private static string FormatIndexDetails(IndexModel index)
     {
         var details = new List<string>();
-        if (index.IsPrimaryKey) details.Add("PK");
         if (index.IsUnique && !index.IsPrimaryKey) details.Add("Unique");
         details.Add(index.IsClustered ? "Clustered" : "Non-clustered");
         return string.Join(", ", details);
