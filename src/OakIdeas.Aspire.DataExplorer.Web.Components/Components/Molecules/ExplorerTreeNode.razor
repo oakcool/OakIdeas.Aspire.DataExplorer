@@ -4,6 +4,7 @@
           Depth="@Depth"
           IsExpanded="@_isExpanded"
           IsSelected="@IsSelected"
+          IsMetadata="@IsMetadataNode"
           OnExpandToggle="HandleExpandToggle"
           OnSelect="HandleSelect"
           OnContextMenu="HandleContextMenu">
@@ -33,12 +34,14 @@
     [Parameter]
     public EventCallback<ObjectExplorer.ContextMenuRequest> OnObjectContextMenu { get; set; }
 
-    private bool _isExpanded;
+    private bool _isExpanded = true;
 
     private bool IsSelected => Node.Selection is not null
         && SelectedObject is not null
         && Node.Selection.ObjectId.Equals(SelectedObject.ObjectId, StringComparison.OrdinalIgnoreCase)
         && Node.Selection.ObjectKind == SelectedObject.ObjectKind;
+
+    private bool IsMetadataNode => Node.Selection is null && !Node.HasChildren;
 
     private Task HandleExpandToggle(bool expanded)
     {

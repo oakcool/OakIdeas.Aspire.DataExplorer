@@ -43,10 +43,21 @@
    - Tables expand into `Columns`, `Keys`, `Constraints`, `Triggers`, and `Indexes`
    - Procedures expand into `Parameters`
    - Functions expand into `Parameters` and `Return Type`
+   - Metadata leaves use compact parenthetical formatting, for example:
+     - `Id (PK, identity, int(4), not null)`
+     - `PK_TodoItems (Clustered)`
+     - `@StatusId (tinyint, Input, Has default)`
+   - Metadata icons are semantic:
+     - Common columns use `ViewColumns`
+     - PK/identity columns use `Key`
+     - FK columns use `Link`
+     - Parameters use `AtSymbol`
 5. Select an object to load object details and (when supported) definition text.
    - Table details show columns, keys, constraints, triggers, and indexes
    - Procedure details show parameter type, direction, and default availability
    - Function details show parameters, return type, and function kind
+   - Details panels use the same compact parenthetical metadata style as Object Explorer
+   - Scrollbars use the shared app theme across explorer/details/query/plan surfaces
 6. Open **Query** in the top navigation to run ad-hoc SQL against the selected database.
    - `Ctrl+Enter` executes the current query.
    - `Cancel` requests query cancellation.

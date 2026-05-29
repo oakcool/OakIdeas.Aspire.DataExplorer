@@ -76,7 +76,10 @@ The `ShowcaseProgrammabilityObjects` migration also creates schema-scoped SQL ob
 2. Open `sample-data-explorer` from the Aspire dashboard.
 3. Confirm the discovered database is `sampledb`.
 4. Inspect tables and metadata for keys, constraints, indexes, and relationships.
+   - Metadata leaves in Object Explorer and details use compact parenthetical formatting.
+   - Common columns use the `ViewColumns` icon; PK/FK/parameter metadata uses `Key`/`Link`/`AtSymbol` icons.
 5. Use `sample-web` to create/edit/delete/complete/reopen tasks and add comments, then refresh metadata views.
+   - Confirm scrollbars remain consistent across Object Explorer, Explorer details, Query, and Execution Plan surfaces.
 6. On `/todos`, verify the **Schema + Programmability Showcase** card loads counts/rows from:
    - `showcase.vwTodoReplicaOverview`
    - `showcase.usp_ListReplicaTodosByStatus`

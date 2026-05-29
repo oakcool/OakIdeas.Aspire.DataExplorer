@@ -94,7 +94,7 @@ public sealed class MainLayoutDatabasePickerTests : TestContext
             component.Markup.Should().Contain("Constraints");
             component.Markup.Should().Contain("Triggers");
             component.Markup.Should().Contain("Indexes");
-            component.Markup.Should().Contain("@SearchText nvarchar(100) input has default");
+            component.Markup.Should().Contain("@SearchText (nvarchar(100), Input, Has default)");
             component.Markup.Should().Contain("Return Type");
             component.Markup.Should().Contain("nvarchar(200)");
         });
@@ -141,7 +141,7 @@ public sealed class MainLayoutDatabasePickerTests : TestContext
         component.WaitForAssertion(() =>
         {
             component.Markup.Should().Contain("Columns");
-            component.Markup.Should().Contain("Id int not null");
+            component.Markup.Should().Contain("Id (identity, int, not null)");
             component.Markup.Should().Contain("PK_Users");
             component.Markup.Should().Contain("IX_Users_Email");
         });

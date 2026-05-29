@@ -22,7 +22,7 @@
 .relationship-details__grid {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.76rem;
+    font-size: 0.74rem;
     color: #c9d1d9;
 }
 
@@ -76,7 +76,7 @@
 
 .relationship-details__table {
     font-family: 'Cascadia Code', 'Consolas', 'SFMono-Regular', monospace;
-    font-size: 0.72rem;
+    font-size: 0.70rem;
     color: #a5d6ff;
     white-space: nowrap;
 }

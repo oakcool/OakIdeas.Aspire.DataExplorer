@@ -46,6 +46,12 @@ See [Metadata discovery architecture](./metadata-discovery.md) for detailed flow
 - Provider implementations (SQL Server MVP) own SQL execution details and result-shape normalization.
 - User-visible failures are mapped through `IErrorHandler` and provider error mappers to avoid leaking secrets.
 
+## Metadata presentation conventions
+
+- Object Explorer and Explorer details use compact parenthetical metadata formatting for consistency.
+- Common column metadata uses the `ViewColumns` icon; PK/FK/parameter metadata uses semantic icons (`Key`, `Link`, `AtSymbol`).
+- Scrollbar styling is shared across UI surfaces (Object Explorer, details panels, query results, and execution-plan containers) to keep visual behavior consistent.
+
 ## Error handling and diagnostics
 
 Error categorization and sanitized diagnostics are documented in [error-handling](./error-handling.md).

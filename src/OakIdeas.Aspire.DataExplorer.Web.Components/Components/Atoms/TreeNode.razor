@@ -1,5 +1,5 @@
 @* A single node in the object-explorer tree *@
-<div class="tree-node @(IsSelected ? "tree-node--selected" : "")"
+<div class="tree-node @(IsSelected ? "tree-node--selected" : "") @(IsMetadata ? "tree-node--metadata" : "")"
     style="padding-left: @(Depth * 16 + LeftInsetPx)px"
      @onclick="HandleClick"
      @oncontextmenu:preventDefault="true"
@@ -47,6 +47,9 @@
 
     [Parameter]
     public bool IsSelected { get; set; }
+
+    [Parameter]
+    public bool IsMetadata { get; set; }
 
     [Parameter]
     public RenderFragment? ChildContent { get; set; }

@@ -23,6 +23,7 @@ public enum HeroIconKind
     QueueList,
     ServerStack,
     TableCells,
+    ViewColumns,
     Trash,
     XMark
 }

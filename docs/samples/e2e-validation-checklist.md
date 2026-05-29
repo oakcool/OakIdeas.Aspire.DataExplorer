@@ -32,7 +32,17 @@ dotnet test src/tests/OakIdeas.Aspire.DataExplorer.IntegrationTests/OakIdeas.Asp
    - Confirm SQL resource is discovered and available.
    - Open DataExplorer and select the validation database resource.
    - Verify object explorer renders schemas/tables/views/procedures/functions/triggers.
+   - Verify metadata leaf formatting uses parenthetical detail style:
+     - `Id (PK, identity, int(4), not null)`
+     - `PK_TodoItems (Clustered)`
+     - `@StatusId (tinyint, Input, Has default)`
+   - Verify metadata icons are semantic:
+     - common columns use `ViewColumns`
+     - PK/identity columns use `Key`
+     - FK columns use `Link`
+     - parameters use `AtSymbol`
    - Open table metadata and verify columns, nullability, keys, relationships, indexes, constraints.
+   - Verify scrollbar styling is consistent across Object Explorer, Explorer details, Query results, and Execution Plan tab.
    - Trigger refresh and verify updates appear.
    - Validate graceful errors for invalid/unavailable selections.
 

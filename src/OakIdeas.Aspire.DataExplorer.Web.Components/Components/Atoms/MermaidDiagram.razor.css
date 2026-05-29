@@ -6,6 +6,22 @@
     border: 1px solid #475569;
     border-radius: 12px;
     background: radial-gradient(120% 200% at 0% 0%, rgba(56, 189, 248, 0.1) 0%, rgba(11, 18, 32, 0.96) 45%, rgba(2, 6, 23, 1) 100%);
+    scrollbar-width: thin;
+    scrollbar-color: #30363d #0d1117;
+}
+
+.mermaid-diagram::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.mermaid-diagram::-webkit-scrollbar-track {
+    background: #0d1117;
+}
+
+.mermaid-diagram::-webkit-scrollbar-thumb {
+    background-color: #30363d;
+    border-radius: 4px;
 }
 
 .mermaid-diagram__surface {

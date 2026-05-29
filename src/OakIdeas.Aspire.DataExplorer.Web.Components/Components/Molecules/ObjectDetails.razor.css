@@ -132,7 +132,7 @@
     display: flex;
     align-items: center;
     gap: 0.35rem;
-    font-size: 0.76rem;
+    font-size: 0.74rem;
     color: #c9d1d9;
     flex-wrap: wrap;
 }
@@ -161,7 +161,7 @@
 
 .object-details__constraint-col {
     color: #8b949e;
-    font-size: 0.72rem;
+    font-size: 0.70rem;
     font-family: 'Cascadia Code', 'Consolas', 'SFMono-Regular', monospace;
 }
 
@@ -181,7 +181,7 @@
     display: flex;
     align-items: center;
     gap: 0.35rem;
-    font-size: 0.76rem;
+    font-size: 0.74rem;
     flex-wrap: wrap;
 }
 

@@ -308,7 +308,7 @@ else
         var details = new List<string> { param.DataType };
         if (!string.IsNullOrWhiteSpace(param.Direction))
         {
-            details.Add(param.Direction.ToLowerInvariant());
+            details.Add(param.Direction);
         }
 
         if (includeDefault)

@@ -9,6 +9,9 @@
         "fingerprint\\": true,
         "ForEach-Object": true,
         "ConvertFrom-Json": true,
-        "ConvertTo-Json": true
+        "ConvertTo-Json": true,
+        "Get-Process": true,
+        "Get-NetTCPConnection": true,
+        "Get-CimInstance": true
     }
 }
