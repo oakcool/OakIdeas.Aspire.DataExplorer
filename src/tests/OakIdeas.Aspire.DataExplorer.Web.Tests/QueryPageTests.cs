@@ -225,7 +225,7 @@ public sealed class QueryPageTests : TestContext
         Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
 
         var component = RenderComponent<QueryPage>();
-        component.Find("input[type='checkbox']").Change(true);
+        component.Find("button[title*='Include execution plan']").Click();
         component.Find("textarea").Input("SELECT 1");
         component.Find("button[title='Execute (Ctrl+Enter)']").Click();
 
@@ -244,7 +244,7 @@ public sealed class QueryPageTests : TestContext
         Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
 
         var component = RenderComponent<QueryPage>();
-        component.Find("input[type='checkbox']").Change(true);
+        component.Find("button[title*='Include execution plan']").Click();
         component.Find("textarea").Input("SELECT 1");
         component.Find("button[title='Execute (Ctrl+Enter)']").Click();
         component.WaitForAssertion(() => component.Markup.Should().Contain("Execution Plan"));
@@ -272,7 +272,7 @@ public sealed class QueryPageTests : TestContext
         Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
 
         var component = RenderComponent<QueryPage>();
-        component.Find("input[type='checkbox']").Change(true);
+        component.Find("button[title*='Include execution plan']").Click();
         component.Find("textarea").Input("SELECT 1");
         component.Find("button[title='Execute (Ctrl+Enter)']").Click();
         component.WaitForAssertion(() => component.Markup.Should().Contain("Execution Plan"));
@@ -292,7 +292,7 @@ public sealed class QueryPageTests : TestContext
         Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
 
         var component = RenderComponent<QueryPage>();
-        component.Find("input[type='checkbox']").Change(true);
+        component.Find("button[title*='Include execution plan']").Click();
 
         var tabButtons = component.FindAll(".de-query-pane__tabs button");
         tabButtons.Should().HaveCount(3);
@@ -312,7 +312,7 @@ public sealed class QueryPageTests : TestContext
         Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
 
         var component = RenderComponent<QueryPage>();
-        component.Find("input[type='checkbox']").Change(true);
+        component.Find("button[title*='Include execution plan']").Click();
         component.Find("textarea").Input("SELECT 1");
         component.Find("button[title='Execute (Ctrl+Enter)']").Click();
         component.WaitForAssertion(() => component.Markup.Should().Contain("Execution Plan"));

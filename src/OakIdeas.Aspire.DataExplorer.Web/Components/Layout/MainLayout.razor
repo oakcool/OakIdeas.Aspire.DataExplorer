@@ -585,7 +585,7 @@
             securityNodes,
             key: "schemas",
             label: "Schemas",
-            icon: HeroIconKind.Folder,
+            icon: HeroIconKind.UserGroup,
             children: BuildSecurityLeafNodes(metadata, DatabaseObjectType.Schema),
             includeWhenEmpty: true);
 
@@ -846,7 +846,7 @@
             .Select(databaseObject => new ObjectExplorer.ExplorerNodeModel(
                 NodeKey: $"{objectType}:{databaseObject.ObjectId}",
                 Label: databaseObject.ObjectName,
-                Icon: HeroIconKind.Folder,
+                Icon: objectType == DatabaseObjectType.Schema ? HeroIconKind.UserGroup : HeroIconKind.Folder,
                 Children: []))
             .OrderBy(item => item.Label, StringComparer.OrdinalIgnoreCase)
             .ThenBy(item => item.NodeKey, StringComparer.OrdinalIgnoreCase)

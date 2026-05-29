@@ -1,4 +1,5 @@
-﻿using FluentAssertions;
+﻿using System.Reflection;
+using FluentAssertions;
 using Microsoft.Data.SqlClient;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Models;
@@ -903,6 +904,31 @@ public sealed class SqlServerDatabaseProviderTests
         command.Parameters["@IncludeSystemFunctions"].Value.Should().Be(true);
     }
 
+    [Theory]
+    [InlineData(229)]
+    [InlineData(230)]
+    [InlineData(297)]
+    [InlineData(300)]
+    [InlineData(916)]
+    public void HasInsufficientSchemaAccess_WhenPermissionDeniedSqlError_ReturnsTrue(int sqlErrorNumber)
+    {
+        var ex = CreateSqlException(sqlErrorNumber, "Permission denied");
+
+        var result = SqlServerDatabaseProvider.HasInsufficientSchemaAccess(ex);
+
+        result.Should().BeTrue();
+    }
+
+    [Fact]
+    public void HasInsufficientSchemaAccess_WhenNonPermissionSqlError_ReturnsFalse()
+    {
+        var ex = CreateSqlException(208, "Invalid object name");
+
+        var result = SqlServerDatabaseProvider.HasInsufficientSchemaAccess(ex);
+
+        result.Should().BeFalse();
+    }
+
     [Fact]
     public void NormalizeFunctions_ProjectsAndGroupsBySchemaAndFunctionType()
     {
@@ -1153,6 +1179,31 @@ public sealed class SqlServerDatabaseProviderTests
 
     private static DatabaseResource CreateResource(string providerName)
         => new("db", providerName, "Server=localhost;Database=db;", IsLocal: true, IsWritable: false);
+
+    private static SqlException CreateSqlException(int number, string message)
+    {
+        var collection = (SqlErrorCollection)Activator.CreateInstance(
+            typeof(SqlErrorCollection),
+            nonPublic: true)!;
+
+        var error = (SqlError)Activator.CreateInstance(
+            typeof(SqlError),
+            BindingFlags.Instance | BindingFlags.NonPublic,
+            binder: null,
+            args: [number, (byte)0, (byte)0, "server", message, "procedure", 1, null!],
+            culture: null)!;
+
+        typeof(SqlErrorCollection)
+            .GetMethod("Add", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(collection, [error]);
+
+        return (SqlException)Activator.CreateInstance(
+            typeof(SqlException),
+            BindingFlags.Instance | BindingFlags.NonPublic,
+            binder: null,
+            args: [message, collection, null!, Guid.NewGuid()],
+            culture: null)!;
+    }
 
     [Fact]
     public void CreateDiscoverConstraintsCommand_UsesConstraintCatalogQueryAndParameters()

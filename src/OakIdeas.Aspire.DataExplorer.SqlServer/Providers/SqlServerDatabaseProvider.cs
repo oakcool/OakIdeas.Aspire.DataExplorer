@@ -2186,8 +2186,8 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
             _ => throw new ArgumentException("ObjectType must be Table or View.", nameof(objectType)),
         };
 
-    private static bool HasInsufficientSchemaAccess(SqlException exception)
-        => exception.Number is 229 or 916;
+    internal static bool HasInsufficientSchemaAccess(SqlException exception)
+        => exception.Number is 229 or 230 or 297 or 300 or 916;
 
     private static string CreateIndexObjectId(int objectId, int indexId)
         => FormattableString.Invariant($"{objectId}:{indexId}");

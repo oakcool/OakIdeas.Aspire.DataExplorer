@@ -5,30 +5,25 @@
 <div class="query-panel" @ref="_editorRef">
     <div class="query-panel__toolbar">
         <IconButton Icon="HeroIconKind.Play"
-                    Label="Execute"
                     Title="Execute (Ctrl+Enter)"
                     Variant="primary"
                     Disabled="IsExecuting || string.IsNullOrWhiteSpace(Sql)"
                     OnClick="Execute" />
         <IconButton Icon="HeroIconKind.XMark"
-                    Label="Cancel"
                     Title="Cancel current query"
                     Variant="ghost"
                     Disabled="!IsExecuting"
                     OnClick="Cancel" />
         <IconButton Icon="HeroIconKind.ArrowPath"
-                    Label="Clear"
                     Title="Clear editor"
                     Variant="ghost"
                     Disabled="IsExecuting"
                     OnClick="Clear" />
-        <label class="query-panel__execution-plan-toggle" title="Include execution plan in query response when supported.">
-            <input type="checkbox"
-                   checked="@IncludeExecutionPlan"
-                   disabled="@IsExecuting"
-                   @onchange="HandleIncludeExecutionPlanChanged" />
-            <span>Include Execution Plan</span>
-        </label>
+        <IconButton Icon="HeroIconKind.RectangleGroup"
+                    Title="Include execution plan in query response when supported"
+                    Variant="@(IncludeExecutionPlan ? "primary" : "ghost")"
+                    Disabled="IsExecuting"
+                    OnClick="HandleExecutionPlanToggle" />
         @if (!string.IsNullOrEmpty(ConnectionName))
         {
             <StatusBadge Text="@ConnectionName" Variant="connected" />
@@ -162,6 +157,9 @@
     }
 
     private Task Cancel() => OnCancel.InvokeAsync();
+
+    private Task HandleExecutionPlanToggle()
+        => IncludeExecutionPlanChanged.InvokeAsync(!IncludeExecutionPlan);
 
     private Task HandleIncludeExecutionPlanChanged(ChangeEventArgs args)
     {

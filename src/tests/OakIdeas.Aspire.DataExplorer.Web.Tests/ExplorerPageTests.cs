@@ -87,13 +87,46 @@ public sealed class ExplorerPageTests : TestContext
         });
     }
 
+    [Fact]
+    public void PartialMetadataError_DoesNotRenderMetadataErrorAlert()
+    {
+        Services.AddSingleton<IExplorerService>(new FakeExplorerService(
+            collectionStatus: MetadataCollectionStatus.PartialSuccess,
+            metadataError: new DataExplorerError(
+                ErrorCategory.ProviderError,
+                "SQL Server reported an error while completing this operation.",
+                "Retry metadata refresh.",
+                "functions",
+                "applicationdb",
+                DateTimeOffset.UtcNow,
+                "metadata-partial-failure")));
+        var navigationManager = Services.GetRequiredService<NavigationManager>();
+        navigationManager.NavigateTo("/explorer?objectId=dbo.Users&objectType=table&objectName=Users&schemaName=dbo&connectionName=sql-main&databaseName=applicationdb");
+
+        var component = RenderComponent<ExplorerPage>();
+
+        component.WaitForAssertion(() =>
+        {
+            component.Markup.Should().Contain("Columns");
+            component.Markup.Should().NotContain("metadata-partial-failure");
+            component.Markup.Should().NotContain("SQL Server reported an error while completing this operation.");
+        });
+    }
+
     private sealed class FakeExplorerService : IExplorerService
     {
         private readonly bool _useQuotedObjectKeys;
+        private readonly MetadataCollectionStatus _collectionStatus;
+        private readonly DataExplorerError? _metadataError;
 
-        public FakeExplorerService(bool useQuotedObjectKeys = false)
+        public FakeExplorerService(
+            bool useQuotedObjectKeys = false,
+            MetadataCollectionStatus collectionStatus = MetadataCollectionStatus.Success,
+            DataExplorerError? metadataError = null)
         {
             _useQuotedObjectKeys = useQuotedObjectKeys;
+            _collectionStatus = collectionStatus;
+            _metadataError = metadataError;
         }
 
         public Task<GetAvailableDatabasesResponse> GetAvailableDatabasesAsync(CancellationToken cancellationToken)
@@ -109,9 +142,10 @@ public sealed class ExplorerPageTests : TestContext
             => Task.FromResult(new GetDatabaseMetadataResponse(
                 Metadata: null,
                 AggregatedMetadata: CreateMetadata(_useQuotedObjectKeys),
-                CollectionStatus: MetadataCollectionStatus.Success,
+                CollectionStatus: _collectionStatus,
                 FailureDetails: [],
-                Errors: []));
+                Errors: [],
+                Error: _metadataError));
 
         public Task<RefreshMetadataResponse> RefreshDatabaseMetadataAsync(CancellationToken cancellationToken)
             => throw new NotSupportedException();

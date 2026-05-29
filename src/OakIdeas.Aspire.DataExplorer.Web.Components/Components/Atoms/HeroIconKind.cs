@@ -21,8 +21,10 @@ public enum HeroIconKind
     Play,
     Plus,
     QueueList,
+    RectangleGroup,
     ServerStack,
     TableCells,
+    UserGroup,
     ViewColumns,
     Trash,
     XMark
