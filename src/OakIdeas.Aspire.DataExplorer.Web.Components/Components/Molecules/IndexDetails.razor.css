@@ -1,11 +1,28 @@
 .index-details__scroll {
     overflow-x: auto;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #30363d #0d1117;
+}
+
+.index-details__scroll::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.index-details__scroll::-webkit-scrollbar-track {
+    background: #0d1117;
+}
+
+.index-details__scroll::-webkit-scrollbar-thumb {
+    background-color: #30363d;
+    border-radius: 4px;
 }
 
 .index-details__grid {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.8rem;
+    font-size: 0.76rem;
     color: #c9d1d9;
 }
 
@@ -32,42 +49,32 @@
 }
 
 .index-details__name {
-    font-weight: 500;
-    white-space: nowrap;
-}
-
-.index-details__type {
     display: flex;
     align-items: center;
-    gap: 0.35rem;
+    gap: 0.3rem;
+    flex-wrap: wrap;
     white-space: nowrap;
 }
 
-.index-details__badge {
-    display: inline-block;
-    padding: 0.05rem 0.35rem;
-    border-radius: 3px;
-    font-size: 0.68rem;
-    font-weight: 700;
-}
-
-.index-details__badge--pk {
-    background: #2d2a1e;
-    color: #e3b341;
-}
-
-.index-details__badge--unique {
-    background: #1f2d3d;
-    color: #58a6ff;
-}
-
-.index-details__clustered {
-    font-size: 0.75rem;
+.index-details__icon {
+    display: inline-flex;
+    align-items: center;
     color: #8b949e;
+}
+
+.index-details__name-text {
+    font-weight: 500;
+    color: #e6edf3;
+}
+
+.index-details__name-meta {
+    font-size: 0.72rem;
+    color: #8b949e;
+    font-family: 'Cascadia Code', 'Consolas', 'SFMono-Regular', monospace;
 }
 
 .index-details__columns {
     font-family: 'Cascadia Code', 'Consolas', 'SFMono-Regular', monospace;
-    font-size: 0.77rem;
+    font-size: 0.72rem;
     color: #a5d6ff;
 }

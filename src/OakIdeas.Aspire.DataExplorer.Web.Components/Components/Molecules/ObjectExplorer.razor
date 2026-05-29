@@ -152,8 +152,8 @@
     [Parameter]
     public ObjectSelection? SelectedObject { get; set; }
 
-    private readonly HashSet<string> _collapsedConnections = [];
-    private readonly HashSet<string> _collapsedDatabases = [];
+    private readonly HashSet<string> _expandedConnections = [];
+    private readonly HashSet<string> _expandedDatabases = [];
     private ObjectSelection? _selectedObject;
 
     private IReadOnlyList<ExplorerContextMenuItem> _contextMenuItems = [];
@@ -174,20 +174,20 @@
 
     private bool HasObjects => Connections
         .SelectMany(connection => connection.Databases)
-        .Any(database => database.HasAnyObjects);
+        .Any();
 
-    private bool IsConnectionExpanded(string key) => !_collapsedConnections.Contains(key);
-    private bool IsDatabaseExpanded(string key) => !_collapsedDatabases.Contains(key);
+    private bool IsConnectionExpanded(string key) => _expandedConnections.Contains(key);
+    private bool IsDatabaseExpanded(string key) => _expandedDatabases.Contains(key);
 
     private void ToggleConnection(string key, bool expanded)
     {
         if (expanded)
         {
-            _collapsedConnections.Remove(key);
+            _expandedConnections.Add(key);
         }
         else
         {
-            _collapsedConnections.Add(key);
+            _expandedConnections.Remove(key);
         }
     }
 
@@ -195,11 +195,11 @@
     {
         if (expanded)
         {
-            _collapsedDatabases.Remove(key);
+            _expandedDatabases.Add(key);
         }
         else
         {
-            _collapsedDatabases.Add(key);
+            _expandedDatabases.Remove(key);
         }
     }
 

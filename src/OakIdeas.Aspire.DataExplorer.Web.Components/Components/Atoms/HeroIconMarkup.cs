@@ -4,6 +4,9 @@ public static class HeroIconMarkup
 {
     public static string GetInnerSvg(HeroIconKind kind) => kind switch
     {
+        HeroIconKind.AtSymbol => """
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 6.75a6.75 6.75 0 1 0 2.38 13.07M16.5 6.75V12a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z"/>
+            """,
         HeroIconKind.ArrowPath => """
             <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/>
             """,
@@ -45,6 +48,9 @@ public static class HeroIconMarkup
             """,
         HeroIconKind.MagnifyingGlass => """
             <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
+            """,
+        HeroIconKind.Key => """
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 1 1-4.243 4.243L6 15h-2.25v2.25H1.5V15l5.507-5.507a3 3 0 0 1 4.243-4.243h4.5Z"/>
             """,
         HeroIconKind.Play => """
             <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z"/>

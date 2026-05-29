@@ -153,6 +153,7 @@ View metadata shape:
 - Optional behavior: filter to a single schema via `DiscoverStoredProceduresRequest.SchemaName`
 - `StoredProcedureMetadata.HasDefinitionAvailable` is `true` when `OBJECT_DEFINITION()` returns a non-null result
 - Attempts parameter discovery from `sys.parameters`; if parameter metadata is unavailable, discovery still succeeds and `Parameters` may be `null` for that procedure
+- Parameter metadata includes SQL data type formatting, output-direction detection from `sys.parameters.is_output`, and default availability inferred from the routine definition text
 - Includes `CreatedAt` from `sys.procedures.create_date` when available
 
 SQL used for discovery:
@@ -189,6 +190,7 @@ ORDER BY schema_name, procedure_name, prm.parameter_id;
 - `FunctionMetadata.HasDefinitionAvailable` is `true` when `OBJECT_DEFINITION()` returns a non-null result
 - Includes `CreatedAt` from `sys.objects.create_date` when available
 - Attempts return-type discovery from `sys.parameters` (`parameter_id = 0`) and `sys.types`
+- Function parameter metadata is discovered from `sys.parameters` (`parameter_id > 0`) and formatted with SQL length/precision/scale details when present
 
 SQL used for discovery:
 

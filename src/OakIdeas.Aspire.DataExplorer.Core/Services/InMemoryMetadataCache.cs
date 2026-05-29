@@ -12,7 +12,7 @@ public sealed class InMemoryMetadataCache(
     private readonly TimeSpan _ttl = TimeSpan.FromMinutes(Math.Max(1, options.Value.CacheTtlMinutes));
     private readonly ConcurrentDictionary<(string ResourceId, string DatabaseName), CacheEntry> _entries = new();
 
-    public async Task<DatabaseMetadataRoot?> GetAsync(
+    public async Task<DiscoverDatabaseMetadataResponse?> GetAsync(
         string resourceId,
         string databaseName,
         CancellationToken cancellationToken)
@@ -37,7 +37,7 @@ public sealed class InMemoryMetadataCache(
     public async Task SetAsync(
         string resourceId,
         string databaseName,
-        DatabaseMetadataRoot metadata,
+        DiscoverDatabaseMetadataResponse metadata,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -74,6 +74,6 @@ public sealed class InMemoryMetadataCache(
     }
 
     private sealed record CacheEntry(
-        DatabaseMetadataRoot Metadata,
+        DiscoverDatabaseMetadataResponse Metadata,
         DateTimeOffset ExpiresAt);
 }

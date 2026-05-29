@@ -472,7 +472,8 @@ public sealed record TriggerMetadata(
     bool IsEnabled,
     bool HasDefinitionAvailable,
     string ObjectId,
-    DateTimeOffset? CreatedAt);
+    DateTimeOffset? CreatedAt,
+    string? ParentSchemaName = null);
 
 public sealed record DiscoverTriggersRequest(
     string? SchemaName = null,
@@ -502,6 +503,17 @@ public enum FunctionType
     InlineTableValued = 3,
 }
 
+public enum RoutineParameterDirection
+{
+    Input = 1,
+    Output = 2,
+    InputOutput = 3,
+}
+
+public sealed record FunctionParameterMetadata(
+    string Name,
+    string DataType);
+
 public sealed record FunctionMetadata(
     string SchemaName,
     string FunctionName,
@@ -509,7 +521,8 @@ public sealed record FunctionMetadata(
     string ObjectId,
     string? ReturnType,
     bool HasDefinitionAvailable,
-    DateTimeOffset? CreatedAt);
+    DateTimeOffset? CreatedAt,
+    IReadOnlyList<FunctionParameterMetadata>? Parameters = null);
 
 public sealed record DiscoverFunctionsRequest(
     bool IncludeSystemFunctions = false);
@@ -519,7 +532,9 @@ public sealed record DiscoverFunctionsResponse(
 
 public sealed record StoredProcedureParameterMetadata(
     string Name,
-    string DataType);
+    string DataType,
+    RoutineParameterDirection Direction = RoutineParameterDirection.Input,
+    bool HasDefault = false);
 
 public sealed record StoredProcedureMetadata(
     string SchemaName,

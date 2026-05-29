@@ -174,25 +174,26 @@
 
         var fqn = $"{_selection.SchemaName}.{_selection.ObjectName}";
 
-        var columns = aggregated.ColumnsByObject.TryGetValue(fqn, out var cols)
-            ? cols.Select(c => new ColumnDetails.ColumnModel(
-                Name: c.Name,
-                Ordinal: c.Ordinal,
-                DataType: FormatDataType(c),
-                IsNullable: c.IsNullable,
-                IsIdentity: c.IsIdentity,
-                IsComputed: c.IsComputed,
-                DefaultValue: c.DefaultValue)).ToArray()
-            : null;
-
-        IReadOnlyList<string>? primaryKeyColumns = null;
-        if (aggregated.PrimaryKeysByTable.TryGetValue(fqn, out var pks) && pks.Count > 0)
+        IReadOnlyList<ObjectDetails.KeyModel>? keys = null;
+        var primaryKeyColumnNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (TryGetMetadataItems(aggregated.PrimaryKeysByTable, _selection.SchemaName, _selection.ObjectName, fqn, out var pks) && pks.Count > 0)
         {
-            primaryKeyColumns = pks.SelectMany(pk => pk.KeyColumns).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            keys = pks.Select(pk => new ObjectDetails.KeyModel(
+                KeyName: pk.ConstraintName,
+                Columns: pk.KeyColumns)).ToArray();
+
+            foreach (var column in pks.SelectMany(pk => pk.KeyColumns))
+            {
+                if (!string.IsNullOrWhiteSpace(column))
+                {
+                    primaryKeyColumnNames.Add(column);
+                }
+            }
         }
 
         IReadOnlyList<RelationshipDetails.ForeignKeyModel>? foreignKeys = null;
-        if (aggregated.ForeignKeysByTable.TryGetValue(fqn, out var fks) && fks.Count > 0)
+        var foreignKeyColumnNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (TryGetMetadataItems(aggregated.ForeignKeysByTable, _selection.SchemaName, _selection.ObjectName, fqn, out var fks) && fks.Count > 0)
         {
             foreignKeys = fks.Select(fk => new RelationshipDetails.ForeignKeyModel(
                 ConstraintName: fk.ConstraintName,
@@ -203,10 +204,31 @@
                 ColumnMappings: fk.KeyColumns.Select(kc => new RelationshipDetails.ColumnMappingModel(
                     ParentColumnName: kc.ParentColumnName,
                     ReferencedColumnName: kc.ReferencedColumnName)).ToArray())).ToArray();
+
+            foreach (var parentColumn in fks.SelectMany(fk => fk.KeyColumns.Select(kc => kc.ParentColumnName)))
+            {
+                if (!string.IsNullOrWhiteSpace(parentColumn))
+                {
+                    foreignKeyColumnNames.Add(parentColumn);
+                }
+            }
         }
 
+        var columns = TryGetMetadataItems(aggregated.ColumnsByObject, _selection.SchemaName, _selection.ObjectName, fqn, out var cols)
+            ? cols.Select(c => new ColumnDetails.ColumnModel(
+                Name: c.Name,
+                Ordinal: c.Ordinal,
+                DataType: FormatDataType(c),
+                IsNullable: c.IsNullable,
+                IsIdentity: c.IsIdentity,
+                IsComputed: c.IsComputed,
+                DefaultValue: c.DefaultValue,
+                IsPrimaryKey: primaryKeyColumnNames.Contains(c.Name),
+                IsForeignKey: foreignKeyColumnNames.Contains(c.Name))).ToArray()
+            : null;
+
         IReadOnlyList<IndexDetails.IndexModel>? indexes = null;
-        if (aggregated.IndexesByTable.TryGetValue(fqn, out var idxList) && idxList.Count > 0)
+        if (TryGetMetadataItems(aggregated.IndexesByTable, _selection.SchemaName, _selection.ObjectName, fqn, out var idxList) && idxList.Count > 0)
         {
             indexes = idxList.Select(idx => new IndexDetails.IndexModel(
                 Name: idx.IndexName,
@@ -247,12 +269,30 @@
                 triggerIsEnabled = trigger.IsEnabled;
             }
         }
-        else if (_selection.Kind is ObjectDetails.ObjectKind.Function)
-        {
-            FunctionMetadata? func = null;
-            if (aggregated.FunctionsBySchema.TryGetValue(_selection.SchemaName, out var byType))
+
+            IReadOnlyList<ObjectDetails.TriggerModel>? triggers = null;
+            if (_selection.Kind is ObjectDetails.ObjectKind.Table)
             {
-                func = byType.Values
+                var tableTriggers = aggregated.Triggers
+                    .Where(t => t.ParentObjectType == TriggerParentObjectType.Table
+                        && t.ParentObjectName.Equals(_selection.ObjectName, StringComparison.OrdinalIgnoreCase)
+                        && (string.IsNullOrWhiteSpace(t.ParentSchemaName)
+                            || t.ParentSchemaName.Equals(_selection.SchemaName, StringComparison.OrdinalIgnoreCase)))
+                    .ToArray();
+                if (tableTriggers.Length > 0)
+                {
+                    triggers = tableTriggers.Select(t => new ObjectDetails.TriggerModel(
+                        TriggerName: t.TriggerName,
+                        TriggerType: FormatTriggerType(t.TriggerType),
+                        IsEnabled: t.IsEnabled)).ToArray();
+                }
+            }
+            else if (_selection.Kind is ObjectDetails.ObjectKind.Function)
+            {
+                FunctionMetadata? func = null;
+                if (aggregated.FunctionsBySchema.TryGetValue(_selection.SchemaName, out var byType))
+                {
+                    func = byType.Values
                     .SelectMany(list => list)
                     .FirstOrDefault(f => f.FunctionName.Equals(_selection.ObjectName, StringComparison.OrdinalIgnoreCase));
             }
@@ -261,6 +301,12 @@
             {
                 functionType = func.FunctionType.ToString();
                 returnType = func.ReturnType;
+                if (func.Parameters is { Count: > 0 } functionParameters)
+                {
+                    parameters = functionParameters.Select(p => new ObjectDetails.ParameterModel(
+                        Name: p.Name,
+                        DataType: p.DataType)).ToArray();
+                }
             }
         }
         else if (_selection.Kind is ObjectDetails.ObjectKind.Procedure)
@@ -275,21 +321,24 @@
             {
                 parameters = procParams.Select(p => new ObjectDetails.ParameterModel(
                     Name: p.Name,
-                    DataType: p.DataType)).ToArray();
+                    DataType: p.DataType,
+                    Direction: FormatParameterDirection(p.Direction),
+                    HasDefault: p.HasDefault)).ToArray();
             }
         }
 
         _objectMetadata = new ObjectDetails.ObjectMetadata(
             Columns: columns,
-            PrimaryKeyColumns: primaryKeyColumns,
-            ForeignKeys: foreignKeys,
+            Keys: keys,
             Indexes: indexes,
             Constraints: constraints,
+            Triggers: triggers,
             TriggerType: triggerType,
             TriggerIsEnabled: triggerIsEnabled,
             FunctionType: functionType,
             ReturnType: returnType,
-            Parameters: parameters);
+            Parameters: parameters,
+            ForeignKeys: foreignKeys);
 
         _isLoading = false;
         await InvokeAsync(StateHasChanged);
@@ -360,6 +409,50 @@
         if (type.HasFlag(TriggerType.Delete)) parts.Add("DELETE");
         var prefix = type.HasFlag(TriggerType.InsteadOf) ? "INSTEAD OF" : "AFTER";
         return parts.Count > 0 ? $"{prefix} {string.Join(", ", parts)}" : type.ToString();
+    }
+
+    private static string FormatParameterDirection(RoutineParameterDirection direction)
+        => direction switch
+        {
+            RoutineParameterDirection.Output => "Output",
+            RoutineParameterDirection.InputOutput => "Input/Output",
+            _ => "Input",
+        };
+
+    private static bool TryGetMetadataItems<T>(
+        IReadOnlyDictionary<string, IReadOnlyList<T>> itemsByObject,
+        string schemaName,
+        string objectName,
+        string fullyQualifiedName,
+        out IReadOnlyList<T> items)
+    {
+        if (itemsByObject.TryGetValue(fullyQualifiedName, out var requestedItems))
+        {
+            items = requestedItems ?? [];
+            return true;
+        }
+
+        var normalizedRequestedName = NormalizeQualifiedName($"{schemaName}.{objectName}");
+        foreach (var pair in itemsByObject)
+        {
+            if (string.Equals(NormalizeQualifiedName(pair.Key), normalizedRequestedName, StringComparison.Ordinal))
+            {
+                items = pair.Value ?? [];
+                return true;
+            }
+        }
+
+        items = [];
+        return false;
+    }
+
+    private static string NormalizeQualifiedName(string value)
+    {
+        var segments = value
+            .Split('.', StringSplitOptions.RemoveEmptyEntries)
+            .Select(segment => segment.Trim().Trim('[', ']', '"', '`'))
+            .Where(segment => segment.Length > 0);
+        return string.Join(".", segments).ToUpperInvariant();
     }
 
     public void Dispose()

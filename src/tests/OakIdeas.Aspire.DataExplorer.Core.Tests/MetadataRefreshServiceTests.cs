@@ -57,7 +57,7 @@ public sealed class MetadataRefreshServiceTests
         await service.RefreshDatabaseMetadataAsync(context, CancellationToken.None);
 
         cache.StoredMetadata.Should().ContainKey(("sql-main", "applicationdb"));
-        cache.StoredMetadata[("sql-main", "applicationdb")].Should().Be(expectedMetadata);
+        cache.StoredMetadata[("sql-main", "applicationdb")].Metadata.Should().Be(expectedMetadata);
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public sealed class MetadataRefreshServiceTests
 
         cache.SetCallCount.Should().Be(1);
         cache.StoredMetadata.Should().ContainKey(("sql-main", "applicationdb"));
-        cache.StoredMetadata[("sql-main", "applicationdb")].Should().Be(expectedMetadata);
+        cache.StoredMetadata[("sql-main", "applicationdb")].Metadata.Should().Be(expectedMetadata);
     }
 
     [Fact]
@@ -279,7 +279,7 @@ public sealed class MetadataRefreshServiceTests
             await _metadataCache.SetAsync(
                 selectedDbContext.Resource.ResourceId,
                 selectedDbContext.Resource.DatabaseName,
-                _metadata,
+                new DiscoverDatabaseMetadataResponse(_metadata),
                 cancellationToken);
 
             return new DiscoverDatabaseMetadataResponse(_metadata);
@@ -309,14 +309,14 @@ public sealed class MetadataRefreshServiceTests
 
     private sealed class SpyMetadataCache : IMetadataCache
     {
-        private readonly Dictionary<(string, string), DatabaseMetadataRoot> _store = [];
+        private readonly Dictionary<(string, string), DiscoverDatabaseMetadataResponse> _store = [];
         public List<(string ResourceId, string DatabaseName)> InvalidatedKeys { get; } = [];
-        public Dictionary<(string, string), DatabaseMetadataRoot> StoredMetadata => _store;
+        public Dictionary<(string, string), DiscoverDatabaseMetadataResponse> StoredMetadata => _store;
         public bool InvalidationCalledBeforeAggregation { get; private set; }
         public int SetCallCount { get; private set; }
         private bool _setHasBeenCalled;
 
-        public Task<DatabaseMetadataRoot?> GetAsync(
+        public Task<DiscoverDatabaseMetadataResponse?> GetAsync(
             string resourceId,
             string databaseName,
             CancellationToken cancellationToken)
@@ -328,7 +328,7 @@ public sealed class MetadataRefreshServiceTests
         public Task SetAsync(
             string resourceId,
             string databaseName,
-            DatabaseMetadataRoot metadata,
+            DiscoverDatabaseMetadataResponse metadata,
             CancellationToken cancellationToken)
         {
             SetCallCount++;

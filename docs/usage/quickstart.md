@@ -40,7 +40,13 @@
    - `Procedures`
    - `Functions`
    - `Triggers`
+   - Tables expand into `Columns`, `Keys`, `Constraints`, `Triggers`, and `Indexes`
+   - Procedures expand into `Parameters`
+   - Functions expand into `Parameters` and `Return Type`
 5. Select an object to load object details and (when supported) definition text.
+   - Table details show columns, keys, constraints, triggers, and indexes
+   - Procedure details show parameter type, direction, and default availability
+   - Function details show parameters, return type, and function kind
 6. Open **Query** in the top navigation to run ad-hoc SQL against the selected database.
    - `Ctrl+Enter` executes the current query.
    - `Cancel` requests query cancellation.

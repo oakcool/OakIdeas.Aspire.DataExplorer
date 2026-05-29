@@ -10,8 +10,7 @@
             <table class="index-details__grid">
                 <thead>
                     <tr>
-                        <th>Name</th>
-                        <th>Type</th>
+                        <th>Index</th>
                         <th>Columns</th>
                     </tr>
                 </thead>
@@ -19,17 +18,12 @@
                     @foreach (var idx in Indexes)
                     {
                         <tr>
-                            <td class="index-details__name">@idx.Name</td>
-                            <td class="index-details__type">
-                                @if (idx.IsPrimaryKey)
-                                {
-                                    <span class="index-details__badge index-details__badge--pk">PK</span>
-                                }
-                                @if (idx.IsUnique && !idx.IsPrimaryKey)
-                                {
-                                    <span class="index-details__badge index-details__badge--unique">Unique</span>
-                                }
-                                <span class="index-details__clustered">@(idx.IsClustered ? "Clustered" : "Non-clustered")</span>
+                            <td class="index-details__name">
+                                <span class="index-details__icon" aria-hidden="true">
+                                    <HeroIcon Kind="@(idx.IsPrimaryKey ? HeroIconKind.Key : HeroIconKind.CircleStack)" Size="12" />
+                                </span>
+                                <span class="index-details__name-text">@idx.Name</span>
+                                <span class="index-details__name-meta">(@FormatIndexDetails(idx))</span>
                             </td>
                             <td class="index-details__columns">@string.Join(", ", idx.Columns)</td>
                         </tr>
@@ -43,6 +37,15 @@
 @code {
     [Parameter]
     public IReadOnlyList<IndexModel>? Indexes { get; set; }
+
+    private static string FormatIndexDetails(IndexModel index)
+    {
+        var details = new List<string>();
+        if (index.IsPrimaryKey) details.Add("PK");
+        if (index.IsUnique && !index.IsPrimaryKey) details.Add("Unique");
+        details.Add(index.IsClustered ? "Clustered" : "Non-clustered");
+        return string.Join(", ", details);
+    }
 
     public sealed record IndexModel(
         string Name,

@@ -1,4 +1,5 @@
 using FluentAssertions;
+using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.SqlServer.Providers;
 
 namespace OakIdeas.Aspire.DataExplorer.IntegrationTests;
@@ -18,7 +19,8 @@ public sealed class StoredProcedureDiscoveryIntegrationTests
                 CreatedAt: new DateTime(2026, 5, 16, 0, 0, 0),
                 ParameterId: 1,
                 ParameterName: "@CustomerId",
-                ParameterDataType: "int"),
+                ParameterDataType: "int",
+                Definition: "CREATE PROCEDURE dbo.usp_CreateOrder @CustomerId int, @OrderDate datetime2(7) = NULL OUTPUT AS SELECT 1;"),
             new SqlServerDatabaseProvider.StoredProcedureDiscoveryRow(
                 ObjectId: 801,
                 SchemaName: "dbo",
@@ -27,7 +29,10 @@ public sealed class StoredProcedureDiscoveryIntegrationTests
                 CreatedAt: new DateTime(2026, 5, 16, 0, 0, 0),
                 ParameterId: 2,
                 ParameterName: "@OrderDate",
-                ParameterDataType: "datetime2"),
+                ParameterDataType: "datetime2",
+                ParameterScale: 7,
+                ParameterIsOutput: true,
+                Definition: "CREATE PROCEDURE dbo.usp_CreateOrder @CustomerId int, @OrderDate datetime2(7) = NULL OUTPUT AS SELECT 1;"),
         ];
 
         var result = SqlServerDatabaseProvider.NormalizeStoredProcedures(rows);
@@ -37,6 +42,9 @@ public sealed class StoredProcedureDiscoveryIntegrationTests
         result[0].ProcedureName.Should().Be("usp_CreateOrder");
         result[0].HasDefinitionAvailable.Should().BeTrue();
         result[0].Parameters.Should().HaveCount(2);
+        result[0].Parameters![1].DataType.Should().Be("datetime2(7)");
+        result[0].Parameters![1].Direction.Should().Be(RoutineParameterDirection.Output);
+        result[0].Parameters![1].HasDefault.Should().BeTrue();
     }
 
     [Fact]

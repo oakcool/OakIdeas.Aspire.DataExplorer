@@ -222,9 +222,9 @@ public sealed class MetadataRefreshIntegrationTests
 
     private sealed class InMemoryMetadataCache : IMetadataCache
     {
-        private readonly Dictionary<(string, string), DatabaseMetadataRoot> _store = [];
+        private readonly Dictionary<(string, string), DiscoverDatabaseMetadataResponse> _store = [];
 
-        public Task<DatabaseMetadataRoot?> GetAsync(
+        public Task<DiscoverDatabaseMetadataResponse?> GetAsync(
             string resourceId,
             string databaseName,
             CancellationToken cancellationToken)
@@ -236,7 +236,7 @@ public sealed class MetadataRefreshIntegrationTests
         public Task SetAsync(
             string resourceId,
             string databaseName,
-            DatabaseMetadataRoot metadata,
+            DiscoverDatabaseMetadataResponse metadata,
             CancellationToken cancellationToken)
         {
             _store[(resourceId, databaseName)] = metadata;

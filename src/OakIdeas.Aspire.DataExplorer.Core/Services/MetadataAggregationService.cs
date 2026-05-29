@@ -32,7 +32,7 @@ public sealed class MetadataAggregationService(
         var cached = await _metadataCache.GetAsync(resourceId, databaseName, cancellationToken);
         if (cached is not null)
         {
-            return new DiscoverDatabaseMetadataResponse(cached);
+            return cached;
         }
 
         using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -225,14 +225,16 @@ public sealed class MetadataAggregationService(
                 CollectionStatus: status,
                 FailureDetails: failures);
 
-            await _metadataCache.SetAsync(resourceId, databaseName, root, operationToken);
-
-            return new DiscoverDatabaseMetadataResponse(
+            var discoverResponse = new DiscoverDatabaseMetadataResponse(
                 Metadata: root,
                 AggregatedMetadata: aggregateMetadata,
                 CollectionStatus: status,
                 FailureDetails: failures,
                 Error: failures.Count == 0 ? null : CreateAggregateError(failures, context));
+
+            await _metadataCache.SetAsync(resourceId, databaseName, discoverResponse, operationToken);
+
+            return discoverResponse;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {

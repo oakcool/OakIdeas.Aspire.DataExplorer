@@ -33,7 +33,7 @@
     [Parameter]
     public EventCallback<ObjectExplorer.ContextMenuRequest> OnObjectContextMenu { get; set; }
 
-    private bool _isExpanded = true;
+    private bool _isExpanded;
 
     private bool IsSelected => Node.Selection is not null
         && SelectedObject is not null

@@ -67,10 +67,16 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
             p.create_date,
             prm.parameter_id,
             prm.name AS parameter_name,
-            typ.name AS parameter_type
+            typ.name AS parameter_type,
+            prm.max_length,
+            prm.precision,
+            prm.scale,
+            prm.is_output,
+            sm.definition
         FROM sys.procedures AS p
         LEFT JOIN sys.parameters AS prm ON p.object_id = prm.object_id
         LEFT JOIN sys.types AS typ ON prm.user_type_id = typ.user_type_id
+        LEFT JOIN sys.sql_modules AS sm ON p.object_id = sm.object_id
         WHERE (@IncludeSystemProcedures = 1 OR p.is_ms_shipped = 0)
           AND (@SchemaName IS NULL OR SCHEMA_NAME(p.schema_id) = @SchemaName)
         ORDER BY schema_name, procedure_name, prm.parameter_id;
@@ -83,12 +89,25 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
             o.name AS function_name,
             o.type AS function_type_code,
             return_type.name AS return_type_name,
+            return_param.max_length,
+            return_param.precision,
+            return_param.scale,
             CASE WHEN OBJECT_DEFINITION(o.object_id) IS NOT NULL THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS has_definition,
-            o.create_date
+            o.create_date,
+            prm.parameter_id,
+            prm.name AS parameter_name,
+            param_type.name AS parameter_type,
+            prm.max_length,
+            prm.precision,
+            prm.scale,
+            sm.definition
         FROM sys.objects AS o
         INNER JOIN sys.functions AS f ON o.object_id = f.object_id
         LEFT JOIN sys.parameters AS return_param ON o.object_id = return_param.object_id AND return_param.parameter_id = 0
         LEFT JOIN sys.types AS return_type ON return_param.user_type_id = return_type.user_type_id
+        LEFT JOIN sys.parameters AS prm ON o.object_id = prm.object_id AND prm.parameter_id > 0
+        LEFT JOIN sys.types AS param_type ON prm.user_type_id = param_type.user_type_id
+        LEFT JOIN sys.sql_modules AS sm ON o.object_id = sm.object_id
         WHERE o.type IN (N'FN', N'TF', N'IF')
           AND (@IncludeSystemFunctions = 1 OR o.is_ms_shipped = 0)
         ORDER BY schema_name, function_name;
@@ -99,6 +118,7 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
             t.object_id,
             t.name AS trigger_name,
             SCHEMA_NAME(t.schema_id) AS schema_name,
+            SCHEMA_NAME(parent.schema_id) AS parent_schema_name,
             COALESCE(parent.name, DB_NAME()) AS parent_object_name,
             t.parent_class,
             t.is_disabled,
@@ -895,9 +915,9 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
                     ReferencedTableName: reader.GetString(5),
                     ParentColumnName: reader.GetString(6),
                     ReferencedColumnName: reader.GetString(7),
-                    ConstraintColumnId: reader.GetInt32(8),
-                    DeleteReferentialAction: reader.GetInt32(9),
-                    UpdateReferentialAction: reader.GetInt32(10),
+                    ConstraintColumnId: Convert.ToInt32(reader.GetValue(8), CultureInfo.InvariantCulture),
+                    DeleteReferentialAction: Convert.ToInt32(reader.GetValue(9), CultureInfo.InvariantCulture),
+                    UpdateReferentialAction: Convert.ToInt32(reader.GetValue(10), CultureInfo.InvariantCulture),
                     IsDisabled: reader.GetBoolean(11)));
             }
 
@@ -981,8 +1001,8 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
                     IsClustered: reader.GetBoolean(7),
                     ColumnName: reader.GetString(8),
                     IsIncludedColumn: reader.GetBoolean(9),
-                    KeyOrdinal: reader.GetInt32(10),
-                    IndexColumnId: reader.GetInt32(11),
+                    KeyOrdinal: Convert.ToInt32(reader.GetValue(10), CultureInfo.InvariantCulture),
+                    IndexColumnId: Convert.ToInt32(reader.GetValue(11), CultureInfo.InvariantCulture),
                     FilterDefinition: reader.IsDBNull(12) ? null : reader.GetString(12)));
             }
 
@@ -1020,7 +1040,7 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
                     TableName: reader.GetString(3),
                     IsClustered: reader.GetBoolean(4),
                     ColumnName: reader.GetString(5),
-                    KeyOrdinal: reader.GetInt32(6)));
+                    KeyOrdinal: Convert.ToInt32(reader.GetValue(6), CultureInfo.InvariantCulture)));
             }
 
             return new DiscoverPrimaryKeysResponse(NormalizePrimaryKeys(rows));
@@ -1088,13 +1108,14 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
                     ObjectId: reader.GetInt32(0),
                     TriggerName: reader.GetString(1),
                     SchemaName: reader.GetString(2),
-                    ParentObjectName: reader.GetString(3),
-                    ParentClass: reader.GetInt32(4),
-                    IsDisabled: reader.GetBoolean(5),
-                    IsInsteadOfTrigger: reader.GetBoolean(6),
-                    HasDefinitionAvailable: reader.GetBoolean(7),
-                    CreatedAt: reader.IsDBNull(8) ? null : reader.GetDateTime(8),
-                    TriggerEventType: reader.IsDBNull(9) ? null : reader.GetString(9)));
+                    ParentSchemaName: reader.IsDBNull(3) ? null : reader.GetString(3),
+                    ParentObjectName: reader.GetString(4),
+                    ParentClass: reader.GetInt32(5),
+                    IsDisabled: reader.GetBoolean(6),
+                    IsInsteadOfTrigger: reader.GetBoolean(7),
+                    HasDefinitionAvailable: reader.GetBoolean(8),
+                    CreatedAt: reader.IsDBNull(9) ? null : reader.GetDateTime(9),
+                    TriggerEventType: reader.IsDBNull(10) ? null : reader.GetString(10)));
             }
 
             return new DiscoverTriggersResponse(NormalizeTriggers(rows));
@@ -1132,7 +1153,12 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
                     CreatedAt: reader.IsDBNull(4) ? null : reader.GetDateTime(4),
                     ParameterId: reader.IsDBNull(5) ? null : reader.GetInt32(5),
                     ParameterName: reader.IsDBNull(6) ? null : reader.GetString(6),
-                    ParameterDataType: reader.IsDBNull(7) ? null : reader.GetString(7)));
+                    ParameterDataType: reader.IsDBNull(7) ? null : reader.GetString(7),
+                    ParameterMaxLength: reader.IsDBNull(8) ? null : reader.GetInt16(8),
+                    ParameterPrecision: reader.IsDBNull(9) ? null : reader.GetByte(9),
+                    ParameterScale: reader.IsDBNull(10) ? null : reader.GetByte(10),
+                    ParameterIsOutput: reader.IsDBNull(11) ? null : reader.GetBoolean(11),
+                    Definition: reader.IsDBNull(12) ? null : reader.GetString(12)));
             }
 
             return new DiscoverStoredProceduresResponse(GroupStoredProceduresBySchema(NormalizeStoredProcedures(rows)));
@@ -1168,8 +1194,18 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
                     FunctionName: reader.GetString(2),
                     FunctionTypeCode: reader.GetString(3),
                     ReturnType: reader.IsDBNull(4) ? null : reader.GetString(4),
-                    HasDefinitionAvailable: reader.GetBoolean(5),
-                    CreatedAt: reader.IsDBNull(6) ? null : reader.GetDateTime(6)));
+                    ReturnTypeMaxLength: reader.IsDBNull(5) ? null : reader.GetInt16(5),
+                    ReturnTypePrecision: reader.IsDBNull(6) ? null : reader.GetByte(6),
+                    ReturnTypeScale: reader.IsDBNull(7) ? null : reader.GetByte(7),
+                    HasDefinitionAvailable: reader.GetBoolean(8),
+                    CreatedAt: reader.IsDBNull(9) ? null : reader.GetDateTime(9),
+                    ParameterId: reader.IsDBNull(10) ? null : reader.GetInt32(10),
+                    ParameterName: reader.IsDBNull(11) ? null : reader.GetString(11),
+                    ParameterDataType: reader.IsDBNull(12) ? null : reader.GetString(12),
+                    ParameterMaxLength: reader.IsDBNull(13) ? null : reader.GetInt16(13),
+                    ParameterPrecision: reader.IsDBNull(14) ? null : reader.GetByte(14),
+                    ParameterScale: reader.IsDBNull(15) ? null : reader.GetByte(15),
+                    Definition: reader.IsDBNull(16) ? null : reader.GetString(16)));
             }
 
             return new DiscoverFunctionsResponse(GroupFunctionsBySchemaAndType(NormalizeFunctions(rows)));
@@ -1714,7 +1750,8 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
                     ObjectId: first.ObjectId.ToString(CultureInfo.InvariantCulture),
                     CreatedAt: first.CreatedAt is null
                         ? null
-                        : new DateTimeOffset(DateTime.SpecifyKind(first.CreatedAt.Value, DateTimeKind.Utc)));
+                        : new DateTimeOffset(DateTime.SpecifyKind(first.CreatedAt.Value, DateTimeKind.Utc)),
+                    ParentSchemaName: first.ParentSchemaName);
             })
             .ToList();
 
@@ -1724,12 +1761,21 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
             .Select(group =>
             {
                 var first = group.First();
+                var parameterDefaults = ParseRoutineParameterDefaults(first.Definition);
                 var parameters = group
                     .Where(row => row.ParameterId.HasValue && !string.IsNullOrWhiteSpace(row.ParameterName))
                     .OrderBy(row => row.ParameterId)
                     .Select(row => new StoredProcedureParameterMetadata(
                         Name: row.ParameterName!,
-                        DataType: string.IsNullOrWhiteSpace(row.ParameterDataType) ? "sql_variant" : row.ParameterDataType!))
+                        DataType: FormatRoutineDataType(
+                            row.ParameterDataType,
+                            row.ParameterMaxLength,
+                            row.ParameterPrecision,
+                            row.ParameterScale),
+                        Direction: row.ParameterIsOutput is true
+                            ? RoutineParameterDirection.Output
+                            : RoutineParameterDirection.Input,
+                        HasDefault: parameterDefaults.Contains(row.ParameterName!)))
                     .ToList();
 
                 return new StoredProcedureMetadataModel(
@@ -1758,17 +1804,189 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
 
     internal static IReadOnlyList<FunctionMetadataModel> NormalizeFunctions(IReadOnlyList<FunctionDiscoveryRow> rows)
         => rows
-            .Select(row => new FunctionMetadataModel(
-                SchemaName: row.SchemaName,
-                FunctionName: row.FunctionName,
-                FunctionType: MapFunctionType(row.FunctionTypeCode),
-                ObjectId: row.ObjectId.ToString(CultureInfo.InvariantCulture),
-                ReturnType: row.ReturnType,
-                HasDefinitionAvailable: row.HasDefinitionAvailable,
-                CreatedAt: row.CreatedAt is null
-                    ? null
-                    : new DateTimeOffset(DateTime.SpecifyKind(row.CreatedAt.Value, DateTimeKind.Utc))))
+            .GroupBy(row => row.ObjectId)
+            .Select(group =>
+            {
+                var first = group.First();
+                var parameters = group
+                    .Where(row => row.ParameterId.HasValue && !string.IsNullOrWhiteSpace(row.ParameterName))
+                    .OrderBy(row => row.ParameterId)
+                    .Select(row => new FunctionParameterMetadata(
+                        Name: row.ParameterName!,
+                        DataType: FormatRoutineDataType(
+                            row.ParameterDataType,
+                            row.ParameterMaxLength,
+                            row.ParameterPrecision,
+                            row.ParameterScale)))
+                    .ToList();
+
+                return new FunctionMetadataModel(
+                    SchemaName: first.SchemaName,
+                    FunctionName: first.FunctionName,
+                    FunctionType: MapFunctionType(first.FunctionTypeCode),
+                    ObjectId: first.ObjectId.ToString(CultureInfo.InvariantCulture),
+                    ReturnType: FormatRoutineDataType(
+                        first.ReturnType,
+                        first.ReturnTypeMaxLength,
+                        first.ReturnTypePrecision,
+                        first.ReturnTypeScale),
+                    HasDefinitionAvailable: first.HasDefinitionAvailable,
+                    CreatedAt: first.CreatedAt is null
+                        ? null
+                        : new DateTimeOffset(DateTime.SpecifyKind(first.CreatedAt.Value, DateTimeKind.Utc)),
+                    Parameters: parameters.Count == 0 ? null : parameters);
+            })
             .ToList();
+
+    private static string FormatRoutineDataType(
+        string? dataType,
+        short? maxLength,
+        byte? precision,
+        byte? scale)
+    {
+        if (string.IsNullOrWhiteSpace(dataType))
+        {
+            return "sql_variant";
+        }
+
+        var normalized = dataType.Trim();
+
+        if (maxLength.HasValue)
+        {
+            if (normalized.Equals("nvarchar", StringComparison.OrdinalIgnoreCase)
+                || normalized.Equals("nchar", StringComparison.OrdinalIgnoreCase))
+            {
+                return $"{normalized}({FormatLength(maxLength.Value / 2)})";
+            }
+
+            if (normalized.Equals("varchar", StringComparison.OrdinalIgnoreCase)
+                || normalized.Equals("char", StringComparison.OrdinalIgnoreCase)
+                || normalized.Equals("varbinary", StringComparison.OrdinalIgnoreCase)
+                || normalized.Equals("binary", StringComparison.OrdinalIgnoreCase))
+            {
+                return $"{normalized}({FormatLength(maxLength.Value)})";
+            }
+        }
+
+        if ((normalized.Equals("decimal", StringComparison.OrdinalIgnoreCase)
+                || normalized.Equals("numeric", StringComparison.OrdinalIgnoreCase))
+            && precision.HasValue
+            && scale.HasValue)
+        {
+            return $"{normalized}({precision.Value},{scale.Value})";
+        }
+
+        if ((normalized.Equals("datetime2", StringComparison.OrdinalIgnoreCase)
+                || normalized.Equals("datetimeoffset", StringComparison.OrdinalIgnoreCase)
+                || normalized.Equals("time", StringComparison.OrdinalIgnoreCase))
+            && scale.HasValue)
+        {
+            return $"{normalized}({scale.Value})";
+        }
+
+        return normalized;
+    }
+
+    private static string FormatLength(int length)
+        => length < 0 ? "max" : length.ToString(CultureInfo.InvariantCulture);
+
+    private static HashSet<string> ParseRoutineParameterDefaults(string? definition)
+    {
+        if (string.IsNullOrWhiteSpace(definition))
+        {
+            return [];
+        }
+
+        var defaults = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var signature = TrimToRoutineSignature(definition);
+        var span = signature.AsSpan();
+
+        for (var index = 0; index < span.Length; index++)
+        {
+            if (span[index] != '@')
+            {
+                continue;
+            }
+
+            var nameEnd = index + 1;
+            while (nameEnd < span.Length && (char.IsLetterOrDigit(span[nameEnd]) || span[nameEnd] == '_' || span[nameEnd] == '#'))
+            {
+                nameEnd++;
+            }
+
+            if (nameEnd == index + 1)
+            {
+                continue;
+            }
+
+            var parameterName = span[index..nameEnd].ToString();
+            var cursor = nameEnd;
+            var depth = 0;
+            var inString = false;
+            var hasDefault = false;
+
+            while (cursor < span.Length)
+            {
+                var current = span[cursor];
+
+                if (current == '\'')
+                {
+                    inString = !inString;
+                }
+                else if (!inString)
+                {
+                    if (current == '(')
+                    {
+                        depth++;
+                    }
+                    else if (current == ')' && depth > 0)
+                    {
+                        depth--;
+                    }
+                    else if (current == '=' && depth == 0)
+                    {
+                        hasDefault = true;
+                    }
+                    else if (current == ',' && depth == 0)
+                    {
+                        break;
+                    }
+                }
+
+                cursor++;
+            }
+
+            if (hasDefault)
+            {
+                defaults.Add(parameterName);
+            }
+
+            index = cursor;
+        }
+
+        return defaults;
+    }
+
+    private static string TrimToRoutineSignature(string definition)
+    {
+        var firstParameterIndex = definition.IndexOf('@');
+        if (firstParameterIndex < 0)
+        {
+            return definition;
+        }
+
+        var asIndex = definition.IndexOf(" AS ", firstParameterIndex, StringComparison.OrdinalIgnoreCase);
+        var returnsIndex = definition.IndexOf(" RETURNS ", firstParameterIndex, StringComparison.OrdinalIgnoreCase);
+        var endIndex = asIndex >= 0 && returnsIndex >= 0
+            ? Math.Min(asIndex, returnsIndex)
+            : asIndex >= 0
+                ? asIndex
+                : returnsIndex >= 0
+                    ? returnsIndex
+                    : definition.Length;
+
+        return definition[..endIndex];
+    }
 
     internal static IReadOnlyDictionary<string, IReadOnlyDictionary<FunctionType, IReadOnlyList<FunctionMetadataModel>>> GroupFunctionsBySchemaAndType(
         IReadOnlyList<FunctionMetadataModel> functions)
@@ -2048,7 +2266,8 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         bool IsInsteadOfTrigger,
         bool HasDefinitionAvailable,
         DateTime? CreatedAt,
-        string? TriggerEventType);
+        string? TriggerEventType,
+        string? ParentSchemaName = null);
 
     internal readonly record struct ConstraintDiscoveryRow(
         int ObjectId,
@@ -2068,7 +2287,12 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         DateTime? CreatedAt,
         int? ParameterId,
         string? ParameterName,
-        string? ParameterDataType);
+        string? ParameterDataType,
+        short? ParameterMaxLength = null,
+        byte? ParameterPrecision = null,
+        byte? ParameterScale = null,
+        bool? ParameterIsOutput = null,
+        string? Definition = null);
 
     internal readonly record struct FunctionDiscoveryRow(
         int ObjectId,
@@ -2077,7 +2301,17 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         string FunctionTypeCode,
         string? ReturnType,
         bool HasDefinitionAvailable,
-        DateTime? CreatedAt);
+        DateTime? CreatedAt,
+        short? ReturnTypeMaxLength = null,
+        byte? ReturnTypePrecision = null,
+        byte? ReturnTypeScale = null,
+        int? ParameterId = null,
+        string? ParameterName = null,
+        string? ParameterDataType = null,
+        short? ParameterMaxLength = null,
+        byte? ParameterPrecision = null,
+        byte? ParameterScale = null,
+        string? Definition = null);
 
     internal readonly record struct IndexDefinitionRow(
         string IndexName,

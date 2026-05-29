@@ -15,17 +15,25 @@ public static class DataExplorerHostingExtensions
     public static IResourceBuilder<ExecutableResource> AddDataExplorer(
         this IDistributedApplicationBuilder builder)
     {
+        return AddDataExplorer(builder, runtimeDirectory: null);
+    }
+
+    public static IResourceBuilder<ExecutableResource> AddDataExplorer(
+        this IDistributedApplicationBuilder builder,
+        string? runtimeDirectory)
+    {
         DevelopmentEnvironmentGuard.EnsureDevelopment(builder.Environment.IsDevelopment(), DevelopmentOnlyMessage);
 
-        var assemblyDirectory = Path.GetDirectoryName(typeof(DataExplorerHostingExtensions).Assembly.Location)
-            ?? throw new InvalidOperationException("Unable to determine the Data Explorer hosting assembly location.");
-        var runtimeDirectory = Path.Combine(assemblyDirectory, WebRuntimeDirectoryName);
+        runtimeDirectory = ResolveRuntimeDirectory(runtimeDirectory);
         var packagedAppPath = Path.Combine(runtimeDirectory, WebAssemblyFileName);
         var packagedExecutablePath = Path.Combine(runtimeDirectory, WebExecutableFileName);
 
         // Fall back to the legacy output layout for existing local builds/packages.
         if (!File.Exists(packagedAppPath) && !File.Exists(packagedExecutablePath))
         {
+            var assemblyDirectory = Path.GetDirectoryName(typeof(DataExplorerHostingExtensions).Assembly.Location)
+                ?? throw new InvalidOperationException("Unable to determine the Data Explorer hosting assembly location.");
+
             runtimeDirectory = assemblyDirectory;
             packagedAppPath = Path.Combine(runtimeDirectory, WebAssemblyFileName);
             packagedExecutablePath = Path.Combine(runtimeDirectory, WebExecutableFileName);
@@ -44,5 +52,18 @@ public static class DataExplorerHostingExtensions
             .WithEnvironment("ASPNETCORE_ENVIRONMENT", builder.Environment.EnvironmentName)
             .WithEnvironment("DOTNET_ENVIRONMENT", builder.Environment.EnvironmentName)
             .WithEnvironment("ASPNETCORE_FORWARDEDHEADERS_ENABLED", "true");
+    }
+
+    private static string ResolveRuntimeDirectory(string? runtimeDirectory)
+    {
+        if (!string.IsNullOrWhiteSpace(runtimeDirectory))
+        {
+            return Path.GetFullPath(runtimeDirectory);
+        }
+
+        var assemblyDirectory = Path.GetDirectoryName(typeof(DataExplorerHostingExtensions).Assembly.Location)
+            ?? throw new InvalidOperationException("Unable to determine the Data Explorer hosting assembly location.");
+
+        return Path.Combine(assemblyDirectory, WebRuntimeDirectoryName);
     }
 }

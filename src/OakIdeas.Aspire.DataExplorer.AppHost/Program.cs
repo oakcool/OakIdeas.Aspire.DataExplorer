@@ -9,9 +9,19 @@ var sql = builder.AddSqlServer("sql", password)
     .WithDataVolume()
     .AddDatabase("applicationdb");
 
+var dataExplorerRuntimeDirectory = Path.GetFullPath(Path.Combine(
+    AppContext.BaseDirectory,
+    "..",
+    "..",
+    "..",
+    "..",
+    "OakIdeas.Aspire.DataExplorer.Hosting",
+    "DataExplorerWeb",
+    "publish"));
+
 if (builder.Environment.IsDevelopment())
 {
-    builder.AddDataExplorer()
+    builder.AddDataExplorer(dataExplorerRuntimeDirectory)
         .WithReference(sql);
 }
 
