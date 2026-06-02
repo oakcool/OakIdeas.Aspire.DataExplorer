@@ -53,3 +53,10 @@ OakIdeas.Aspire.DataExplorer is a development-time-only Aspire add-on for explor
 - Add ADRs for significant decisions.
 - Document new error categories, recovery guidance, and safe logging expectations when diagnostics behavior changes.
 - For any UI change (styling, layout, component behavior, or visual content), include before/after screenshots in the pull request description.
+
+## Packaging and Release Rules
+
+- Keep package metadata in sync for all public package projects under `01 - Packages`.
+- Keep NuGet package README, license, and icon assets present and valid for package publishing workflows.
+- Use SemVer: stable `x.y.z`, preview `x.y.z-preview.n`.
+- Publish only through approved GitHub Actions workflows with secrets and environment approvals.

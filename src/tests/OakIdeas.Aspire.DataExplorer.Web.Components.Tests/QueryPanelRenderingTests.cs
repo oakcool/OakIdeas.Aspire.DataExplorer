@@ -154,7 +154,7 @@ public sealed class QueryPanelRenderingTests : TestContext
             .Add(p => p.IncludeExecutionPlan, includeExecutionPlan)
             .Add(p => p.IncludeExecutionPlanChanged, EventCallback.Factory.Create<bool>(this, value => includeExecutionPlan = value)));
 
-        component.Find("input[type='checkbox']").Change(true);
+        component.Find("button[title='Include execution plan in query response when supported']").Click();
 
         includeExecutionPlan.Should().BeTrue();
     }

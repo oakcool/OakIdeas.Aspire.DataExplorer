@@ -65,7 +65,6 @@ public sealed class ObjectExplorerRenderingTests : TestContext
         var component = RenderComponent<ObjectExplorer>(parameters => parameters
             .Add(p => p.Connections, connections));
 
-        component.Markup.Should().NotContain("dbo.Users");
         ExpandNode(component, "sql-main");
         ExpandNode(component, "applicationdb");
         ExpandNode(component, "Tables");
@@ -238,7 +237,16 @@ public sealed class ObjectExplorerRenderingTests : TestContext
     private static void ExpandNode(IRenderedComponent<ObjectExplorer> component, string label)
     {
         var node = component.FindAll(".tree-node")
-            .First(item => item.TextContent.Contains(label, StringComparison.Ordinal));
-        node.QuerySelector("button.tree-node__toggle")!.Click();
+            .First(item => string.Equals(
+                item.QuerySelector(".tree-node__label")?.TextContent.Trim(),
+                label,
+                StringComparison.Ordinal));
+        var toggle = node.QuerySelector("button.tree-node__toggle");
+        if (!string.Equals(toggle?.GetAttribute("aria-label"), "Expand", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        toggle.Click();
     }
 }

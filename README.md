@@ -49,6 +49,8 @@ See:
 - [Metadata discovery architecture](docs/architecture/metadata-discovery.md)
 - [Architecture review and next steps](docs/architecture/architecture-review-2026-05.md)
 - [Usage quickstart](docs/usage/quickstart.md)
+- [Package publishing guide](docs/publishing/package-publishing-guide.md)
+- [Contributor package guide](docs/publishing/contributor-package-guide.md)
 
 ## Metadata feature completeness (current)
 
@@ -104,6 +106,7 @@ Object Explorer metadata details currently include:
 - [Troubleshooting common errors](docs/troubleshooting/error-handling.md)
 - [Error handling architecture](docs/architecture/error-handling.md)
 - [Local development setup](docs/setup/local-development.md)
+- [Package publishing troubleshooting](docs/publishing/package-publishing-guide.md#troubleshooting)
 
 ## Solution layout
 
