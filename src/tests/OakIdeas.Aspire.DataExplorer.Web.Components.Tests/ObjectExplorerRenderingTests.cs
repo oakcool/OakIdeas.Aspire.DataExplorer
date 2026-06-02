@@ -242,9 +242,11 @@ public sealed class ObjectExplorerRenderingTests : TestContext
                 label,
                 StringComparison.Ordinal));
         var toggle = node.QuerySelector("button.tree-node__toggle");
-        if (string.Equals(toggle?.GetAttribute("aria-label"), "Expand", StringComparison.Ordinal))
+        if (!string.Equals(toggle?.GetAttribute("aria-label"), "Expand", StringComparison.Ordinal))
         {
-            toggle!.Click();
+            return;
         }
+
+        toggle.Click();
     }
 }
