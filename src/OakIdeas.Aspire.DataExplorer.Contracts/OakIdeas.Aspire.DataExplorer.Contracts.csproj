@@ -4,6 +4,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <PackageId>OakIdeas.Aspire.DataExplorer.Contracts</PackageId>
+    <Title>OakIdeas Aspire Data Explorer Contracts</Title>
+    <Description>Shared contracts and metadata models for OakIdeas Aspire Data Explorer providers and services.</Description>
   </PropertyGroup>
 
 </Project>

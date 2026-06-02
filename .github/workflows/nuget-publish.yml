@@ -1,0 +1,123 @@
+name: NuGet Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - 'release-candidate/**'
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'preview or stable'
+        required: true
+        type: choice
+        options:
+          - preview
+          - stable
+      version:
+        description: 'SemVer version (for example 1.2.3 or 1.2.3-preview.1)'
+        required: true
+        type: string
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      release_type: ${{ steps.resolve.outputs.release_type }}
+      package_version: ${{ steps.resolve.outputs.package_version }}
+    steps:
+      - name: Resolve release type and version
+        id: resolve
+        shell: bash
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            release_type="${{ github.event.inputs.release_type }}"
+            package_version="${{ github.event.inputs.version }}"
+          elif [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            package_version="${GITHUB_REF_NAME#v}"
+            if [[ "${package_version}" =~ -preview\.[0-9]+$ ]]; then
+              release_type="preview"
+            else
+              release_type="stable"
+            fi
+          elif [[ "${GITHUB_REF_TYPE}" == "branch" && "${GITHUB_REF_NAME}" == release-candidate/* ]]; then
+            branch_version="${GITHUB_REF_NAME#release-candidate/}"
+            if ! [[ "${branch_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "release-candidate branch name must end with x.y.z"
+              exit 1
+            fi
+            release_type="preview"
+            package_version="${branch_version}-preview.${GITHUB_RUN_NUMBER}"
+          else
+            echo "Unsupported trigger."
+            exit 1
+          fi
+
+          if [[ "${release_type}" == "stable" ]]; then
+            if ! [[ "${package_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "Stable version must match x.y.z"
+              exit 1
+            fi
+          else
+            if ! [[ "${package_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+-preview\.[0-9]+$ ]]; then
+              echo "Preview version must match x.y.z-preview.n"
+              exit 1
+            fi
+          fi
+
+          echo "release_type=${release_type}" >> "$GITHUB_OUTPUT"
+          echo "package_version=${package_version}" >> "$GITHUB_OUTPUT"
+
+  publish:
+    needs: prepare
+    runs-on: ubuntu-latest
+    environment: ${{ needs.prepare.outputs.release_type == 'stable' && 'nuget-stable' || 'nuget-preview' }}
+    permissions:
+      contents: read
+    env:
+      PACKAGE_VERSION: ${{ needs.prepare.outputs.package_version }}
+      NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Validate secrets
+        run: |
+          if [ -z "${NUGET_API_KEY}" ]; then
+            echo "NUGET_API_KEY is required."
+            exit 1
+          fi
+
+      - name: Restore
+        run: dotnet restore OakIdeas.Aspire.DataExplorer.sln
+
+      - name: Build
+        run: dotnet build OakIdeas.Aspire.DataExplorer.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test OakIdeas.Aspire.DataExplorer.sln --configuration Release --no-build
+
+      - name: Pack public NuGet packages
+        run: |
+          mkdir -p artifacts/packages
+          dotnet pack src/OakIdeas.Aspire.DataExplorer.Hosting/OakIdeas.Aspire.DataExplorer.Hosting.csproj --configuration Release --no-build --output artifacts/packages /p:Version=${PACKAGE_VERSION} /p:ContinuousIntegrationBuild=true
+          dotnet pack src/OakIdeas.Aspire.DataExplorer.Contracts/OakIdeas.Aspire.DataExplorer.Contracts.csproj --configuration Release --no-build --output artifacts/packages /p:Version=${PACKAGE_VERSION} /p:ContinuousIntegrationBuild=true
+          dotnet pack src/OakIdeas.Aspire.DataExplorer.Web.Components/OakIdeas.Aspire.DataExplorer.Web.Components.csproj --configuration Release --no-build --output artifacts/packages /p:Version=${PACKAGE_VERSION} /p:ContinuousIntegrationBuild=true
+
+      - name: Publish packages to NuGet.org
+        run: |
+          for package in artifacts/packages/*.nupkg; do
+            if [[ "${package}" == *.snupkg ]]; then
+              continue
+            fi
+            dotnet nuget push "${package}" \
+              --api-key "${NUGET_API_KEY}" \
+              --source https://api.nuget.org/v3/index.json \
+              --skip-duplicate
+          done

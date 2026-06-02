@@ -1,0 +1,94 @@
+name: NuGet Validate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  validate-packages:
+    runs-on: ubuntu-latest
+    env:
+      PACKAGE_VERSION: 0.0.0-preview.${{ github.run_number }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Verify package assets exist
+        run: |
+          test -f LICENSE
+          test -f docs/nuget/package-readme.md
+          test -f src/OakIdeas.Aspire.DataExplorer.Web/wwwroot/images/logo.png
+
+      - name: Restore
+        run: dotnet restore OakIdeas.Aspire.DataExplorer.sln
+
+      - name: Build
+        run: dotnet build OakIdeas.Aspire.DataExplorer.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test OakIdeas.Aspire.DataExplorer.sln --configuration Release --no-build
+
+      - name: Validate SemVer for packaging
+        run: |
+          if ! [[ "${PACKAGE_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "PACKAGE_VERSION is not valid SemVer: ${PACKAGE_VERSION}"
+            exit 1
+          fi
+
+      - name: Pack public NuGet packages
+        run: |
+          mkdir -p artifacts/packages
+          dotnet pack src/OakIdeas.Aspire.DataExplorer.Hosting/OakIdeas.Aspire.DataExplorer.Hosting.csproj --configuration Release --no-build --output artifacts/packages /p:Version=${PACKAGE_VERSION} /p:ContinuousIntegrationBuild=true
+          dotnet pack src/OakIdeas.Aspire.DataExplorer.Contracts/OakIdeas.Aspire.DataExplorer.Contracts.csproj --configuration Release --no-build --output artifacts/packages /p:Version=${PACKAGE_VERSION} /p:ContinuousIntegrationBuild=true
+          dotnet pack src/OakIdeas.Aspire.DataExplorer.Web.Components/OakIdeas.Aspire.DataExplorer.Web.Components.csproj --configuration Release --no-build --output artifacts/packages /p:Version=${PACKAGE_VERSION} /p:ContinuousIntegrationBuild=true
+
+      - name: Validate package artifacts and metadata
+        run: |
+          shopt -s nullglob
+          nupkgs=(artifacts/packages/*.nupkg)
+          snupkgs=(artifacts/packages/*.snupkg)
+          if [ ${#nupkgs[@]} -eq 0 ]; then
+            echo "No .nupkg files were produced."
+            exit 1
+          fi
+          if [ ${#snupkgs[@]} -eq 0 ]; then
+            echo "No .snupkg files were produced."
+            exit 1
+          fi
+
+          for package in "${nupkgs[@]}"; do
+            if [[ "${package}" == *.snupkg ]]; then
+              continue
+            fi
+
+            if ! unzip -l "${package}" | grep -q " README.md$"; then
+              echo "README.md missing from ${package}"
+              exit 1
+            fi
+            if ! unzip -l "${package}" | grep -q " icon.png$"; then
+              echo "icon.png missing from ${package}"
+              exit 1
+            fi
+
+            nuspec="$(unzip -p "${package}" '*.nuspec')"
+            for required in "<id>" "<title>" "<description>" "<version>" "<authors>" "<repository" "<tags>" "<projectUrl>" "<icon>" "<readme>" "<releaseNotes>" "<license"; do
+              if ! grep -q "${required}" <<< "${nuspec}"; then
+                echo "Missing ${required} in ${package}"
+                exit 1
+              fi
+            done
+          done
+
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages-${{ github.run_id }}
+          path: artifacts/packages

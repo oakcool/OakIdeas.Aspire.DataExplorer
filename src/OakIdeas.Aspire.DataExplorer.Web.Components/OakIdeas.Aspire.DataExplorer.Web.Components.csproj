@@ -4,6 +4,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <PackageId>OakIdeas.Aspire.DataExplorer.Web.Components</PackageId>
+    <Title>OakIdeas Aspire Data Explorer Web Components</Title>
+    <Description>Reusable Blazor UI components used by OakIdeas Aspire Data Explorer.</Description>
   </PropertyGroup>
 
 
