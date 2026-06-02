@@ -12,7 +12,6 @@ This repository uses Semantic Versioning (SemVer):
 Preview publishing is supported from:
 
 - Preview tags (for example `v1.2.0-preview.1`)
-- `release-candidate/*` branches (version derived as `<branchVersion>-preview.<run_number>`)
 - Manual workflow execution (`NuGet Publish`) with `release_type=preview`
 
 ## Stable release process
