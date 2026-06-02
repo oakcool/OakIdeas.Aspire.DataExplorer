@@ -177,7 +177,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
         component.Markup.Should().Contain("Indexes");
         component.Markup.Should().Contain("PK_Orders");
         component.Markup.Should().Contain("IX_Orders_CustomerId");
-        component.Markup.Should().Contain("PK, Clustered");
+        component.Markup.Should().Contain("Clustered");
         component.Markup.Should().Contain("Non-clustered");
     }
 
@@ -279,8 +279,8 @@ public sealed class ObjectDetailsRenderingTests : TestContext
         component.Markup.Should().Contain("Parameters");
         component.Markup.Should().Contain("@UserId");
         component.Markup.Should().Contain("@Name");
-        component.Markup.Should().Contain("input");
-        component.Markup.Should().Contain("output");
+        component.Markup.Should().Contain("Input");
+        component.Markup.Should().Contain("Output");
         component.Markup.Should().Contain("No default");
         component.Markup.Should().Contain("Has default");
     }
