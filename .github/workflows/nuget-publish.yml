@@ -23,6 +23,8 @@ on:
 jobs:
   prepare:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       release_type: ${{ steps.resolve.outputs.release_type }}
       package_version: ${{ steps.resolve.outputs.package_version }}
