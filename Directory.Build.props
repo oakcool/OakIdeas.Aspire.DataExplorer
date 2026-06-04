@@ -1,7 +1,7 @@
 <Project>
   <PropertyGroup>
     <IsPublicNuGetPackage>false</IsPublicNuGetPackage>
-    <IsPublicNuGetPackage Condition="'$(MSBuildProjectName)' == 'OakIdeas.Aspire.DataExplorer.Hosting' Or '$(MSBuildProjectName)' == 'OakIdeas.Aspire.DataExplorer.Contracts' Or '$(MSBuildProjectName)' == 'OakIdeas.Aspire.DataExplorer.Web.Components'">true</IsPublicNuGetPackage>
+    <IsPublicNuGetPackage Condition="'$(MSBuildProjectName)' == 'OakIdeas.Aspire.DataExplorer.Hosting' Or '$(MSBuildProjectName)' == 'OakIdeas.Aspire.DataExplorer.Contracts' Or '$(MSBuildProjectName)' == 'OakIdeas.Aspire.DataExplorer.Web.Components' Or '$(MSBuildProjectName)' == 'OakIdeas.Aspire.DataExplorer.Web'">true</IsPublicNuGetPackage>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(IsPublicNuGetPackage)' == 'true'">
@@ -28,6 +28,7 @@
           Link="README.md"
           Visible="false" />
     <None Include="$(MSBuildThisFileDirectory)src\OakIdeas.Aspire.DataExplorer.Web\wwwroot\images\logo.png"
+          Condition="'$(MSBuildProjectName)' != 'OakIdeas.Aspire.DataExplorer.Web'"
           Pack="true"
           PackagePath="icon.png"
           Link="icon.png"

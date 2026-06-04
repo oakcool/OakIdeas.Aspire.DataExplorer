@@ -9,6 +9,7 @@ OakIdeas.Aspire.DataExplorer provides development-time tooling for exploring Asp
 - Aspire hosting integration package (`OakIdeas.Aspire.DataExplorer.Hosting`)
 - Shared contracts package (`OakIdeas.Aspire.DataExplorer.Contracts`)
 - Reusable Blazor components package (`OakIdeas.Aspire.DataExplorer.Web.Components`)
+- Blazor Server web package (`OakIdeas.Aspire.DataExplorer.Web`)
 - SQL Server-first metadata and query tooling support
 
 ## Installation
@@ -17,7 +18,7 @@ OakIdeas.Aspire.DataExplorer provides development-time tooling for exploring Asp
 dotnet add package OakIdeas.Aspire.DataExplorer.Hosting --version <version>
 ```
 
-You can also install `OakIdeas.Aspire.DataExplorer.Contracts` or `OakIdeas.Aspire.DataExplorer.Web.Components` when only those package layers are required.
+You can also install `OakIdeas.Aspire.DataExplorer.Contracts`, `OakIdeas.Aspire.DataExplorer.Web.Components`, or `OakIdeas.Aspire.DataExplorer.Web` when only those package layers are required.
 
 ## Basic usage
 
