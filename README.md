@@ -119,7 +119,7 @@ Object Explorer metadata details currently include:
 
 | Folder | Projects |
 |---|---|
-| `01 - Packages` | Hosting, Contracts, Web.Components |
+| `01 - Packages` | Hosting, Contracts, Web.Components, Web |
 | `02 - Services` | Web |
 | `03 - Data` | Data, SqlServer |
 | `04 - Core` | Core |

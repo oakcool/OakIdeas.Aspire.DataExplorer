@@ -51,6 +51,7 @@ jobs:
           dotnet pack src/OakIdeas.Aspire.DataExplorer.Hosting/OakIdeas.Aspire.DataExplorer.Hosting.csproj --configuration Release --no-build --output artifacts/packages /p:Version=${PACKAGE_VERSION} /p:ContinuousIntegrationBuild=true
           dotnet pack src/OakIdeas.Aspire.DataExplorer.Contracts/OakIdeas.Aspire.DataExplorer.Contracts.csproj --configuration Release --no-build --output artifacts/packages /p:Version=${PACKAGE_VERSION} /p:ContinuousIntegrationBuild=true
           dotnet pack src/OakIdeas.Aspire.DataExplorer.Web.Components/OakIdeas.Aspire.DataExplorer.Web.Components.csproj --configuration Release --no-build --output artifacts/packages /p:Version=${PACKAGE_VERSION} /p:ContinuousIntegrationBuild=true
+          dotnet pack src/OakIdeas.Aspire.DataExplorer.Web/OakIdeas.Aspire.DataExplorer.Web.csproj --configuration Release --no-build --output artifacts/packages /p:Version=${PACKAGE_VERSION} /p:ContinuousIntegrationBuild=true
 
       - name: Validate package artifacts and metadata
         run: |
@@ -71,13 +72,22 @@ jobs:
               continue
             fi
 
+            package_name="$(basename "${package}")"
+
             if ! unzip -l "${package}" | grep -q " README.md$"; then
               echo "README.md missing from ${package}"
               exit 1
             fi
-            if ! unzip -l "${package}" | grep -q " icon.png$"; then
-              echo "icon.png missing from ${package}"
-              exit 1
+            if [[ "${package_name}" =~ ^OakIdeas\.Aspire\.DataExplorer\.Web\.[0-9][0-9A-Za-z.-]*\.nupkg$ ]]; then
+              if ! unzip -l "${package}" | grep -q " staticwebassets/images/logo.png$"; then
+                echo "staticwebassets/images/logo.png missing from ${package}"
+                exit 1
+              fi
+            else
+              if ! unzip -l "${package}" | grep -q " icon.png$"; then
+                echo "icon.png missing from ${package}"
+                exit 1
+              fi
             fi
 
             nuspec="$(unzip -p "${package}" '*.nuspec')"

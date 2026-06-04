@@ -14,6 +14,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
 		<DisableBuildCompression>true</DisableBuildCompression>
+		<IsPackable>true</IsPackable>
+		<PackageId>OakIdeas.Aspire.DataExplorer.Web</PackageId>
+		<Title>OakIdeas Aspire Data Explorer Web</Title>
+		<Description>Blazor Server web application package for OakIdeas Aspire Data Explorer development-time data exploration.</Description>
+		<PackageIcon>staticwebassets/images/logo.png</PackageIcon>
   </PropertyGroup>
 
 	<!-- Tailwind CSS build integration -->

@@ -12,6 +12,9 @@
         "ConvertTo-Json": true,
         "Get-Process": true,
         "Get-NetTCPConnection": true,
-        "Get-CimInstance": true
+        "Get-CimInstance": true,
+        "dotnet pack": true,
+        "Add-Type": true,
+        "New-Object": true
     }
 }

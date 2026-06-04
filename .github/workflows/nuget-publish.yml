@@ -101,6 +101,7 @@ jobs:
           dotnet pack src/OakIdeas.Aspire.DataExplorer.Hosting/OakIdeas.Aspire.DataExplorer.Hosting.csproj --configuration Release --no-build --output artifacts/packages /p:Version=${PACKAGE_VERSION} /p:ContinuousIntegrationBuild=true
           dotnet pack src/OakIdeas.Aspire.DataExplorer.Contracts/OakIdeas.Aspire.DataExplorer.Contracts.csproj --configuration Release --no-build --output artifacts/packages /p:Version=${PACKAGE_VERSION} /p:ContinuousIntegrationBuild=true
           dotnet pack src/OakIdeas.Aspire.DataExplorer.Web.Components/OakIdeas.Aspire.DataExplorer.Web.Components.csproj --configuration Release --no-build --output artifacts/packages /p:Version=${PACKAGE_VERSION} /p:ContinuousIntegrationBuild=true
+          dotnet pack src/OakIdeas.Aspire.DataExplorer.Web/OakIdeas.Aspire.DataExplorer.Web.csproj --configuration Release --no-build --output artifacts/packages /p:Version=${PACKAGE_VERSION} /p:ContinuousIntegrationBuild=true
 
       - name: Publish packages to NuGet.org
         run: |
