@@ -99,7 +99,8 @@ jobs:
         run: |
           mkdir -p artifacts/packages
           dotnet pack src/OakIdeas.Aspire.DataExplorer.Hosting/OakIdeas.Aspire.DataExplorer.Hosting.csproj --configuration Release --no-build --output artifacts/packages /p:Version=${PACKAGE_VERSION} /p:ContinuousIntegrationBuild=true
-          dotnet pack src/OakIdeas.Aspire.DataExplorer.SqlServer/OakIdeas.Aspire.DataExplorer.SqlServer.csproj --configuration Release --no-build --output artifacts/packages /p:Version=${PACKAGE_VERSION} /p:ContinuousIntegrationBuild=true
+          dotnet restore src/OakIdeas.Aspire.DataExplorer.SqlServer/OakIdeas.Aspire.DataExplorer.SqlServer.csproj /p:Version=${PACKAGE_VERSION} /p:IncludeCorePackageDependency=true /p:RestoreAdditionalProjectSources=${GITHUB_WORKSPACE}/artifacts/packages
+          dotnet pack src/OakIdeas.Aspire.DataExplorer.SqlServer/OakIdeas.Aspire.DataExplorer.SqlServer.csproj --configuration Release --no-build --no-restore --output artifacts/packages /p:Version=${PACKAGE_VERSION} /p:ContinuousIntegrationBuild=true /p:IncludeCorePackageDependency=true
 
       - name: Publish packages to NuGet.org
         run: |
