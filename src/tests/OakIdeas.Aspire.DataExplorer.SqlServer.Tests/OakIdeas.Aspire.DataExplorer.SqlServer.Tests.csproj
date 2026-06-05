@@ -27,6 +27,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\OakIdeas.Aspire.DataExplorer.SqlServer\OakIdeas.Aspire.DataExplorer.SqlServer.csproj" />
+    <ProjectReference Include="..\..\OakIdeas.Aspire.DataExplorer.Contracts\OakIdeas.Aspire.DataExplorer.Contracts.csproj" />
+    <ProjectReference Include="..\..\OakIdeas.Aspire.DataExplorer.Core\OakIdeas.Aspire.DataExplorer.Core.csproj" />
+    <ProjectReference Include="..\..\OakIdeas.Aspire.DataExplorer.Data\OakIdeas.Aspire.DataExplorer.Data.csproj" />
   </ItemGroup>
 
 </Project>

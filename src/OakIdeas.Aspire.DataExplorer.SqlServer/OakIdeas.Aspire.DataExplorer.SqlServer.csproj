@@ -10,7 +10,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="OakIdeas.Aspire.DataExplorer" VersionOverride="$(Version)" />
+    <PackageReference Include="OakIdeas.Aspire.DataExplorer"
+                      VersionOverride="$(Version)"
+                      Condition="'$(IncludeCorePackageDependency)' == 'true'" />
     <PackageReference Include="Dapper" Version="2.1.72" />
     <PackageReference Include="Aspire.Hosting" Version="13.3.2" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.1" />
@@ -21,6 +23,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <IncludeCorePackageDependency>false</IncludeCorePackageDependency>
   </PropertyGroup>
 
   <PropertyGroup>
