@@ -1,0 +1,13 @@
+<Project>
+  <Target Name="EnforceNet10OnlyTargetFramework"
+          BeforeTargets="PrepareForBuild"
+          Condition="'$(TargetFramework)' != '' and '$(TargetFramework)' != 'net10.0' and '$(DesignTimeBuild)' != 'true'">
+    <Error Text="This repository is .NET 10-only. Project '$(MSBuildProjectName)' must target net10.0, but found '$(TargetFramework)'." />
+  </Target>
+
+  <Target Name="EnforceNet10OnlyTargetFrameworks"
+          BeforeTargets="PrepareForBuild"
+          Condition="'$(TargetFrameworks)' != '' and '$(TargetFrameworks)' != 'net10.0' and '$(DesignTimeBuild)' != 'true'">
+    <Error Text="This repository is .NET 10-only. Project '$(MSBuildProjectName)' must target only net10.0, but found '$(TargetFrameworks)'." />
+  </Target>
+</Project>

@@ -96,6 +96,17 @@ jobs:
                 exit 1
               fi
             done
+
+            if [[ "${package_name}" =~ ^OakIdeas\.Aspire\.DataExplorer\.[0-9][0-9A-Za-z.-]*\.nupkg$ ]]; then
+              if ! unzip -l "${package}" | grep -q " buildTransitive/OakIdeas.Aspire.DataExplorer.targets$"; then
+                echo "buildTransitive/OakIdeas.Aspire.DataExplorer.targets missing from ${package}"
+                exit 1
+              fi
+              if ! unzip -l "${package}" | grep -q " buildTransitive/data-explorer-web/"; then
+                echo "buildTransitive/data-explorer-web payload missing from ${package}"
+                exit 1
+              fi
+            fi
           done
 
       - name: Upload package artifacts

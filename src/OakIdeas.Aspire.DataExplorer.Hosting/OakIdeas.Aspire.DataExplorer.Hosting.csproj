@@ -51,9 +51,10 @@
         Pack="true"
         PackagePath="lib\$(TargetFramework)"
         Visible="false" />
-      <Content Include="$(DataExplorerPublishedAppDir)**\*.*">
+      <Content Include="$(DataExplorerPublishedAppDir)**\*.*"
+               Exclude="$(DataExplorerPublishedAppDir)**\*.br;$(DataExplorerPublishedAppDir)**\*.gz">
         <Pack>true</Pack>
-        <PackagePath>buildTransitive\data-explorer-web\%(RecursiveDir)%(Filename)%(Extension)</PackagePath>
+        <PackagePath>buildTransitive\dew\%(RecursiveDir)%(Filename)%(Extension)</PackagePath>
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         <TargetPath>data-explorer-web\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
         <Visible>false</Visible>
