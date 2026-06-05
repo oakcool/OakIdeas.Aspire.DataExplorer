@@ -1,7 +1,7 @@
 <Project>
   <PropertyGroup>
     <IsPublicNuGetPackage>false</IsPublicNuGetPackage>
-    <IsPublicNuGetPackage Condition="'$(MSBuildProjectName)' == 'OakIdeas.Aspire.DataExplorer.Hosting' Or '$(MSBuildProjectName)' == 'OakIdeas.Aspire.DataExplorer.Contracts' Or '$(MSBuildProjectName)' == 'OakIdeas.Aspire.DataExplorer.Web.Components' Or '$(MSBuildProjectName)' == 'OakIdeas.Aspire.DataExplorer.Web'">true</IsPublicNuGetPackage>
+    <IsPublicNuGetPackage Condition="'$(MSBuildProjectName)' == 'OakIdeas.Aspire.DataExplorer.Hosting' Or '$(MSBuildProjectName)' == 'OakIdeas.Aspire.DataExplorer.SqlServer'">true</IsPublicNuGetPackage>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(IsPublicNuGetPackage)' == 'true'">

@@ -28,6 +28,19 @@ public static class DataExplorerHostingExtensions
         var packagedAppPath = Path.Combine(runtimeDirectory, WebAssemblyFileName);
         var packagedExecutablePath = Path.Combine(runtimeDirectory, WebExecutableFileName);
 
+        // In local project-reference development, discover the publish output from source if
+        // the packaged runtime folder has not been copied into the consumer output.
+        if (!File.Exists(packagedAppPath) && !File.Exists(packagedExecutablePath))
+        {
+            var developmentRuntimeDirectory = TryResolveDevelopmentRuntimeDirectory(runtimeDirectory);
+            if (!string.IsNullOrWhiteSpace(developmentRuntimeDirectory))
+            {
+                runtimeDirectory = developmentRuntimeDirectory;
+                packagedAppPath = Path.Combine(runtimeDirectory, WebAssemblyFileName);
+                packagedExecutablePath = Path.Combine(runtimeDirectory, WebExecutableFileName);
+            }
+        }
+
         // Fall back to the legacy output layout for existing local builds/packages.
         if (!File.Exists(packagedAppPath) && !File.Exists(packagedExecutablePath))
         {
@@ -65,5 +78,32 @@ public static class DataExplorerHostingExtensions
             ?? throw new InvalidOperationException("Unable to determine the Data Explorer hosting assembly location.");
 
         return Path.Combine(assemblyDirectory, WebRuntimeDirectoryName);
+    }
+
+    private static string? TryResolveDevelopmentRuntimeDirectory(string startDirectory)
+    {
+        var current = new DirectoryInfo(startDirectory);
+
+        while (current is not null)
+        {
+            var candidate = Path.Combine(
+                current.FullName,
+                "src",
+                "OakIdeas.Aspire.DataExplorer.Hosting",
+                "DataExplorerWeb",
+                "publish");
+
+            var candidateAppPath = Path.Combine(candidate, WebAssemblyFileName);
+            var candidateExecutablePath = Path.Combine(candidate, WebExecutableFileName);
+
+            if (File.Exists(candidateAppPath) || File.Exists(candidateExecutablePath))
+            {
+                return candidate;
+            }
+
+            current = current.Parent;
+        }
+
+        return null;
     }
 }

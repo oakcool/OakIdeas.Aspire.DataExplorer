@@ -9,7 +9,7 @@ The project needs a repeatable and secure process for publishing NuGet packages 
 
 ## Decision
 
-- Publish only the public package projects in `01 - Packages` (`Hosting`, `Contracts`, `Web.Components`, `Web`).
+- Publish user-facing package surfaces with a core package (`OakIdeas.Aspire.DataExplorer`) and provider packages (for SQL Server: `OakIdeas.Aspire.DataExplorer.SqlServer`).
 - Use shared packaging metadata and packaged assets through `Directory.Build.props`.
 - Use MIT licensing for package metadata and repository licensing.
 - Add `NuGet Validate` workflow for restore/build/test/pack and package requirement checks.

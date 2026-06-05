@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\OakIdeas.Aspire.DataExplorer.Hosting\OakIdeas.Aspire.DataExplorer.Hosting.csproj" IsAspireProjectResource="false" />
+    <ProjectReference Include="..\OakIdeas.Aspire.DataExplorer.SqlServer\OakIdeas.Aspire.DataExplorer.SqlServer.csproj" IsAspireProjectResource="false" />
   </ItemGroup>
 
 </Project>

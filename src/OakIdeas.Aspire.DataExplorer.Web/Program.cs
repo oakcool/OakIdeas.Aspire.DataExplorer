@@ -11,6 +11,7 @@ using OakIdeas.Aspire.DataExplorer.Web.Components;
 using OakIdeas.Aspire.DataExplorer.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+var sqlServerProviderEnabled = builder.Configuration.GetValue<bool>("OakIdeas:Aspire:DataExplorer:Providers:SqlServer:Enabled");
 
 DevelopmentEnvironmentGuard.EnsureDevelopment(
     builder.Environment.IsDevelopment(),
@@ -18,11 +19,22 @@ DevelopmentEnvironmentGuard.EnsureDevelopment(
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
-builder.Services.AddSingleton<SqlServerDatabaseProvider>();
-builder.Services.AddSingleton<IProviderErrorMapper, SqlServerErrorMapper>();
+
+if (sqlServerProviderEnabled)
+{
+    builder.Services.AddSingleton<SqlServerDatabaseProvider>();
+    builder.Services.AddSingleton<IProviderErrorMapper, SqlServerErrorMapper>();
+}
+
 builder.Services.AddSingleton<IProviderFactory, MetadataProviderFactory>();
 builder.Services.AddOptions<MetadataProviderFactoryOptions>()
-    .Configure(options => options.Register(DatabaseProviderType.SqlServer, typeof(SqlServerDatabaseProvider)));
+    .Configure(options =>
+    {
+        if (sqlServerProviderEnabled)
+        {
+            options.Register(DatabaseProviderType.SqlServer, typeof(SqlServerDatabaseProvider));
+        }
+    });
 builder.Services.AddSelectedDatabaseService();
 builder.Services.AddAspireResourceDiscovery(builder.Configuration);
 builder.Services.AddMetadataRefreshService();
