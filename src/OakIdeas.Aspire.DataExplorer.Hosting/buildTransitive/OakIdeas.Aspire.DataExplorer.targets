@@ -1,7 +1,7 @@
 <Project>
   <ItemGroup>
-    <_DataExplorerPackagedFiles Include="$(MSBuildThisFileDirectory)dew\**\*"
-                               Exclude="$(MSBuildThisFileDirectory)dew\wwwroot\_content\OakIdeas.Aspire.DataExplorer.Web.Components\*.bundle.scp.css;$(MSBuildThisFileDirectory)dew\wwwroot\_content\OakIdeas.Aspire.DataExplorer.Web.Components\Components\Atoms\MermaidDiagram.razor.js;$(MSBuildThisFileDirectory)dew\wwwroot\_content\OakIdeas.Aspire.DataExplorer.Web.Components\Components\Molecules\QueryPanel.razor.js" />
+    <_DataExplorerPackagedFiles Include="$(MSBuildThisFileDirectory)dew/**/*"
+                               Exclude="$(MSBuildThisFileDirectory)dew/wwwroot/_content/OakIdeas.Aspire.DataExplorer.Web.Components/*.bundle.scp.css;$(MSBuildThisFileDirectory)dew/wwwroot/_content/OakIdeas.Aspire.DataExplorer.Web.Components/Components/Atoms/MermaidDiagram.razor.js;$(MSBuildThisFileDirectory)dew/wwwroot/_content/OakIdeas.Aspire.DataExplorer.Web.Components/Components/Molecules/QueryPanel.razor.js" />
   </ItemGroup>
 
   <Target Name="CopyPackagedDataExplorerWebApp"
@@ -12,13 +12,13 @@
            ContinueOnError="WarnAndContinue" />
 
     <ItemGroup>
-      <_DataExplorerPackagedDirectories Include="@(_DataExplorerPackagedFiles->'$(TargetDir)data-explorer-web\%(RecursiveDir)')" />
+      <_DataExplorerPackagedDirectories Include="@(_DataExplorerPackagedFiles->'$(TargetDir)data-explorer-web/%(RecursiveDir)')" />
     </ItemGroup>
 
     <MakeDir Directories="@(_DataExplorerPackagedDirectories)" />
 
     <Copy SourceFiles="@(_DataExplorerPackagedFiles)"
-      DestinationFiles="@(_DataExplorerPackagedFiles->'$(TargetDir)data-explorer-web\%(RecursiveDir)%(Filename)%(Extension)')"
+      DestinationFiles="@(_DataExplorerPackagedFiles->'$(TargetDir)data-explorer-web/%(RecursiveDir)%(Filename)%(Extension)')"
           SkipUnchangedFiles="false"
           ContinueOnError="WarnAndContinue" />
   </Target>
