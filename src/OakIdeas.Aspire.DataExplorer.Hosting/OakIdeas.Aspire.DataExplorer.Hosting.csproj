@@ -16,7 +16,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\OakIdeas.Aspire.DataExplorer.Core\OakIdeas.Aspire.DataExplorer.Core.csproj" />
+    <ProjectReference Include="..\OakIdeas.Aspire.DataExplorer.Core\OakIdeas.Aspire.DataExplorer.Core.csproj"
+                      PrivateAssets="all" />
     <ProjectReference Include="..\OakIdeas.Aspire.DataExplorer.Web\OakIdeas.Aspire.DataExplorer.Web.csproj"
                       PrivateAssets="all"
                       ReferenceOutputAssembly="false" />
@@ -42,6 +43,14 @@
              Properties="Configuration=$(Configuration);TargetFramework=net10.0;RuntimeIdentifier=win-x64;Restore=true;SelfContained=false;PublishSingleFile=true;PublishTrimmed=false;PublishDir=$(DataExplorerPublishedAppDir);NpmBuildEnabled=false" />
 
     <ItemGroup>
+      <None Include="$(MSBuildThisFileDirectory)..\OakIdeas.Aspire.DataExplorer.Core\bin\$(Configuration)\$(TargetFramework)\OakIdeas.Aspire.DataExplorer.Core.dll"
+        Pack="true"
+        PackagePath="lib\$(TargetFramework)"
+        Visible="false" />
+      <None Include="$(MSBuildThisFileDirectory)..\OakIdeas.Aspire.DataExplorer.Contracts\bin\$(Configuration)\$(TargetFramework)\OakIdeas.Aspire.DataExplorer.Contracts.dll"
+        Pack="true"
+        PackagePath="lib\$(TargetFramework)"
+        Visible="false" />
       <Content Include="$(DataExplorerPublishedAppDir)**\*.*">
         <Pack>true</Pack>
         <PackagePath>buildTransitive\data-explorer-web\%(RecursiveDir)%(Filename)%(Extension)</PackagePath>
