@@ -1,12 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\OakIdeas.Aspire.DataExplorer.Core\OakIdeas.Aspire.DataExplorer.Core.csproj" />
-    <ProjectReference Include="..\OakIdeas.Aspire.DataExplorer.Contracts\OakIdeas.Aspire.DataExplorer.Contracts.csproj" />
-    <ProjectReference Include="..\OakIdeas.Aspire.DataExplorer.Data\OakIdeas.Aspire.DataExplorer.Data.csproj" />
+    <ProjectReference Include="..\OakIdeas.Aspire.DataExplorer.Core\OakIdeas.Aspire.DataExplorer.Core.csproj"
+                      PrivateAssets="all" />
+    <ProjectReference Include="..\OakIdeas.Aspire.DataExplorer.Contracts\OakIdeas.Aspire.DataExplorer.Contracts.csproj"
+                      PrivateAssets="all" />
+    <ProjectReference Include="..\OakIdeas.Aspire.DataExplorer.Data\OakIdeas.Aspire.DataExplorer.Data.csproj"
+                      PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="OakIdeas.Aspire.DataExplorer" VersionOverride="$(Version)" />
     <PackageReference Include="Dapper" Version="2.1.72" />
     <PackageReference Include="Aspire.Hosting" Version="13.3.2" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.1" />
@@ -24,5 +28,20 @@
     <Title>OakIdeas Aspire Data Explorer SQL Server Provider</Title>
     <Description>SQL Server metadata discovery and query provider for OakIdeas Aspire Data Explorer.</Description>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\OakIdeas.Aspire.DataExplorer.Contracts\bin\$(Configuration)\$(TargetFramework)\OakIdeas.Aspire.DataExplorer.Contracts.dll"
+          Pack="true"
+          PackagePath="lib\$(TargetFramework)"
+          Visible="false" />
+    <None Include="..\OakIdeas.Aspire.DataExplorer.Core\bin\$(Configuration)\$(TargetFramework)\OakIdeas.Aspire.DataExplorer.Core.dll"
+          Pack="true"
+          PackagePath="lib\$(TargetFramework)"
+          Visible="false" />
+    <None Include="..\OakIdeas.Aspire.DataExplorer.Data\bin\$(Configuration)\$(TargetFramework)\OakIdeas.Aspire.DataExplorer.Data.dll"
+          Pack="true"
+          PackagePath="lib\$(TargetFramework)"
+          Visible="false" />
+  </ItemGroup>
 
 </Project>
