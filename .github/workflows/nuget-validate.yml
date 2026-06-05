@@ -102,8 +102,8 @@ jobs:
                 echo "buildTransitive/OakIdeas.Aspire.DataExplorer.targets missing from ${package}"
                 exit 1
               fi
-              if ! unzip -l "${package}" | grep -q " buildTransitive/data-explorer-web/"; then
-                echo "buildTransitive/data-explorer-web payload missing from ${package}"
+              if ! unzip -l "${package}" | grep -q " buildTransitive/dew/"; then
+                echo "buildTransitive/dew payload missing from ${package}"
                 exit 1
               fi
             fi
