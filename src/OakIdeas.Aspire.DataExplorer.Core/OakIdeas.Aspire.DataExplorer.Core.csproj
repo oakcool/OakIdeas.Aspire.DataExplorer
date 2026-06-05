@@ -23,4 +23,10 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <PackageId>OakIdeas.Aspire.DataExplorer.Core</PackageId>
+    <Title>OakIdeas Aspire Data Explorer Core</Title>
+    <Description>Core orchestration and metadata aggregation services for OakIdeas Aspire Data Explorer.</Description>
+  </PropertyGroup>
+
 </Project>

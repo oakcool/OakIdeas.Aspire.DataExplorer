@@ -85,7 +85,7 @@ The `ShowcaseProgrammabilityObjects` migration also creates schema-scoped SQL ob
    - `showcase.usp_ListReplicaTodosByStatus`
    - `showcase.ufn_OpenReplicaTodoCount`
 
-The sample intentionally runs Data Explorer as a consumer-style setup: the AppHost enables discovery with `builder.AddDataExplorer()` and hosts the Data Explorer web resource alongside sample resources.
+The sample intentionally runs Data Explorer as a consumer-style setup: the AppHost enables discovery with `builder.AddDataExplorer().AddSqlServer()` and hosts the Data Explorer web resource alongside sample resources.
 
 ## E2E validation assets
 

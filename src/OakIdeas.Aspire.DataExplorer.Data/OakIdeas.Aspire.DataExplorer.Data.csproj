@@ -16,4 +16,10 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <PackageId>OakIdeas.Aspire.DataExplorer.Data</PackageId>
+    <Title>OakIdeas Aspire Data Explorer Data</Title>
+    <Description>Data access and query infrastructure for OakIdeas Aspire Data Explorer.</Description>
+  </PropertyGroup>
+
 </Project>

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Hosting;
 using OakIdeas.Aspire.DataExplorer.Hosting.Extensions;
+using OakIdeas.Aspire.DataExplorer.SqlServer.Extensions;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -9,19 +10,10 @@ var sql = builder.AddSqlServer("sql", password)
     .WithDataVolume()
     .AddDatabase("applicationdb");
 
-var dataExplorerRuntimeDirectory = Path.GetFullPath(Path.Combine(
-    AppContext.BaseDirectory,
-    "..",
-    "..",
-    "..",
-    "..",
-    "OakIdeas.Aspire.DataExplorer.Hosting",
-    "DataExplorerWeb",
-    "publish"));
-
 if (builder.Environment.IsDevelopment())
 {
-    builder.AddDataExplorer(dataExplorerRuntimeDirectory)
+    builder.AddDataExplorer()
+        .AddSqlServer()
         .WithReference(sql);
 }
 

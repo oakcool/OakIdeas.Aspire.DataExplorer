@@ -4,9 +4,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <PackageId>OakIdeas.Aspire.DataExplorer.Hosting</PackageId>
-    <Title>OakIdeas Aspire Data Explorer Hosting</Title>
-    <Description>Aspire hosting integration package for adding OakIdeas Data Explorer to development-time AppHost projects.</Description>
+    <PackageId>OakIdeas.Aspire.DataExplorer</PackageId>
+    <Title>OakIdeas Aspire Data Explorer</Title>
+    <Description>Core Aspire hosting integration package for OakIdeas Data Explorer development-time database exploration.</Description>
     <DataExplorerPublishedAppDir>$(MSBuildProjectDirectory)\DataExplorerWeb\publish\</DataExplorerPublishedAppDir>
   </PropertyGroup>
 
@@ -26,6 +26,9 @@
     <None Include="buildTransitive\OakIdeas.Aspire.DataExplorer.Hosting.targets"
           Pack="true"
           PackagePath="buildTransitive\OakIdeas.Aspire.DataExplorer.Hosting.targets" />
+      <None Include="buildTransitive\OakIdeas.Aspire.DataExplorer.targets"
+        Pack="true"
+        PackagePath="buildTransitive\OakIdeas.Aspire.DataExplorer.targets" />
   </ItemGroup>
 
   <Target Name="PublishDataExplorerWebApp"
@@ -42,6 +45,8 @@
       <Content Include="$(DataExplorerPublishedAppDir)**\*.*">
         <Pack>true</Pack>
         <PackagePath>buildTransitive\data-explorer-web\%(RecursiveDir)%(Filename)%(Extension)</PackagePath>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <TargetPath>data-explorer-web\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
         <Visible>false</Visible>
       </Content>
     </ItemGroup>
