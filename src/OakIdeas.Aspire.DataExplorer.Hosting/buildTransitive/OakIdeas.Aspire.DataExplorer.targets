@@ -1,17 +1,13 @@
 <Project>
-  <ItemGroup>
-    <_DataExplorerPackagedFiles Include="$(MSBuildThisFileDirectory)dew/**/*"
-                               Exclude="$(MSBuildThisFileDirectory)dew/wwwroot/_content/OakIdeas.Aspire.DataExplorer.Web.Components/*.bundle.scp.css;$(MSBuildThisFileDirectory)dew/wwwroot/_content/OakIdeas.Aspire.DataExplorer.Web.Components/Components/Atoms/MermaidDiagram.razor.js;$(MSBuildThisFileDirectory)dew/wwwroot/_content/OakIdeas.Aspire.DataExplorer.Web.Components/Components/Molecules/QueryPanel.razor.js" />
-  </ItemGroup>
-
   <Target Name="CopyPackagedDataExplorerWebApp"
           AfterTargets="Build"
-          Condition="'@(_DataExplorerPackagedFiles)' != ''">
+          Condition="Exists('$(MSBuildThisFileDirectory)dew')">
     <RemoveDir Directories="$(TargetDir)data-explorer-web"
            Condition="Exists('$(TargetDir)data-explorer-web')"
            ContinueOnError="WarnAndContinue" />
 
     <ItemGroup>
+      <_DataExplorerPackagedFiles Include="$(MSBuildThisFileDirectory)dew/**/*" />
       <_DataExplorerPackagedDirectories Include="@(_DataExplorerPackagedFiles->'$(TargetDir)data-explorer-web/%(RecursiveDir)')" />
     </ItemGroup>
 
