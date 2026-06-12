@@ -98,9 +98,9 @@ jobs:
       - name: Pack public NuGet packages
         run: |
           mkdir -p artifacts/packages
-          dotnet pack src/OakIdeas.Aspire.DataExplorer.Hosting/OakIdeas.Aspire.DataExplorer.Hosting.csproj --configuration Release --output artifacts/packages /p:Version=${PACKAGE_VERSION} /p:ContinuousIntegrationBuild=true
-          dotnet restore src/OakIdeas.Aspire.DataExplorer.SqlServer/OakIdeas.Aspire.DataExplorer.SqlServer.csproj /p:Version=${PACKAGE_VERSION} /p:IncludeCorePackageDependency=true /p:RestoreAdditionalProjectSources=${GITHUB_WORKSPACE}/artifacts/packages
-          dotnet pack src/OakIdeas.Aspire.DataExplorer.SqlServer/OakIdeas.Aspire.DataExplorer.SqlServer.csproj --configuration Release --no-restore --output artifacts/packages /p:Version=${PACKAGE_VERSION} /p:ContinuousIntegrationBuild=true /p:IncludeCorePackageDependency=true
+          dotnet pack src/OakIdeas.Aspire.DataExplorer.Hosting/OakIdeas.Aspire.DataExplorer.Hosting.csproj --configuration Release --output artifacts/packages /p:Version=${PACKAGE_VERSION} /p:Configuration=Release
+          dotnet restore src/OakIdeas.Aspire.DataExplorer.SqlServer/OakIdeas.Aspire.DataExplorer.SqlServer.csproj /p:Version=${PACKAGE_VERSION} /p:IncludeCorePackageDependency=true /p:RestoreAdditionalProjectSources="$(pwd)/artifacts/packages"
+          dotnet pack src/OakIdeas.Aspire.DataExplorer.SqlServer/OakIdeas.Aspire.DataExplorer.SqlServer.csproj --configuration Release --no-restore --output artifacts/packages /p:Version=${PACKAGE_VERSION} /p:IncludeCorePackageDependency=true /p:RestoreAdditionalProjectSources="$(pwd)/artifacts/packages"
 
       - name: Validate hosting package runtime payload
         run: |
@@ -135,8 +135,10 @@ jobs:
             if [[ "${package}" == *.snupkg ]]; then
               continue
             fi
+            echo "Publishing $(basename "${package}")"
             dotnet nuget push "${package}" \
               --api-key "${NUGET_API_KEY}" \
               --source https://api.nuget.org/v3/index.json \
-              --skip-duplicate
+              --skip-duplicate \
+              --timeout 900
           done
