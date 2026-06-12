@@ -15,6 +15,7 @@
         "Get-CimInstance": true,
         "dotnet pack": true,
         "Add-Type": true,
-        "New-Object": true
+        "New-Object": true,
+        "dotnet run": true
     }
 }
