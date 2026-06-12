@@ -31,6 +31,20 @@
                     <dd>@Error.DiagnosticCode</dd>
                 </div>
             }
+            @if (!string.IsNullOrWhiteSpace(Error.Message))
+            {
+                <div>
+                    <dt>Message</dt>
+                    <dd>@Error.Message</dd>
+                </div>
+            }
+            @if (!string.IsNullOrWhiteSpace(Error.RecoverySuggestion))
+            {
+                <div>
+                    <dt>Recovery Suggestion</dt>
+                    <dd>@Error.RecoverySuggestion</dd>
+                </div>
+            }
         </dl>
     </details>
 }

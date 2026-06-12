@@ -97,12 +97,14 @@ public sealed class ErrorHandler(
     private void Log(DataExplorerError error, Exception exception)
     {
         _logger.LogError(
-            "{Category} error during {Operation} for {Target} at {Timestamp}. DiagnosticCode={DiagnosticCode}. ExceptionType={ExceptionType}",
+            exception,
+            "{Category} error during {Operation} for {Target} at {Timestamp}. DiagnosticCode={DiagnosticCode}. ExceptionType={ExceptionType}. Message={ExceptionMessage}",
             error.Category,
             error.Operation,
             error.Target ?? "n/a",
             error.Timestamp,
             error.DiagnosticCode ?? "n/a",
-            exception.GetType().FullName);
+            exception.GetType().FullName,
+            exception.Message);
     }
 }

@@ -43,6 +43,12 @@ public sealed class SqlServerErrorMapper : IProviderErrorMapper
                 "Use a development account with metadata access or select a different database.",
                 context,
                 "sql-permission-denied"),
+            207 or 208 => CreateError(
+                ErrorCategory.ResourceNotFound,
+                "A database object referenced in the query or metadata discovery could not be found. This may indicate missing permissions or the object was recently deleted.",
+                "Verify the database object exists and the development connection has permission to access it. Refresh metadata and try again.",
+                context,
+                $"sql-{sqlException.Number}"),
             _ => CreateError(
                 ErrorCategory.ProviderError,
                 "SQL Server reported an error while completing this operation.",
