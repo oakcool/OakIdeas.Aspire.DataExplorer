@@ -1,0 +1,235 @@
+@page "/diagram"
+@using OakIdeas.Aspire.DataExplorer.Contracts.Models
+@using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer
+@using OakIdeas.Aspire.DataExplorer.Web.Abstractions
+@using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Atoms
+@using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Molecules
+@implements IDisposable
+@inject IExplorerService ExplorerService
+
+<PageTitle>Database Diagram — Data Explorer</PageTitle>
+
+<div class="de-diagram-page flex h-full min-h-0 flex-col bg-slate-950">
+
+    <div class="de-main__header flex shrink-0 items-center gap-3 border-b border-slate-800 bg-slate-900/80 px-5 py-3">
+        <h2 class="de-main__title flex min-w-0 items-center gap-2 text-sm font-semibold text-slate-100">
+            <HeroIcon Kind="HeroIconKind.ShareNodes" Size="18" Class="de-main__title-icon" />
+            <span>Database Diagram</span>
+        </h2>
+        @if (_databaseName is not null)
+        {
+            <StatusBadge Text="@_databaseName" Variant="info" />
+        }
+        else if (!_isLoading)
+        {
+            <StatusBadge Text="Select a database" Variant="info" />
+        }
+    </div>
+
+    @if (_error is not null)
+    {
+        <div class="de-diagram-page__error-stack p-4 flex flex-col gap-3">
+            <ErrorAlert Error="@_error" />
+            <ErrorRecovery Error="@_error" />
+            <DiagnosticInfo Error="@_error" />
+        </div>
+    }
+
+    <div class="de-diagram-page__canvas min-h-0 flex-1 overflow-hidden">
+        <DatabaseDiagram DiagramData="@_diagramModel"
+                         IsLoading="@_isLoading"
+                         Class="h-full"
+                         OnRefresh="HandleRefreshAsync" />
+    </div>
+</div>
+
+@code {
+    private DiagramModel? _diagramModel;
+    private bool _isLoading = true;
+    private DataExplorerError? _error;
+    private string? _databaseName;
+    private CancellationTokenSource? _cts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDiagramAsync();
+    }
+
+    private async Task LoadDiagramAsync()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+        var cts = new CancellationTokenSource();
+        _cts = cts;
+
+        _isLoading = true;
+        _error = null;
+        StateHasChanged();
+
+        try
+        {
+            var response = await ExplorerService.GetDatabaseMetadataAsync(cts.Token);
+
+            if (cts.IsCancellationRequested) return;
+
+            _error = response.CollectionStatus == MetadataCollectionStatus.Failed
+                ? response.Error
+                : null;
+
+            var aggregated = response.AggregatedMetadata;
+            _databaseName = aggregated?.DatabaseName;
+
+            _diagramModel = aggregated is null ? null : BuildDiagramModel(aggregated);
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            if (!cts.IsCancellationRequested)
+            {
+                _isLoading = false;
+            }
+        }
+    }
+
+    private async Task HandleRefreshAsync()
+    {
+        await LoadDiagramAsync();
+    }
+
+    private static DiagramModel BuildDiagramModel(DatabaseMetadata metadata)
+    {
+        var pkColumns = BuildPrimaryKeyLookup(metadata);
+        var fkColumns = BuildForeignKeyColumnLookup(metadata);
+
+        var entities = new List<DiagramEntityNode>();
+
+        // Tables.
+        foreach (var table in metadata.Tables)
+        {
+            var fqn = table.FullyQualifiedName;
+            var columns = BuildColumnItems(fqn, metadata, pkColumns, fkColumns);
+            entities.Add(new DiagramEntityNode(
+                Id: fqn,
+                Name: table.ObjectName,
+                Schema: table.SchemaName,
+                EntityType: "Table",
+                Columns: columns));
+        }
+
+        // Views.
+        foreach (var view in metadata.Views)
+        {
+            var fqn = view.FullyQualifiedName;
+            var columns = BuildColumnItems(fqn, metadata, pkColumns, fkColumns);
+            entities.Add(new DiagramEntityNode(
+                Id: fqn,
+                Name: view.ObjectName,
+                Schema: view.SchemaName,
+                EntityType: "View",
+                Columns: columns));
+        }
+
+        // Relationships from foreign keys.
+        var relationships = new List<DiagramRelationshipEdge>();
+        int edgeIndex = 0;
+        foreach (var (tableFqn, fks) in metadata.ForeignKeysByTable)
+        {
+            foreach (var fk in fks)
+            {
+                var parentId = $"{fk.ParentSchemaName}.{fk.ParentTableName}";
+                var referencedId = $"{fk.ReferencedSchemaName}.{fk.ReferencedTableName}";
+
+                relationships.Add(new DiagramRelationshipEdge(
+                    Id: $"edge-{edgeIndex++}",
+                    ConstraintName: fk.ConstraintName,
+                    ParentEntityId: parentId,
+                    ReferencedEntityId: referencedId,
+                    ColumnMappings: fk.KeyColumns
+                        .Select(kc => new DiagramColumnMapping(kc.ParentColumnName, kc.ReferencedColumnName))
+                        .ToArray()));
+            }
+        }
+
+        return new DiagramModel(entities, relationships);
+    }
+
+    private static IReadOnlyList<DiagramColumnItem> BuildColumnItems(
+        string fqn,
+        DatabaseMetadata metadata,
+        IReadOnlyDictionary<string, HashSet<string>> pkColumns,
+        IReadOnlyDictionary<string, HashSet<string>> fkColumns)
+    {
+        if (!metadata.ColumnsByObject.TryGetValue(fqn, out var cols) || cols.Count == 0)
+        {
+            return [];
+        }
+
+        var pk = pkColumns.TryGetValue(fqn, out var pkSet) ? pkSet : null;
+        var fk = fkColumns.TryGetValue(fqn, out var fkSet) ? fkSet : null;
+
+        return cols.Select(c => new DiagramColumnItem(
+            Name: c.Name,
+            DataType: FormatDataType(c),
+            IsPrimaryKey: pk?.Contains(c.Name) ?? false,
+            IsForeignKey: fk?.Contains(c.Name) ?? false,
+            IsNullable: c.IsNullable,
+            IsIdentity: c.IsIdentity)).ToArray();
+    }
+
+    private static IReadOnlyDictionary<string, HashSet<string>> BuildPrimaryKeyLookup(DatabaseMetadata metadata)
+    {
+        var result = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (fqn, pks) in metadata.PrimaryKeysByTable)
+        {
+            var cols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var pk in pks)
+            {
+                foreach (var col in pk.KeyColumns)
+                {
+                    cols.Add(col);
+                }
+            }
+            result[fqn] = cols;
+        }
+        return result;
+    }
+
+    private static IReadOnlyDictionary<string, HashSet<string>> BuildForeignKeyColumnLookup(DatabaseMetadata metadata)
+    {
+        var result = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var fks in metadata.ForeignKeysByTable.Values)
+        {
+            foreach (var fk in fks)
+            {
+                var parentFqn = $"{fk.ParentSchemaName}.{fk.ParentTableName}";
+                if (!result.TryGetValue(parentFqn, out var cols))
+                {
+                    cols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    result[parentFqn] = cols;
+                }
+                foreach (var kc in fk.KeyColumns)
+                {
+                    cols.Add(kc.ParentColumnName);
+                }
+            }
+        }
+        return result;
+    }
+
+    private static string FormatDataType(ColumnMetadata col)
+    {
+        if (col.MaxLength.HasValue && col.MaxLength.Value > 0)
+            return $"{col.DataType}({col.MaxLength.Value})";
+        if (col.Precision.HasValue && col.Scale.HasValue)
+            return $"{col.DataType}({col.Precision.Value},{col.Scale.Value})";
+        return col.DataType;
+    }
+
+    public void Dispose()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+}

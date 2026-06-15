@@ -26,6 +26,7 @@ public enum HeroIconKind
     TableCells,
     UserGroup,
     ViewColumns,
+    ShareNodes,
     Trash,
     XMark
 }
