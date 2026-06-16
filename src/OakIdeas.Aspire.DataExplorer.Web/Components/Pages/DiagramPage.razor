@@ -131,15 +131,24 @@
                 Columns: columns));
         }
 
+        var entityIds = entities
+            .Select(e => e.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         // Relationships from foreign keys.
         var relationships = new List<DiagramRelationshipEdge>();
         int edgeIndex = 0;
-        foreach (var (tableFqn, fks) in metadata.ForeignKeysByTable)
+        foreach (var fks in metadata.ForeignKeysByTable.Values)
         {
             foreach (var fk in fks)
             {
-                var parentId = $"{fk.ParentSchemaName}.{fk.ParentTableName}";
-                var referencedId = $"{fk.ReferencedSchemaName}.{fk.ReferencedTableName}";
+                var parentId = ResolveEntityId(fk.ParentSchemaName, fk.ParentTableName, entityIds);
+                var referencedId = ResolveEntityId(fk.ReferencedSchemaName, fk.ReferencedTableName, entityIds);
+
+                if (parentId is null || referencedId is null)
+                {
+                    continue;
+                }
 
                 relationships.Add(new DiagramRelationshipEdge(
                     Id: $"edge-{edgeIndex++}",
@@ -198,12 +207,19 @@
 
     private static IReadOnlyDictionary<string, HashSet<string>> BuildForeignKeyColumnLookup(DatabaseMetadata metadata)
     {
+        var entityIds = metadata.Tables
+            .Select(table => table.FullyQualifiedName)
+            .Concat(metadata.Views.Select(view => view.FullyQualifiedName))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         var result = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
         foreach (var fks in metadata.ForeignKeysByTable.Values)
         {
             foreach (var fk in fks)
             {
-                var parentFqn = $"{fk.ParentSchemaName}.{fk.ParentTableName}";
+                var parentFqn = ResolveEntityId(fk.ParentSchemaName, fk.ParentTableName, entityIds)
+                    ?? BuildQualifiedName(fk.ParentSchemaName, fk.ParentTableName);
+
                 if (!result.TryGetValue(parentFqn, out var cols))
                 {
                     cols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -216,6 +232,79 @@
             }
         }
         return result;
+    }
+
+    private static string? ResolveEntityId(string? schemaName, string? tableName, HashSet<string> entityIds)
+    {
+        foreach (var candidate in EnumerateEntityIdCandidates(schemaName, tableName))
+        {
+            if (entityIds.Contains(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private static IEnumerable<string> EnumerateEntityIdCandidates(string? schemaName, string? tableName)
+    {
+        var normalizedTable = NormalizeIdentifier(tableName);
+        if (string.IsNullOrWhiteSpace(normalizedTable))
+        {
+            yield break;
+        }
+
+        yield return normalizedTable;
+
+        var parts = normalizedTable.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length >= 2)
+        {
+            yield return $"{parts[^2]}.{parts[^1]}";
+        }
+        else
+        {
+            var normalizedSchema = NormalizeIdentifier(schemaName);
+            if (!string.IsNullOrWhiteSpace(normalizedSchema))
+            {
+                yield return $"{normalizedSchema}.{parts[0]}";
+            }
+        }
+    }
+
+    private static string BuildQualifiedName(string? schemaName, string? tableName)
+    {
+        var normalizedTable = NormalizeIdentifier(tableName);
+        if (string.IsNullOrWhiteSpace(normalizedTable))
+        {
+            return string.Empty;
+        }
+
+        var parts = normalizedTable.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length >= 2)
+        {
+            return $"{parts[^2]}.{parts[^1]}";
+        }
+
+        var normalizedSchema = NormalizeIdentifier(schemaName);
+        return string.IsNullOrWhiteSpace(normalizedSchema)
+            ? parts[0]
+            : $"{normalizedSchema}.{parts[0]}";
+    }
+
+    private static string NormalizeIdentifier(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        return value
+            .Replace("[", string.Empty, StringComparison.Ordinal)
+            .Replace("]", string.Empty, StringComparison.Ordinal)
+            .Replace("\"", string.Empty, StringComparison.Ordinal)
+            .Trim()
+            .Trim('.');
     }
 
     private static string FormatDataType(ColumnMetadata col)

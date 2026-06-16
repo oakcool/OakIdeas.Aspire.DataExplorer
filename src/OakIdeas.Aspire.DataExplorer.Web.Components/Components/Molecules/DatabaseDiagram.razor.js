@@ -55,6 +55,39 @@ function entityCardHeight(entity) {
   return CARD_HEADER_HEIGHT + entity.columns.length * CARD_ROW_HEIGHT + CARD_FOOTER_PADDING;
 }
 
+function sortEntities(entities) {
+  return [...entities].sort((a, b) => {
+    const schemaCompare = a.schema.localeCompare(b.schema);
+    return schemaCompare !== 0 ? schemaCompare : a.name.localeCompare(b.name);
+  });
+}
+
+function computeGridLayout(entities) {
+  const sortedEntities = sortEntities(entities);
+  const count = sortedEntities.length;
+  const columns = Math.max(2, Math.ceil(Math.sqrt(count)));
+  const positions = new Map();
+
+  let x = 40;
+  let y = 40;
+  let colIndex = 0;
+
+  for (const entity of sortedEntities) {
+    positions.set(entity.id, { x, y });
+    const h = entityCardHeight(entity);
+    y += h + CARD_VERTICAL_GAP;
+    colIndex++;
+
+    if (colIndex >= Math.ceil(count / columns)) {
+      colIndex = 0;
+      x += CARD_WIDTH + CARD_HORIZONTAL_GAP;
+      y = 40;
+    }
+  }
+
+  return positions;
+}
+
 // ── Layout ───────────────────────────────────────────────────────────────────
 
 /**
@@ -76,6 +109,11 @@ function computeLayout(entities, relationships) {
       outbound.get(r.parentEntityId)?.add(r.referencedEntityId);
       inbound.get(r.referencedEntityId)?.add(r.parentEntityId);
     }
+  }
+
+  const validRelationshipCount = [...outbound.values()].reduce((sum, rels) => sum + rels.size, 0);
+  if (validRelationshipCount === 0) {
+    return computeGridLayout(entities);
   }
 
   // Assign tiers (columns) via simple BFS / topological levels.
@@ -115,11 +153,28 @@ function computeLayout(entities, relationships) {
 
   const positions = new Map();
   const sortedTiers = [...byTier.keys()].sort((a, b) => a - b);
+  const maxColumnHeight = sortedTiers.reduce((maxHeight, t) => {
+    const col = byTier.get(t) ?? [];
+    const totalHeight = col.reduce((sum, entity) => sum + entityCardHeight(entity), 0)
+      + Math.max(0, col.length - 1) * CARD_VERTICAL_GAP;
+    return Math.max(maxHeight, totalHeight);
+  }, 0);
+
   let x = 40;
   for (const t of sortedTiers) {
-    const col = byTier.get(t);
+    const col = [...(byTier.get(t) ?? [])].sort((a, b) => {
+      const outboundDelta = (outbound.get(b.id)?.size ?? 0) - (outbound.get(a.id)?.size ?? 0);
+      if (outboundDelta !== 0) return outboundDelta;
+      const inboundDelta = (inbound.get(b.id)?.size ?? 0) - (inbound.get(a.id)?.size ?? 0);
+      if (inboundDelta !== 0) return inboundDelta;
+      return a.name.localeCompare(b.name);
+    });
+
     let maxWidth = 0;
-    let y = 40;
+    const colHeight = col.reduce((sum, entity) => sum + entityCardHeight(entity), 0)
+      + Math.max(0, col.length - 1) * CARD_VERTICAL_GAP;
+    let y = 40 + Math.max(0, (maxColumnHeight - colHeight) / 2);
+
     for (const e of col) {
       positions.set(e.id, { x, y });
       const h = entityCardHeight(e);
@@ -389,21 +444,34 @@ function bestAnchor(from, to) {
   }
 }
 
-function buildEdgePath(start, end) {
+function buildEdgePath(start, end, relationshipIndex = 0) {
   const dx = end.x - start.x;
-  const cpOffset = Math.max(Math.abs(dx) * 0.4, 50);
-  const cx1 = start.x + cpOffset;
-  const cx2 = end.x - cpOffset;
-  return `M ${start.x} ${start.y} C ${cx1} ${start.y} ${cx2} ${end.y} ${end.x} ${end.y}`;
+  const dy = end.y - start.y;
+  const len = Math.hypot(dx, dy);
+  if (len < 0.001) {
+    return `M ${start.x} ${start.y} L ${end.x} ${end.y}`;
+  }
+
+  const nx = -dy / len;
+  const ny = dx / len;
+  const lane = (relationshipIndex % 5) - 2; // -2..2
+  const baseOffset = Math.min(90, Math.max(32, len * 0.18));
+  const bendOffset = lane === 0 ? baseOffset : Math.sign(lane) * (baseOffset + Math.abs(lane) * 10);
+  const mx = (start.x + end.x) / 2;
+  const my = (start.y + end.y) / 2;
+  const cx = mx + nx * bendOffset;
+  const cy = my + ny * bendOffset;
+
+  return `M ${start.x} ${start.y} Q ${cx} ${cy} ${end.x} ${end.y}`;
 }
 
-function buildEdgeGroup(relationship, anchors, markerId) {
+function buildEdgeGroup(relationship, anchors, markerId, relationshipIndex) {
   const fromAnchors = anchors.get(relationship.parentEntityId);
   const toAnchors = anchors.get(relationship.referencedEntityId);
   if (!fromAnchors || !toAnchors) return null;
 
   const { start, end } = bestAnchor(fromAnchors, toAnchors);
-  const d = buildEdgePath(start, end);
+  const d = buildEdgePath(start, end, relationshipIndex);
 
   const g = svgEl('g', {
     'data-edge-id': relationship.id,
@@ -500,8 +568,12 @@ function rebuildEdges(state) {
   // Ensure arrowhead marker.
   buildArrowMarker(state.defs, markerId, COLORS.arrowHead);
 
+  const edgeLaneByPair = new Map();
   for (const rel of state.relationships) {
-    const eg = buildEdgeGroup(rel, anchors, markerId);
+    const pairKey = `${rel.parentEntityId}->${rel.referencedEntityId}`;
+    const relationshipIndex = edgeLaneByPair.get(pairKey) ?? 0;
+    edgeLaneByPair.set(pairKey, relationshipIndex + 1);
+    const eg = buildEdgeGroup(rel, anchors, markerId, relationshipIndex);
     if (eg) edgeGroup.appendChild(eg);
   }
 }
