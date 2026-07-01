@@ -24,7 +24,7 @@ builder.AddDataExplorer()
 	.AddSqlServer();
 ```
 
-For full usage guidance, see repository documentation.
+For full usage guidance, see the repository README and documentation guide.
 
 ## Supported frameworks
 
@@ -39,11 +39,13 @@ Stable releases are promoted after validation and approval. Preview releases are
 
 ## Contributing
 
-See the contributor package guide:
+See the repository contributing and packaging guides:
 
+- `CONTRIBUTING.md`
 - `docs/publishing/contributor-package-guide.md`
 
 ## Links
 
 - Source: https://github.com/oakcool/OakIdeas.Aspire.DataExplorer
 - Documentation: https://github.com/oakcool/OakIdeas.Aspire.DataExplorer/tree/main/docs
+- Contributing: https://github.com/oakcool/OakIdeas.Aspire.DataExplorer/blob/main/CONTRIBUTING.md

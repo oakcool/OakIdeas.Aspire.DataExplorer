@@ -430,3 +430,6 @@ FodyWeavers.xsd
 
 # TailwindCSS generated output
 tailwind.output.css
+
+# Local packaging validation artifacts
+src/OakIdeas.Aspire.DataExplorer.Hosting/DataExplorerWeb/publish-singlefile-test/
