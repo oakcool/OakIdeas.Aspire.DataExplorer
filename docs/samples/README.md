@@ -63,16 +63,25 @@ dotnet ef migrations add <MigrationName> \
   --startup-project samples/OakIdeas.Aspire.DataExplorer.Sample.Api
 ```
 
-Seed data is configured in `SampleDbContext.OnModelCreating(...)` and is deterministic so screenshots and metadata checks remain stable.
+Seed data is configured in `SampleDbContext.OnModelCreating(...)` and is deterministic so validation output remains stable.
 
 The `ShowcaseProgrammabilityObjects` migration also creates schema-scoped SQL objects in the `showcase` schema and mirrors data from `dbo` tables so Object Explorer can demonstrate folder-based nodes for tables, views, and programmability.
 
 ## Validating with Data Explorer
 
-1. Start the sample AppHost only:
-  ```bash
-  dotnet run --project samples/OakIdeas.Aspire.DataExplorer.Sample.AppHost
-  ```
+### Automated validation
+
+- Integration coverage lives in `src/tests/OakIdeas.Aspire.DataExplorer.IntegrationTests/EndToEndValidationIntegrationTests.cs`.
+- Run the solution-wide test suite with `dotnet test OakIdeas.Aspire.DataExplorer.sln`.
+- If you need a focused sample validation run, use:
+
+```bash
+dotnet test src/tests/OakIdeas.Aspire.DataExplorer.IntegrationTests/OakIdeas.Aspire.DataExplorer.IntegrationTests.csproj
+```
+
+### Manual walkthrough
+
+1. Start `samples/OakIdeas.Aspire.DataExplorer.Sample.AppHost`.
 2. Open `sample-data-explorer` from the Aspire dashboard.
 3. Confirm the discovered database is `sampledb`.
 4. Inspect tables and metadata for keys, constraints, indexes, and relationships.
@@ -85,9 +94,8 @@ The `ShowcaseProgrammabilityObjects` migration also creates schema-scoped SQL ob
    - `showcase.usp_ListReplicaTodosByStatus`
    - `showcase.ufn_OpenReplicaTodoCount`
 
-The sample intentionally runs Data Explorer as a consumer-style setup: the AppHost enables discovery with `builder.AddDataExplorer().AddSqlServer()` and hosts the Data Explorer web resource alongside sample resources.
-
-## E2E validation assets
+### Local SQL setup asset
 
 - SQL setup script: [`docs/samples/test-database-setup.sql`](./test-database-setup.sql)
-- Validation guide/checklist: [`docs/samples/e2e-validation-checklist.md`](./e2e-validation-checklist.md)
+
+The sample intentionally runs Data Explorer as a consumer-style setup: the AppHost enables discovery with `builder.AddDataExplorer().AddSqlServer()` and hosts the Data Explorer web resource alongside sample resources.

@@ -70,6 +70,5 @@ See also:
 - [Architecture overview](./overview.md)
 - [Provider model](./provider-model.md)
 - [Error handling and diagnostics](./error-handling.md)
-- [Architecture review — 2026-05](./architecture-review-2026-05.md)
 - [ADR 0005: Metadata discovery aggregation, cache, and partial-failure strategy](../decisions/0005-metadata-discovery-aggregation.md)
 - [ADR 0007: Metadata refresh single-flight and cache invalidation](../decisions/0007-metadata-refresh-single-flight.md)
