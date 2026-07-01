@@ -42,9 +42,15 @@ The Aspire dashboard opens automatically and exposes the Data Explorer web resou
 4. Open **Query** to run ad-hoc SQL with the configured guardrails.
 5. Optionally start `samples/OakIdeas.Aspire.DataExplorer.Sample.AppHost` to validate a consumer-style setup.
 
+## Website
+
+- [Project website](https://oakcool.github.io/OakIdeas.Aspire.DataExplorer/)
+- [Website maintenance guide](docs/publishing/website-guide.md)
+
 ## Documentation
 
 - [Documentation guide](docs/README.md)
+- [Website guide](docs/publishing/website-guide.md)
 - [Getting started and local development](docs/setup/local-development.md)
 - [Architecture overview](docs/architecture/overview.md)
 - [Metadata discovery architecture](docs/architecture/metadata-discovery.md)

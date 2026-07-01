@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OakIdeas.Aspire.DataExplorer</title>
+  <meta name="description" content="A polished development-time database explorer for .NET Aspire. Browse schema metadata, inspect objects, and run guarded SQL queries inside your local Aspire workflow.">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="site.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="#top" aria-label="OakIdeas.Aspire.DataExplorer home">
+        <img src="assets/logo.svg" alt="" width="40" height="40">
+        <span>OakIdeas.Aspire.DataExplorer</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="#features">Features</a>
+        <a href="#screenshots">Screenshots</a>
+        <a href="#getting-started">Getting started</a>
+        <a href="#docs">Documentation</a>
+      </nav>
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle light and dark theme">◐</button>
+    </div>
+  </header>
+
+  <main id="content">
+    <section class="hero" id="top">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow">Development-time only • SQL Server-first MVP</p>
+          <h1>Explore Aspire-hosted databases without leaving your local workflow.</h1>
+          <p class="hero-text">OakIdeas.Aspire.DataExplorer adds a focused, polished database workspace to .NET Aspire: discover local resources, inspect schema metadata, open object details, and run guarded SQL queries with diagnostics and execution-plan support.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="https://github.com/oakcool/OakIdeas.Aspire.DataExplorer">View on GitHub</a>
+            <a class="button button-secondary" href="#getting-started">Get started</a>
+          </div>
+          <ul class="hero-points">
+            <li>Aspire resource discovery for local development</li>
+            <li>Object Explorer, object details, query results, diagrams, and execution plans</li>
+            <li>Development-only guardrails and sanitized diagnostics</li>
+          </ul>
+        </div>
+        <div class="hero-panel">
+          <img src="assets/screenshots/dashboard.png" alt="Data Explorer dashboard and object explorer shell" loading="eager">
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container two-column">
+        <div>
+          <p class="section-label">What it is</p>
+          <h2>A database explorer tailored for Aspire-backed local environments.</h2>
+        </div>
+        <div class="copy-stack">
+          <p>Data Explorer keeps schema exploration and SQL troubleshooting inside the same development loop as the rest of your Aspire app. Instead of reconstructing connection details in external tools, contributors can inspect live local databases directly from a purpose-built UI.</p>
+          <p>The project is intentionally development-only. Runtime and hosting guards help keep the tool out of production scenarios, while provider-specific SQL and error mapping stay isolated in provider projects.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-alt" id="features">
+      <div class="container">
+        <p class="section-label">Why it exists</p>
+        <h2>Fast local investigation without weakening your boundaries.</h2>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <h3>Object Explorer</h3>
+            <p>Browse schemas, tables, views, procedures, functions, triggers, indexes, and definitions through a compact tree built for database-first debugging.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Guarded Query Window</h3>
+            <p>Run ad-hoc SQL with row limits, timeout controls, optional read-only mode, destructive-query confirmation, and user-visible recovery guidance.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Execution plans and diagrams</h3>
+            <p>Visualize execution plans when supported and inspect entity relationships through an interactive database diagram surface.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Provider-based architecture</h3>
+            <p>Shared layers define contracts and orchestration, while providers own SQL, capability-specific discovery, and exception mapping.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="screenshots">
+      <div class="container">
+        <p class="section-label">Screenshots</p>
+        <h2>See the workspace before you wire it into your own app.</h2>
+        <div class="screenshot-grid">
+          <figure class="shot-card shot-card-wide">
+            <img src="assets/screenshots/object-explorer.png" alt="Object Explorer showing databases, tables, views, and programmability folders" loading="lazy">
+            <figcaption>Object Explorer keeps live schema navigation close to the rest of your Aspire workflow.</figcaption>
+          </figure>
+          <figure class="shot-card">
+            <img src="assets/screenshots/query-results.png" alt="Query editor and results grid showing a sample SQL query" loading="lazy">
+            <figcaption>Query Window supports guarded ad-hoc SQL with a focused results grid.</figcaption>
+          </figure>
+          <figure class="shot-card">
+            <img src="assets/screenshots/execution-plan.png" alt="Execution plan view rendered from a sample SQL Server plan" loading="lazy">
+            <figcaption>Execution plan output helps explain query behavior without leaving the tool.</figcaption>
+          </figure>
+          <figure class="shot-card shot-card-wide">
+            <img src="assets/screenshots/database-diagram.png" alt="Database diagram showing related tables and foreign key relationships" loading="lazy">
+            <figcaption>Database Diagram highlights entity relationships and key columns.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-alt" id="getting-started">
+      <div class="container split-layout">
+        <div>
+          <p class="section-label">Getting started</p>
+          <h2>Install, validate, and run the solution locally.</h2>
+          <ol class="steps">
+            <li>Install .NET SDK 10+, Node.js 20+, Docker Desktop (or equivalent), and the Aspire workload.</li>
+            <li>Restore, build, and test the solution.</li>
+            <li>Run the AppHost and open Data Explorer from the Aspire dashboard.</li>
+          </ol>
+        </div>
+        <div class="command-panel">
+<pre><code>dotnet restore
+
+dotnet build OakIdeas.Aspire.DataExplorer.sln
+
+dotnet test OakIdeas.Aspire.DataExplorer.sln
+
+dotnet run --project src/OakIdeas.Aspire.DataExplorer.AppHost</code></pre>
+          <p class="command-note">You can also run <code>samples/OakIdeas.Aspire.DataExplorer.Sample.AppHost</code> to validate a consumer-style setup.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="docs">
+      <div class="container cards-grid">
+        <article class="link-card">
+          <h3>Documentation</h3>
+          <p>Use the public docs as the source of truth for setup, architecture, samples, and troubleshooting.</p>
+          <a href="https://github.com/oakcool/OakIdeas.Aspire.DataExplorer/tree/main/docs">Open docs</a>
+        </article>
+        <article class="link-card">
+          <h3>Packages and releases</h3>
+          <p>Review package guidance, versioning expectations, and publishing workflows for preview and stable builds.</p>
+          <a href="https://github.com/oakcool/OakIdeas.Aspire.DataExplorer/tree/main/docs/nuget/package-readme.md">Package info</a>
+        </article>
+        <article class="link-card">
+          <h3>Contributing</h3>
+          <p>Read the contributor guide before proposing changes, especially for provider isolation and development-only boundaries.</p>
+          <a href="https://github.com/oakcool/OakIdeas.Aspire.DataExplorer/blob/main/CONTRIBUTING.md">Contribution guide</a>
+        </article>
+        <article class="link-card">
+          <h3>License</h3>
+          <p>The project is released under the MIT License.</p>
+          <a href="https://github.com/oakcool/OakIdeas.Aspire.DataExplorer/blob/main/LICENSE">View license</a>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div>
+        <strong>OakIdeas.Aspire.DataExplorer</strong>
+        <p>Development-time database exploration for .NET Aspire.</p>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/oakcool/OakIdeas.Aspire.DataExplorer">GitHub</a>
+        <a href="https://github.com/oakcool/OakIdeas.Aspire.DataExplorer/releases">Releases</a>
+        <a href="https://github.com/oakcool/OakIdeas.Aspire.DataExplorer/tree/main/docs">Docs</a>
+        <a href="https://github.com/oakcool/OakIdeas.Aspire.DataExplorer/blob/main/LICENSE">License</a>
+      </div>
+      <p class="footer-meta">Website source lives in <code>docs/site/</code>. Published with GitHub Pages. <span data-current-year></span></p>
+    </div>
+  </footer>
+</body>
+</html>
