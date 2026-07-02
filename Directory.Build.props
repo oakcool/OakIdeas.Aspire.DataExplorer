@@ -9,7 +9,7 @@
     <Company>OakIdeas</Company>
     <RepositoryUrl>https://github.com/oakcool/OakIdeas.Aspire.DataExplorer</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageProjectUrl>https://github.com/oakcool/OakIdeas.Aspire.DataExplorer</PackageProjectUrl>
+    <PackageProjectUrl>http://dataexplorer.oakideas.com/</PackageProjectUrl>
     <PackageTags>aspire;data-explorer;sql-server;blazor</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
