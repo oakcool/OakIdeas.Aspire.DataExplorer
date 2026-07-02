@@ -1,0 +1,61 @@
+name: Feature request
+description: Suggest an improvement or new feature
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting an improvement. Please fill out the sections below to help us understand the request.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or motivation
+      description: Describe the problem you are trying to solve or the motivation behind this request.
+      placeholder: I find it frustrating when ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the change or feature you would like to see.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Have you considered any alternative approaches? If so, describe them.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of the project does this relate to?
+      options:
+        - Metadata exploration
+        - Query Window
+        - Diagram view
+        - Provider (SQL Server)
+        - Provider (other)
+        - Aspire integration / discovery
+        - UI / layout
+        - Documentation
+        - Packaging / NuGet
+        - Other
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Any other context, screenshots, or references.
+    validations:
+      required: false

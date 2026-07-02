@@ -8,6 +8,12 @@
     <ProjectReference Include="..\OakIdeas.Aspire.DataExplorer.SqlServer\OakIdeas.Aspire.DataExplorer.SqlServer.csproj" />
   </ItemGroup>
 
+  <!-- Explicit version pins to resolve transitive vulnerability advisories -->
+  <ItemGroup>
+    <PackageReference Include="MessagePack" Version="2.5.302" />
+    <PackageReference Include="MessagePack.Annotations" Version="2.5.302" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
