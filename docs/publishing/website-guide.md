@@ -1,13 +1,13 @@
 # Website guide
 
-The public website source for OakIdeas.Aspire.DataExplorer lives in `docs/site/`.
+The public website source for OakIdeas.Aspire.DataExplorer lives in `site/`.
 
 ## Local preview
 
 You can preview the landing page with any static file server from the repository root, for example:
 
 ```bash
-python -m http.server 8080 --directory docs/site
+python -m http.server 8080 --directory site
 ```
 
 Then open `http://localhost:8080`.
@@ -16,13 +16,14 @@ Then open `http://localhost:8080`.
 
 GitHub Pages deployment is defined in `.github/workflows/pages.yml`.
 
-- The workflow uploads `docs/site/` as the Pages artifact.
+- The workflow uploads `site/` as the Pages artifact.
 - Deployments run automatically on pushes to `main` that touch the site or its linked docs metadata.
 - You can also trigger the workflow manually with **workflow_dispatch**.
+- The public URL is [https://dataexplorer.oakideas.com](https://dataexplorer.oakideas.com), served via the `site/CNAME` entry.
 
 ## Screenshots
 
-Website screenshots live in `docs/site/assets/screenshots/`.
+Website screenshots live in `site/assets/screenshots/`.
 
 When updating them:
 

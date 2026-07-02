@@ -44,7 +44,7 @@ The Aspire dashboard opens automatically and exposes the Data Explorer web resou
 
 ## Website
 
-- [Project website](https://oakcool.github.io/OakIdeas.Aspire.DataExplorer/)
+- [Project website](https://dataexplorer.oakideas.com)
 - [Website maintenance guide](docs/publishing/website-guide.md)
 
 ## Documentation
