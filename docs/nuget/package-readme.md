@@ -47,5 +47,6 @@ See the repository contributing and packaging guides:
 ## Links
 
 - Source: https://github.com/oakcool/OakIdeas.Aspire.DataExplorer
+- Website: https://oakcool.github.io/OakIdeas.Aspire.DataExplorer/
 - Documentation: https://github.com/oakcool/OakIdeas.Aspire.DataExplorer/tree/main/docs
 - Contributing: https://github.com/oakcool/OakIdeas.Aspire.DataExplorer/blob/main/CONTRIBUTING.md

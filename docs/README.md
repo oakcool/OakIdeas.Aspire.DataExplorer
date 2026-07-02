@@ -18,6 +18,10 @@ This directory contains the public documentation for OakIdeas.Aspire.DataExplore
 - [Provider implementation guide](providers/implementation-guide.md)
 - [SQL Server provider notes](providers/sqlserver.md)
 
+## Website
+
+- [Website guide](publishing/website-guide.md)
+
 ## Packaging and publishing
 
 - [NuGet package README source](nuget/package-readme.md)
