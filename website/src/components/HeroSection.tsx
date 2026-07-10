@@ -43,8 +43,9 @@ export function HeroSection() {
           </h1>
           <p style={{ color: 'var(--muted)', lineHeight: 1.7, margin: '0 0 1.5rem' }}>
             OakIdeas.Aspire.DataExplorer adds a focused, polished database workspace to .NET
-            Aspire: discover local resources, inspect schema metadata, open object details, and run
-            guarded SQL queries with diagnostics and execution-plan support.
+            Aspire: discover local resources, inspect schema metadata, switch between multiple
+            referenced databases, open object details, and run guarded SQL queries with diagnostics
+            and execution-plan support.
           </p>
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.75rem' }}>
             <a
@@ -97,6 +98,7 @@ export function HeroSection() {
           >
             {[
               'Aspire resource discovery for local development',
+              'One Data Explorer instance can switch between multiple referenced databases',
               'Object Explorer, object details, query results, diagrams, and execution plans',
               'Development-only guardrails and sanitized diagnostics',
             ].map(point => (

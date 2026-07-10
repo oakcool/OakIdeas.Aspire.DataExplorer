@@ -26,6 +26,13 @@ export const docLinks: DocLink[] = [
     linkText: 'Open docs',
   },
   {
+    title: 'Multiple database guide',
+    description:
+      'Follow the registration pattern for wiring more than one Aspire database resource into a single Data Explorer instance.',
+    href: 'https://github.com/oakcool/OakIdeas.Aspire.DataExplorer/blob/main/docs/usage/multiple-databases.md',
+    linkText: 'Read the guide',
+  },
+  {
     title: 'Packages and releases',
     description:
       'Review package guidance, versioning expectations, and publishing workflows for preview and stable builds.',

@@ -45,8 +45,8 @@ export function WhatItIs() {
           <p style={{ color: 'var(--muted)', lineHeight: 1.7, margin: 0 }}>
             Data Explorer keeps schema exploration and SQL troubleshooting inside the same
             development loop as the rest of your Aspire app. Instead of reconstructing connection
-            details in external tools, contributors can inspect live local databases directly from a
-            purpose-built UI.
+            details in external tools, contributors can inspect one or many live local databases
+            directly from a purpose-built UI.
           </p>
           <p style={{ color: 'var(--muted)', lineHeight: 1.7, margin: 0 }}>
             The project is intentionally development-only. Runtime and hosting guards help keep the

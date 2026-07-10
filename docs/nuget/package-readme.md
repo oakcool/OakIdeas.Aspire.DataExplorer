@@ -9,6 +9,7 @@ OakIdeas.Aspire.DataExplorer provides development-time tooling for exploring Asp
 - Core Aspire integration package (`OakIdeas.Aspire.DataExplorer`)
 - SQL Server provider package (`OakIdeas.Aspire.DataExplorer.SqlServer`)
 - SQL Server-first metadata and query tooling support
+- Single- and multi-database Aspire registration support through repeated resource references
 
 ## Installation
 
@@ -20,8 +21,25 @@ dotnet add package OakIdeas.Aspire.DataExplorer.SqlServer --version <version>
 ## Basic usage
 
 ```csharp
+var sql = builder.AddSqlServer("sql", password)
+    .AddDatabase("applicationdb");
+
 builder.AddDataExplorer()
-	.AddSqlServer();
+    .AddSqlServer()
+    .WithReference(sql);
+```
+
+## Multiple database example
+
+```csharp
+var sqlServer = builder.AddSqlServer("sample-sql", password);
+var appDatabase = sqlServer.AddDatabase("sampledb");
+var warehouseDatabase = sqlServer.AddDatabase("warehousedb");
+
+builder.AddDataExplorer()
+    .AddSqlServer()
+    .WithReference(appDatabase)
+    .WithReference(warehouseDatabase);
 ```
 
 For full usage guidance, see the repository README and documentation guide.

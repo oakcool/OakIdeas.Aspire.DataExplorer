@@ -31,9 +31,10 @@ flowchart TD
 
 - `IAspireResourceDiscovery` (Hosting) discovers database resources.
 - In the Web runtime, discovery reads Aspire-provided `ConnectionStrings` configuration entries and projects them into discovered database resources.
+- One Data Explorer instance can discover multiple explicitly referenced database resources and expose them through the shared selected-database flow.
 - `ISelectedDatabaseService` (Core) manages scoped selected-database context.
 - `IMetadataAggregationService` (Core) coordinates provider discovery and normalization.
-- `IMetadataCache` (Core) stores metadata snapshots by resource/database key.
+- `IMetadataCache` (Core) stores metadata snapshots by resource/database key so database state does not leak across selections.
 - `IMetadataRefreshService` (Core) invalidates cache and orchestrates refresh.
 - `IProviderFactory` (Core) resolves concrete providers registered via options.
 
@@ -45,6 +46,8 @@ See [Metadata discovery architecture](./metadata-discovery.md) for detailed flow
 - `ExplorerService` validates selected database state, applies `DataExplorerOptions` guardrails (ad-hoc enablement, read-only mode, max rows, timeout), and routes execution through `IProviderFactory`.
 - Provider implementations (SQL Server MVP) own SQL execution details and result-shape normalization.
 - User-visible failures are mapped through `IErrorHandler` and provider error mappers to avoid leaking secrets.
+
+See [ADR 0009: Multiple database registration for a single Data Explorer instance](../decisions/0009-multiple-database-registration.md) for the selected Aspire registration model.
 
 ## Metadata presentation conventions
 

@@ -6,6 +6,7 @@ This directory contains the public documentation for OakIdeas.Aspire.DataExplore
 
 - [Local development setup](setup/local-development.md)
 - [Usage quickstart](usage/quickstart.md)
+- [Multiple database configuration](usage/multiple-databases.md)
 - [Sample application walkthrough](samples/README.md)
 
 ## Architecture
