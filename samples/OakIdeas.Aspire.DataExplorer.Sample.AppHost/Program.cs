@@ -29,3 +29,4 @@ builder.AddProject<Projects.OakIdeas_Aspire_DataExplorer_Sample_Web>("sample-web
     .WithReference(api);
 
 builder.Build().Run();
+
