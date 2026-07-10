@@ -64,6 +64,9 @@
    - `Include Execution Plan` requests provider execution plan data (when supported).
    - Execution plan output is shown in the **Execution Plan** result tab.
    - Destructive statements require an explicit confirmation run.
+7. If multiple database resources are configured, use the database picker above Object Explorer to switch resources before browsing metadata or executing queries.
+
+For full multi-resource registration guidance, see [Multiple database configuration](./multiple-databases.md).
 
 ## Running the sample with metadata exploration
 
@@ -73,7 +76,7 @@ Run sample AppHost to validate a consuming app workflow:
 dotnet run --project samples/OakIdeas.Aspire.DataExplorer.Sample.AppHost
 ```
 
-Use the Aspire dashboard to open the sample web app and verify metadata tree navigation and refresh behavior.
+Use the Aspire dashboard to open Data Explorer and verify that both `sampledb` and `warehousedb` appear in the database picker, then switch between them to validate isolated metadata trees and query behavior.
 
 ## Troubleshooting
 

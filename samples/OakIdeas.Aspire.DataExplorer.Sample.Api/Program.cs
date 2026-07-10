@@ -5,29 +5,18 @@ using System.Data;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddSqlServerDbContext<SampleDbContext>("sampledb");
+builder.AddSqlServerDbContext<WarehouseDbContext>("warehousedb");
 
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<SampleDbContext>();
     var logger = scope.ServiceProvider
         .GetRequiredService<ILoggerFactory>()
         .CreateLogger("Startup.DatabaseMigrations");
 
-    var appliedMigrations = await db.Database.GetAppliedMigrationsAsync();
-    var pendingMigrations = (await db.Database.GetPendingMigrationsAsync()).ToArray();
-
-    logger.LogInformation(
-        "EF migration diagnostics. Applied={AppliedCount} Pending={PendingCount} AppliedList={AppliedList} PendingList={PendingList}",
-        appliedMigrations.Count(),
-        pendingMigrations.Length,
-        string.Join(", ", appliedMigrations),
-        pendingMigrations.Length == 0 ? "(none)" : string.Join(", ", pendingMigrations));
-
-    await db.Database.MigrateAsync();
-
-    logger.LogInformation("EF MigrateAsync completed successfully.");
+    await MigrateDatabaseAsync<SampleDbContext>(scope.ServiceProvider, logger, "sampledb");
+    await MigrateDatabaseAsync<WarehouseDbContext>(scope.ServiceProvider, logger, "warehousedb");
 }
 
 app.MapGet("/todoitems/lookups", async (SampleDbContext db, CancellationToken cancellationToken) =>
@@ -478,6 +467,29 @@ static async Task<int> ExecuteScalarIntAsync(
 
     var value = await command.ExecuteScalarAsync(cancellationToken);
     return Convert.ToInt32(value ?? 0);
+}
+
+static async Task MigrateDatabaseAsync<TContext>(
+    IServiceProvider services,
+    ILogger logger,
+    string connectionName)
+    where TContext : DbContext
+{
+    var db = services.GetRequiredService<TContext>();
+    var appliedMigrations = await db.Database.GetAppliedMigrationsAsync();
+    var pendingMigrations = (await db.Database.GetPendingMigrationsAsync()).ToArray();
+
+    logger.LogInformation(
+        "EF migration diagnostics for {ConnectionName}. Applied={AppliedCount} Pending={PendingCount} AppliedList={AppliedList} PendingList={PendingList}",
+        connectionName,
+        appliedMigrations.Count(),
+        pendingMigrations.Length,
+        string.Join(", ", appliedMigrations),
+        pendingMigrations.Length == 0 ? "(none)" : string.Join(", ", pendingMigrations));
+
+    await db.Database.MigrateAsync();
+
+    logger.LogInformation("EF MigrateAsync completed successfully for {ConnectionName}.", connectionName);
 }
 
 static async Task<IReadOnlyList<TodoShowcaseRow>> ExecuteTodoShowcaseRowsAsync(

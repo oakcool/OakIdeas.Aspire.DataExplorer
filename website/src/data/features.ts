@@ -5,6 +5,11 @@ export interface Feature {
 
 export const features: Feature[] = [
   {
+    title: 'Multi-database switching',
+    description:
+      'Reference multiple Aspire database resources from one Data Explorer instance, then switch between isolated metadata, query, and diagram contexts in the UI.',
+  },
+  {
     title: 'Object Explorer',
     description:
       'Browse schemas, tables, views, procedures, functions, triggers, indexes, and definitions through a compact tree built for database-first debugging.',

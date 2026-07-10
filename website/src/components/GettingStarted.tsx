@@ -32,6 +32,7 @@ export function GettingStarted() {
               'Install .NET SDK 10+, Node.js 20+, Docker Desktop (or equivalent), and the Aspire workload.',
               'Restore, build, and test the solution.',
               'Run the AppHost and open Data Explorer from the Aspire dashboard.',
+              'Switch between the sample `sampledb` and `warehousedb` resources from the database picker.',
             ].map(step => (
               <li key={step} style={{ color: 'var(--muted)', lineHeight: 1.7 }}>
                 {step}
@@ -69,7 +70,7 @@ dotnet run --project src/OakIdeas.Aspire.DataExplorer.AppHost`}</code>
             style={{ color: 'var(--muted)', lineHeight: 1.7, margin: '1rem 0 0', fontSize: '0.875rem' }}
           >
             You can also run <code>samples/OakIdeas.Aspire.DataExplorer.Sample.AppHost</code> to
-            validate a consumer-style setup.
+            validate a consumer-style setup with multiple database resources.
           </p>
         </div>
       </div>

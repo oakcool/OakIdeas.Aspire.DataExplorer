@@ -38,6 +38,36 @@ public sealed class AspireResourceDiscoveryRegistrationTests
         resource.DatabaseName.Should().Be("applicationdb");
     }
 
+    [Fact]
+    public async Task AddAspireResourceDiscovery_WhenMultipleConnectionStringsExist_ReturnsAllDiscoveredResources()
+    {
+        var services = new ServiceCollection();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:sampledb"] = "Server=localhost;Database=sampledb;User Id=sa;******;",
+                ["ConnectionStrings:warehousedb"] = "Server=localhost;Database=warehousedb;User Id=sa;******;",
+            })
+            .Build();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment());
+        services.AddLogging();
+        services.AddSelectedDatabaseService();
+        services.AddAspireResourceDiscovery(configuration);
+
+        await using var scope = services.BuildServiceProvider().CreateAsyncScope();
+        var discovery = scope.ServiceProvider.GetRequiredService<IAspireResourceDiscovery>();
+
+        var response = await discovery.DiscoverResourcesAsync(new DiscoverResourcesRequest(IncludeUnavailableResources: true), CancellationToken.None);
+
+        response.Resources.Select(resource => resource.ResourceId)
+            .Should()
+            .BeEquivalentTo(["sampledb", "warehousedb"]);
+        response.Resources.Select(resource => resource.DatabaseName)
+            .Should()
+            .BeEquivalentTo(["sampledb", "warehousedb"]);
+    }
+
     private sealed class TestHostEnvironment : IHostEnvironment
     {
         public string EnvironmentName { get; set; } = Environments.Development;
