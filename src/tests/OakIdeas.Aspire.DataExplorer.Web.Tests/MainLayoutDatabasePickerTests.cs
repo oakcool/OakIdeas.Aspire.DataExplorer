@@ -9,7 +9,7 @@ using OakIdeas.Aspire.DataExplorer.Web.Components.Layout;
 
 namespace OakIdeas.Aspire.DataExplorer.Web.Tests;
 
-public sealed class MainLayoutDatabasePickerTests : TestContext
+public sealed class MainLayoutDatabasePickerTests : BunitContext
 {
     [Fact]
     public void DatabasePicker_ChangingSelection_UpdatesExplorerMetadata()
@@ -17,7 +17,7 @@ public sealed class MainLayoutDatabasePickerTests : TestContext
         var service = new FakeExplorerService();
         Services.AddSingleton<IExplorerService>(service);
 
-        var component = RenderComponent<MainLayout>();
+        var component = Render<MainLayout>();
 
         component.WaitForAssertion(() =>
         {
@@ -46,7 +46,7 @@ public sealed class MainLayoutDatabasePickerTests : TestContext
         };
         Services.AddSingleton<IExplorerService>(service);
 
-        var component = RenderComponent<MainLayout>();
+        var component = Render<MainLayout>();
 
         component.WaitForAssertion(() =>
         {
@@ -65,7 +65,7 @@ public sealed class MainLayoutDatabasePickerTests : TestContext
         };
         Services.AddSingleton<IExplorerService>(service);
 
-        var component = RenderComponent<MainLayout>();
+        var component = Render<MainLayout>();
 
         component.WaitForAssertion(() =>
         {
@@ -85,7 +85,7 @@ public sealed class MainLayoutDatabasePickerTests : TestContext
         };
         Services.AddSingleton<IExplorerService>(service);
 
-        var component = RenderComponent<MainLayout>();
+        var component = Render<MainLayout>();
 
         component.WaitForAssertion(() =>
         {
@@ -111,7 +111,7 @@ public sealed class MainLayoutDatabasePickerTests : TestContext
         };
         Services.AddSingleton<IExplorerService>(service);
 
-        var component = RenderComponent<MainLayout>();
+        var component = Render<MainLayout>();
 
         component.WaitForAssertion(() =>
         {
@@ -136,7 +136,7 @@ public sealed class MainLayoutDatabasePickerTests : TestContext
         };
         Services.AddSingleton<IExplorerService>(service);
 
-        var component = RenderComponent<MainLayout>();
+        var component = Render<MainLayout>();
 
         component.WaitForAssertion(() =>
         {
@@ -157,7 +157,7 @@ public sealed class MainLayoutDatabasePickerTests : TestContext
         };
         Services.AddSingleton<IExplorerService>(service);
 
-        var component = RenderComponent<MainLayout>();
+        var component = Render<MainLayout>();
 
         component.WaitForAssertion(() =>
         {

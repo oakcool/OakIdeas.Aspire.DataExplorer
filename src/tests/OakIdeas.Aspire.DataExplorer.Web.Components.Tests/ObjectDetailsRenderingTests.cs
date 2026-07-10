@@ -3,7 +3,7 @@ using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Molecules;
 
 namespace OakIdeas.Aspire.DataExplorer.Web.Components.Tests;
 
-public sealed class ObjectDetailsRenderingTests : TestContext
+public sealed class ObjectDetailsRenderingTests : BunitContext
 {
     public ObjectDetailsRenderingTests()
     {
@@ -15,7 +15,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
     [Fact]
     public void RendersEmptyPromptWhenSelectionIsNull()
     {
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, null));
 
         component.Markup.Should().Contain("Select an object in the explorer");
@@ -25,7 +25,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
     public void RendersLoadingSpinnerWhenIsLoadingIsTrue()
     {
         var selection = MakeSelection(ObjectDetails.ObjectKind.Table);
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, selection)
             .Add(p => p.IsLoading, true));
 
@@ -38,7 +38,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
     public void RendersObjectNameAndSchemaInHeader()
     {
         var selection = MakeSelection(ObjectDetails.ObjectKind.Table, schema: "dbo", name: "Orders");
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, selection));
 
         component.Markup.Should().Contain("dbo");
@@ -48,7 +48,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
     [Fact]
     public void RendersKindBadgeForTable()
     {
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.Table)));
 
         component.Markup.Should().Contain("Table");
@@ -57,7 +57,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
     [Fact]
     public void RendersKindBadgeForView()
     {
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.View)));
 
         component.Markup.Should().Contain("View");
@@ -66,7 +66,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
     [Fact]
     public void RendersKindBadgeForProcedure()
     {
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.Procedure)));
 
         component.Markup.Should().Contain("Procedure");
@@ -75,7 +75,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
     [Fact]
     public void RendersKindBadgeForFunction()
     {
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.Function)));
 
         component.Markup.Should().Contain("Function");
@@ -84,7 +84,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
     [Fact]
     public void RendersKindBadgeForTrigger()
     {
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.Trigger)));
 
         component.Markup.Should().Contain("Trigger");
@@ -101,7 +101,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
             new ColumnDetails.ColumnModel("Name", 2, "nvarchar(100)", true, false, false, null),
         };
         var metadata = new ObjectDetails.ObjectMetadata(Columns: columns);
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.Table))
             .Add(p => p.Metadata, metadata));
 
@@ -121,7 +121,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
             [
                 new ObjectDetails.KeyModel("PK_TestObject", ["Id", "TenantId"]),
             ]);
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.Table))
             .Add(p => p.Metadata, metadata));
 
@@ -134,7 +134,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
     public void TableDetails_RendersEmptyKeysWhenNone()
     {
         var metadata = new ObjectDetails.ObjectMetadata(Keys: null);
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.Table))
             .Add(p => p.Metadata, metadata));
 
@@ -153,7 +153,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
                 [new RelationshipDetails.ColumnMappingModel("CustomerId", "Id")]),
         };
         var metadata = new ObjectDetails.ObjectMetadata(ForeignKeys: fks);
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.Table))
             .Add(p => p.Metadata, metadata));
 
@@ -170,7 +170,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
             new IndexDetails.IndexModel("IX_Orders_CustomerId", false, false, false, ["CustomerId"]),
         };
         var metadata = new ObjectDetails.ObjectMetadata(Indexes: indexes);
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.Table))
             .Add(p => p.Metadata, metadata));
 
@@ -189,7 +189,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
             new ObjectDetails.ConstraintModel("CHK_Orders_Total", "Check", "Total", "Total > 0"),
         };
         var metadata = new ObjectDetails.ObjectMetadata(Constraints: constraints);
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.Table))
             .Add(p => p.Metadata, metadata));
 
@@ -201,7 +201,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
     public void TableDetails_RendersEmptyConstraintsWhenNone()
     {
         var metadata = new ObjectDetails.ObjectMetadata(Constraints: null);
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.Table))
             .Add(p => p.Metadata, metadata));
 
@@ -218,7 +218,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
             new ColumnDetails.ColumnModel("UserId", 1, "int", false, false, false, null),
         };
         var metadata = new ObjectDetails.ObjectMetadata(Columns: columns);
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.View))
             .Add(p => p.Metadata, metadata));
 
@@ -230,7 +230,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
     public void ViewDetails_RendersDefinitionSection()
     {
         var definition = new ObjectDetails.DefinitionModel("CREATE VIEW dbo.ActiveUsers AS SELECT * FROM dbo.Users", true);
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.View))
             .Add(p => p.Definition, definition));
 
@@ -242,7 +242,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
     public void ViewDetails_HandlesUnavailableDefinitionGracefully()
     {
         var definition = new ObjectDetails.DefinitionModel(null, false, "Definition not available for this view.");
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.View))
             .Add(p => p.Definition, definition));
 
@@ -255,7 +255,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
     public void ProcedureDetails_RendersDefinitionSection()
     {
         var definition = new ObjectDetails.DefinitionModel("CREATE PROCEDURE dbo.SyncUsers AS BEGIN SELECT 1 END", true);
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.Procedure))
             .Add(p => p.Definition, definition));
 
@@ -272,7 +272,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
                 new ObjectDetails.ParameterModel("@UserId", "int", "Input", false),
                 new ObjectDetails.ParameterModel("@Name", "nvarchar(100)", "Output", true),
             ]);
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.Procedure))
             .Add(p => p.Metadata, metadata));
 
@@ -297,7 +297,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
             [
                 new ObjectDetails.ParameterModel("@UserId", "int"),
             ]);
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.Function))
             .Add(p => p.Metadata, metadata));
 
@@ -316,7 +316,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
             [
                 new ObjectDetails.TriggerModel("trg_TestObject_Audit", "AFTER INSERT", true),
             ]);
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.Table))
             .Add(p => p.Metadata, metadata));
 
@@ -330,7 +330,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
     public void FunctionDetails_RendersDefinition()
     {
         var definition = new ObjectDetails.DefinitionModel("CREATE FUNCTION dbo.FormatName() RETURNS int AS BEGIN RETURN 1 END", true);
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.Function))
             .Add(p => p.Definition, definition));
 
@@ -345,7 +345,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
         var metadata = new ObjectDetails.ObjectMetadata(
             TriggerType: "AFTER INSERT, UPDATE",
             TriggerIsEnabled: true);
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.Trigger))
             .Add(p => p.Metadata, metadata));
 
@@ -357,7 +357,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
     public void TriggerDetails_RendersDisabledStatus()
     {
         var metadata = new ObjectDetails.ObjectMetadata(TriggerIsEnabled: false);
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.Trigger))
             .Add(p => p.Metadata, metadata));
 
@@ -369,7 +369,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
     [Fact]
     public void DefinitionViewer_ShowsLoadingSpinnerWhenIsDefinitionLoadingIsTrue()
     {
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.View))
             .Add(p => p.IsDefinitionLoading, true));
 
@@ -384,12 +384,12 @@ public sealed class ObjectDetailsRenderingTests : TestContext
         var selectionA = MakeSelection(ObjectDetails.ObjectKind.Table, name: "Orders");
         var selectionB = MakeSelection(ObjectDetails.ObjectKind.View, name: "ActiveUsers");
 
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, selectionA));
 
         component.Markup.Should().Contain("Orders");
 
-        component.SetParametersAndRender(parameters => parameters
+        component.Render(parameters => parameters
             .Add(p => p.Selection, selectionB));
 
         component.Markup.Should().Contain("ActiveUsers");
@@ -405,7 +405,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
             .Select(i => new ColumnDetails.ColumnModel($"Col{i}", i, "int", i % 2 == 0, false, false, null))
             .ToArray();
         var metadata = new ObjectDetails.ObjectMetadata(Columns: columns);
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.Table))
             .Add(p => p.Metadata, metadata));
 
@@ -420,7 +420,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
             .Select(i => new IndexDetails.IndexModel($"IX_Test_{i}", false, false, false, [$"Col{i}"]))
             .ToArray();
         var metadata = new ObjectDetails.ObjectMetadata(Indexes: indexes);
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.Table))
             .Add(p => p.Metadata, metadata));
 
@@ -437,7 +437,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
                 [new RelationshipDetails.ColumnMappingModel($"Ref{i}Id", "Id")]))
             .ToArray();
         var metadata = new ObjectDetails.ObjectMetadata(ForeignKeys: fks);
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.Table))
             .Add(p => p.Metadata, metadata));
 
@@ -450,7 +450,7 @@ public sealed class ObjectDetailsRenderingTests : TestContext
     [Fact]
     public void TableDetails_HandlesNullMetadataGracefully()
     {
-        var component = RenderComponent<ObjectDetails>(parameters => parameters
+        var component = Render<ObjectDetails>(parameters => parameters
             .Add(p => p.Selection, MakeSelection(ObjectDetails.ObjectKind.Table))
             .Add(p => p.Metadata, null));
 

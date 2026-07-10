@@ -6,7 +6,7 @@ using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Molecules;
 
 namespace OakIdeas.Aspire.DataExplorer.Web.Components.Tests;
 
-public sealed class QueryPanelRenderingTests : TestContext
+public sealed class QueryPanelRenderingTests : BunitContext
 {
     public QueryPanelRenderingTests()
     {
@@ -18,7 +18,7 @@ public sealed class QueryPanelRenderingTests : TestContext
     public void CtrlEnter_InvokesExecuteCallback()
     {
         string? executedSql = null;
-        var component = RenderComponent<QueryPanel>(parameters => parameters
+        var component = Render<QueryPanel>(parameters => parameters
             .Add(p => p.Sql, "SELECT 1")
             .Add(p => p.OnExecute, EventCallback.Factory.Create<string>(this, sql => executedSql = sql)));
 
@@ -31,7 +31,7 @@ public sealed class QueryPanelRenderingTests : TestContext
     public void CancelButton_InvokesCancelCallback()
     {
         var canceled = false;
-        var component = RenderComponent<QueryPanel>(parameters => parameters
+        var component = Render<QueryPanel>(parameters => parameters
             .Add(p => p.Sql, "SELECT 1")
             .Add(p => p.IsExecuting, true)
             .Add(p => p.OnCancel, EventCallback.Factory.Create(this, () => canceled = true)));
@@ -44,7 +44,7 @@ public sealed class QueryPanelRenderingTests : TestContext
     [Fact]
     public void Suggestions_NoDropdownPanel_GhostTextShownInHighlightLayer()
     {
-        var component = RenderComponent<QueryPanel>(parameters => parameters
+        var component = Render<QueryPanel>(parameters => parameters
             .Add(p => p.Sql, "SEL")
             .Add(p => p.Suggestions, ["SELECT", "FROM", "WHERE"]));
 
@@ -61,7 +61,7 @@ public sealed class QueryPanelRenderingTests : TestContext
     [Fact]
     public async Task HandleTab_WithActiveSuggestion_CompletesSql()
     {
-        var component = RenderComponent<QueryPanel>(parameters => parameters
+        var component = Render<QueryPanel>(parameters => parameters
             .Add(p => p.Suggestions, ["SELECT", "FROM", "WHERE"]));
 
         component.Find("textarea").Input("SEL");
@@ -75,7 +75,7 @@ public sealed class QueryPanelRenderingTests : TestContext
     [Fact]
     public async Task HandleTab_WithNoSuggestion_DoesNothing()
     {
-        var component = RenderComponent<QueryPanel>(parameters => parameters
+        var component = Render<QueryPanel>(parameters => parameters
             .Add(p => p.Suggestions, ["SELECT", "FROM", "WHERE"]));
 
         component.Find("textarea").Input("XYZ_NO_MATCH");
@@ -88,7 +88,7 @@ public sealed class QueryPanelRenderingTests : TestContext
     [Fact]
     public void SyntaxHighlighting_KeywordsWrappedInSpan()
     {
-        var component = RenderComponent<QueryPanel>(parameters => parameters
+        var component = Render<QueryPanel>(parameters => parameters
             .Add(p => p.Sql, "SELECT * FROM users"));
 
         // Trigger re-render with the SQL set
@@ -108,7 +108,7 @@ public sealed class QueryPanelRenderingTests : TestContext
         module.Setup<string?>("getSelectedText", _ => true).SetResult("WHERE Id = 1");
 
         string? executedSql = null;
-        var component = RenderComponent<QueryPanel>(parameters => parameters
+        var component = Render<QueryPanel>(parameters => parameters
             .Add(p => p.Sql, "SELECT * FROM Users WHERE Id = 1")
             .Add(p => p.OnExecute, EventCallback.Factory.Create<string>(this, sql => executedSql = sql)));
 
@@ -124,7 +124,7 @@ public sealed class QueryPanelRenderingTests : TestContext
     {
         // Loose mode — getSelectedText returns null/empty → full SQL is used
         string? executedSql = null;
-        var component = RenderComponent<QueryPanel>(parameters => parameters
+        var component = Render<QueryPanel>(parameters => parameters
             .Add(p => p.Sql, "SELECT 1")
             .Add(p => p.OnExecute, EventCallback.Factory.Create<string>(this, sql => executedSql = sql)));
 
@@ -136,7 +136,7 @@ public sealed class QueryPanelRenderingTests : TestContext
     [Fact]
     public void PartialToken_MatchesContainsSuggestion()
     {
-        var component = RenderComponent<QueryPanel>(parameters => parameters
+        var component = Render<QueryPanel>(parameters => parameters
             .Add(p => p.Suggestions, ["FROM", "TRANSFORM"]));
 
         // "OM" matches both FROM (contains) and TRANSFORM (contains)
@@ -150,7 +150,7 @@ public sealed class QueryPanelRenderingTests : TestContext
     public void IncludeExecutionPlanToggle_InvokesChangedCallback()
     {
         var includeExecutionPlan = false;
-        var component = RenderComponent<QueryPanel>(parameters => parameters
+        var component = Render<QueryPanel>(parameters => parameters
             .Add(p => p.IncludeExecutionPlan, includeExecutionPlan)
             .Add(p => p.IncludeExecutionPlanChanged, EventCallback.Factory.Create<bool>(this, value => includeExecutionPlan = value)));
 
