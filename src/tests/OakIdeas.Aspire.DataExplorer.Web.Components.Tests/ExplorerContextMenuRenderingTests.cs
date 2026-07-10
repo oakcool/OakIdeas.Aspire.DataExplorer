@@ -4,7 +4,7 @@ using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Molecules;
 
 namespace OakIdeas.Aspire.DataExplorer.Web.Components.Tests;
 
-public sealed class ExplorerContextMenuRenderingTests : TestContext
+public sealed class ExplorerContextMenuRenderingTests : BunitContext
 {
     [Fact]
     public void RendersNothingWhenNotVisible()
@@ -14,7 +14,7 @@ public sealed class ExplorerContextMenuRenderingTests : TestContext
             new() { Id = "view", Label = "View" }
         };
 
-        var component = RenderComponent<ExplorerContextMenu>(parameters => parameters
+        var component = Render<ExplorerContextMenu>(parameters => parameters
             .Add(p => p.Items, items)
             .Add(p => p.IsVisible, false));
 
@@ -31,7 +31,7 @@ public sealed class ExplorerContextMenuRenderingTests : TestContext
             new() { Id = "select-top-1000", Label = "Select TOP 1000 Rows" }
         };
 
-        var component = RenderComponent<ExplorerContextMenu>(parameters => parameters
+        var component = Render<ExplorerContextMenu>(parameters => parameters
             .Add(p => p.Items, items)
             .Add(p => p.IsVisible, true)
             .Add(p => p.PositionX, 100)
@@ -49,7 +49,7 @@ public sealed class ExplorerContextMenuRenderingTests : TestContext
             new() { Id = "view", Label = "View" }
         };
 
-        var component = RenderComponent<ExplorerContextMenu>(parameters => parameters
+        var component = Render<ExplorerContextMenu>(parameters => parameters
             .Add(p => p.Items, items)
             .Add(p => p.IsVisible, true)
             .Add(p => p.PositionX, 150.5)
@@ -67,7 +67,7 @@ public sealed class ExplorerContextMenuRenderingTests : TestContext
             new() { Id = "view", Label = "View" }
         };
 
-        var component = RenderComponent<ExplorerContextMenu>(parameters => parameters
+        var component = Render<ExplorerContextMenu>(parameters => parameters
             .Add(p => p.Items, items)
             .Add(p => p.IsVisible, true)
             .Add(p => p.OpenToLeft, true)
@@ -89,7 +89,7 @@ public sealed class ExplorerContextMenuRenderingTests : TestContext
             new() { Id = "other", Label = "Other" }
         };
 
-        var component = RenderComponent<ExplorerContextMenu>(parameters => parameters
+        var component = Render<ExplorerContextMenu>(parameters => parameters
             .Add(p => p.Items, items)
             .Add(p => p.IsVisible, true));
 
@@ -104,7 +104,7 @@ public sealed class ExplorerContextMenuRenderingTests : TestContext
             new() { Id = "disabled-action", Label = "Unavailable", IsEnabled = false }
         };
 
-        var component = RenderComponent<ExplorerContextMenu>(parameters => parameters
+        var component = Render<ExplorerContextMenu>(parameters => parameters
             .Add(p => p.Items, items)
             .Add(p => p.IsVisible, true));
 
@@ -129,7 +129,7 @@ public sealed class ExplorerContextMenuRenderingTests : TestContext
             }
         };
 
-        var component = RenderComponent<ExplorerContextMenu>(parameters => parameters
+        var component = Render<ExplorerContextMenu>(parameters => parameters
             .Add(p => p.Items, items)
             .Add(p => p.IsVisible, true));
 
@@ -152,7 +152,7 @@ public sealed class ExplorerContextMenuRenderingTests : TestContext
             }
         };
 
-        var component = RenderComponent<ExplorerContextMenu>(parameters => parameters
+        var component = Render<ExplorerContextMenu>(parameters => parameters
             .Add(p => p.Items, items)
             .Add(p => p.IsVisible, true)
             .Add(p => p.OnDismiss, Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () => dismissed = true)));
@@ -171,7 +171,7 @@ public sealed class ExplorerContextMenuRenderingTests : TestContext
             new() { Id = "view", Label = "View" }
         };
 
-        var component = RenderComponent<ExplorerContextMenu>(parameters => parameters
+        var component = Render<ExplorerContextMenu>(parameters => parameters
             .Add(p => p.Items, items)
             .Add(p => p.IsVisible, true)
             .Add(p => p.OnDismiss, Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () => dismissed = true)));

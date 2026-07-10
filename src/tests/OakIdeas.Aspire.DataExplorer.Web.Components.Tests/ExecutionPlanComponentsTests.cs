@@ -6,7 +6,7 @@ using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Molecules;
 
 namespace OakIdeas.Aspire.DataExplorer.Web.Components.Tests;
 
-public sealed class ExecutionPlanComponentsTests : TestContext
+public sealed class ExecutionPlanComponentsTests : BunitContext
 {
     public ExecutionPlanComponentsTests()
     {
@@ -47,7 +47,7 @@ public sealed class ExecutionPlanComponentsTests : TestContext
     [Fact]
     public void ExecutionPlanViewer_WhenPlanUnavailable_ShowsEmptyState()
     {
-        var component = RenderComponent<ExecutionPlanViewer>(parameters => parameters
+        var component = Render<ExecutionPlanViewer>(parameters => parameters
             .Add(p => p.ExecutionPlan, new ExecutionPlanResponse(
                 IsAvailable: false,
                 Provider: "SqlServer",
@@ -61,7 +61,7 @@ public sealed class ExecutionPlanComponentsTests : TestContext
     [Fact]
     public void ExecutionPlanViewer_WhenPlanAvailable_RendersMermaidDiagram()
     {
-        var component = RenderComponent<ExecutionPlanViewer>(parameters => parameters
+        var component = Render<ExecutionPlanViewer>(parameters => parameters
             .Add(p => p.ExecutionPlan, new ExecutionPlanResponse(
                 IsAvailable: true,
                 Provider: "SqlServer",
@@ -88,7 +88,7 @@ public sealed class ExecutionPlanComponentsTests : TestContext
                 && string.Equals(source, expectedDiagram, StringComparison.Ordinal);
         }).SetResult(null);
 
-        RenderComponent<ExecutionPlanViewer>(parameters => parameters
+        Render<ExecutionPlanViewer>(parameters => parameters
             .Add(p => p.ExecutionPlan, new ExecutionPlanResponse(
                 IsAvailable: true,
                 Provider: "SqlServer",

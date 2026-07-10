@@ -7,12 +7,12 @@ using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Molecules;
 
 namespace OakIdeas.Aspire.DataExplorer.Web.Components.Tests;
 
-public sealed class ObjectExplorerRenderingTests : TestContext
+public sealed class ObjectExplorerRenderingTests : BunitContext
 {
     [Fact]
     public void RendersLoadingState()
     {
-        var component = RenderComponent<ObjectExplorer>(parameters => parameters
+        var component = Render<ObjectExplorer>(parameters => parameters
             .Add(p => p.IsLoading, true));
 
         component.Markup.Should().Contain("Loading metadata objects");
@@ -21,7 +21,7 @@ public sealed class ObjectExplorerRenderingTests : TestContext
     [Fact]
     public void RendersEmptyState()
     {
-        var component = RenderComponent<ObjectExplorer>(parameters => parameters
+        var component = Render<ObjectExplorer>(parameters => parameters
             .Add(p => p.IsLoading, false)
             .Add(p => p.Connections, []));
 
@@ -31,7 +31,7 @@ public sealed class ObjectExplorerRenderingTests : TestContext
     [Fact]
     public void RendersErrorState()
     {
-        var component = RenderComponent<ObjectExplorer>(parameters => parameters
+        var component = Render<ObjectExplorer>(parameters => parameters
             .Add(p => p.ErrorMessage, "Unable to load metadata."));
 
         component.Markup.Should().Contain("Unable to load metadata.");
@@ -49,7 +49,7 @@ public sealed class ObjectExplorerRenderingTests : TestContext
             DateTimeOffset.UtcNow,
             "sql-unavailable");
 
-        var component = RenderComponent<ObjectExplorer>(parameters => parameters
+        var component = Render<ObjectExplorer>(parameters => parameters
             .Add(p => p.ErrorMessage, error.Message)
             .Add(p => p.Error, error));
 
@@ -62,7 +62,7 @@ public sealed class ObjectExplorerRenderingTests : TestContext
     public void RendersDatabaseGroupsAndObjects()
     {
         var connections = CreateConnections();
-        var component = RenderComponent<ObjectExplorer>(parameters => parameters
+        var component = Render<ObjectExplorer>(parameters => parameters
             .Add(p => p.Connections, connections));
 
         ExpandNode(component, "sql-main");
@@ -96,7 +96,7 @@ public sealed class ObjectExplorerRenderingTests : TestContext
     public void RefreshButtonInvokesCallback()
     {
         var refreshCalled = false;
-        var component = RenderComponent<ObjectExplorer>(parameters => parameters
+        var component = Render<ObjectExplorer>(parameters => parameters
             .Add(p => p.Connections, CreateConnections())
             .Add(p => p.OnRefresh, EventCallback.Factory.Create(this, () => refreshCalled = true)));
 
@@ -109,7 +109,7 @@ public sealed class ObjectExplorerRenderingTests : TestContext
     public void ObjectClickInvokesSelectionCallback()
     {
         ObjectExplorer.ObjectSelection? selected = null;
-        var component = RenderComponent<ObjectExplorer>(parameters => parameters
+        var component = Render<ObjectExplorer>(parameters => parameters
             .Add(p => p.Connections, CreateConnections())
             .Add(p => p.OnObjectSelect, EventCallback.Factory.Create<ObjectExplorer.ObjectSelection>(this, value => selected = value)));
 
@@ -130,7 +130,7 @@ public sealed class ObjectExplorerRenderingTests : TestContext
     [Fact]
     public void ContextMenuFlipsLeftAndUpNearViewportEdge()
     {
-        var component = RenderComponent<ObjectExplorer>(parameters => parameters
+        var component = Render<ObjectExplorer>(parameters => parameters
             .Add(p => p.Connections, CreateConnections()));
 
         ExpandNode(component, "sql-main");
@@ -149,7 +149,7 @@ public sealed class ObjectExplorerRenderingTests : TestContext
     [Fact]
     public void ContextMenuOpensDefaultDirectionWhenSpaceIsAvailable()
     {
-        var component = RenderComponent<ObjectExplorer>(parameters => parameters
+        var component = Render<ObjectExplorer>(parameters => parameters
             .Add(p => p.Connections, CreateConnections()));
 
         ExpandNode(component, "sql-main");

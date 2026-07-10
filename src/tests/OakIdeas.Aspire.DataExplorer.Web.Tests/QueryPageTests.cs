@@ -11,7 +11,7 @@ using OakIdeas.Aspire.DataExplorer.Web.Components.Pages;
 
 namespace OakIdeas.Aspire.DataExplorer.Web.Tests;
 
-public sealed class QueryPageTests : TestContext
+public sealed class QueryPageTests : BunitContext
 {
     public QueryPageTests()
     {
@@ -26,7 +26,7 @@ public sealed class QueryPageTests : TestContext
         Services.AddSingleton<IExplorerService>(service);
         Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
 
-        var component = RenderComponent<QueryPage>();
+        var component = Render<QueryPage>();
         component.Find("textarea").Input("SELECT 1");
         component.Find("button[title='Execute (Ctrl+Enter)']").Click();
 
@@ -45,7 +45,7 @@ public sealed class QueryPageTests : TestContext
         Services.AddSingleton<IExplorerService>(service);
         Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
 
-        var component = RenderComponent<QueryPage>();
+        var component = Render<QueryPage>();
         component.Find("textarea").Input("SELECT 1");
         component.Find("button[title='Execute (Ctrl+Enter)']").Click();
 
@@ -64,7 +64,7 @@ public sealed class QueryPageTests : TestContext
         Services.AddSingleton<IExplorerService>(service);
         Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
 
-        var component = RenderComponent<QueryPage>();
+        var component = Render<QueryPage>();
         component.Find("textarea").Input("DELETE FROM dbo.Users");
         component.Find("button[title='Execute (Ctrl+Enter)']").Click();
         component.Markup.Should().Contain("Run Execute again to confirm");
@@ -81,7 +81,7 @@ public sealed class QueryPageTests : TestContext
         Services.AddSingleton<IExplorerService>(service);
         Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
 
-        var component = RenderComponent<QueryPage>();
+        var component = Render<QueryPage>();
         var editor = component.Find("textarea");
         var executeButtonSelector = "button[title='Execute (Ctrl+Enter)']";
 
@@ -105,7 +105,7 @@ public sealed class QueryPageTests : TestContext
         Services.AddSingleton<IExplorerService>(service);
         Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
 
-        var component = RenderComponent<QueryPage>();
+        var component = Render<QueryPage>();
         component.Find("textarea").Input("SELECT 1");
         component.Find("button[title='Execute (Ctrl+Enter)']").Click();
 
@@ -123,7 +123,7 @@ public sealed class QueryPageTests : TestContext
         Services.AddSingleton<IExplorerService>(service);
         Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
 
-        var component = RenderComponent<QueryPage>();
+        var component = Render<QueryPage>();
         component.Find("textarea").Input("SELECT 1");
         component.Find("button[title='Execute (Ctrl+Enter)']").Click();
 
@@ -144,7 +144,7 @@ public sealed class QueryPageTests : TestContext
         Services.AddSingleton<IExplorerService>(service);
         Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
 
-        var component = RenderComponent<QueryPage>();
+        var component = Render<QueryPage>();
         component.Find("textarea").Input("SELECT 1");
         component.Find("button[title='Execute (Ctrl+Enter)']").Click();
 
@@ -168,7 +168,7 @@ public sealed class QueryPageTests : TestContext
         Services.AddSingleton<IExplorerService>(service);
         Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
 
-        var component = RenderComponent<QueryPage>();
+        var component = Render<QueryPage>();
         component.Find("button.de-query-tab--errors").Click();
 
         component.Markup.Should().Contain("No errors");
@@ -183,7 +183,7 @@ public sealed class QueryPageTests : TestContext
         var navigationManager = Services.GetRequiredService<NavigationManager>();
         navigationManager.NavigateTo(navigationManager.GetUriWithQueryParameter("sql", "SELECT 1"));
 
-        var component = RenderComponent<QueryPage>();
+        var component = Render<QueryPage>();
 
         component.Find("textarea").GetAttribute("value").Should().Be("SELECT 1");
 
@@ -202,7 +202,7 @@ public sealed class QueryPageTests : TestContext
         var navigationManager = Services.GetRequiredService<NavigationManager>();
         navigationManager.NavigateTo(navigationManager.GetUriWithQueryParameter("sql", "SELECT 1"));
 
-        var component = RenderComponent<QueryPage>();
+        var component = Render<QueryPage>();
 
         service.ExecuteCalls.Should().Be(0);
 
@@ -224,7 +224,7 @@ public sealed class QueryPageTests : TestContext
         Services.AddSingleton<IExplorerService>(service);
         Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
 
-        var component = RenderComponent<QueryPage>();
+        var component = Render<QueryPage>();
         component.Find("button[title*='Include execution plan']").Click();
         component.Find("textarea").Input("SELECT 1");
         component.Find("button[title='Execute (Ctrl+Enter)']").Click();
@@ -243,7 +243,7 @@ public sealed class QueryPageTests : TestContext
         Services.AddSingleton<IExplorerService>(service);
         Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
 
-        var component = RenderComponent<QueryPage>();
+        var component = Render<QueryPage>();
         component.Find("button[title*='Include execution plan']").Click();
         component.Find("textarea").Input("SELECT 1");
         component.Find("button[title='Execute (Ctrl+Enter)']").Click();
@@ -271,7 +271,7 @@ public sealed class QueryPageTests : TestContext
         Services.AddSingleton<IExplorerService>(service);
         Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
 
-        var component = RenderComponent<QueryPage>();
+        var component = Render<QueryPage>();
         component.Find("button[title*='Include execution plan']").Click();
         component.Find("textarea").Input("SELECT 1");
         component.Find("button[title='Execute (Ctrl+Enter)']").Click();
@@ -291,7 +291,7 @@ public sealed class QueryPageTests : TestContext
         Services.AddSingleton<IExplorerService>(service);
         Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
 
-        var component = RenderComponent<QueryPage>();
+        var component = Render<QueryPage>();
         component.Find("button[title*='Include execution plan']").Click();
 
         var tabButtons = component.FindAll(".de-query-pane__tabs button");
@@ -311,7 +311,7 @@ public sealed class QueryPageTests : TestContext
         Services.AddSingleton<IExplorerService>(service);
         Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
 
-        var component = RenderComponent<QueryPage>();
+        var component = Render<QueryPage>();
         component.Find("button[title*='Include execution plan']").Click();
         component.Find("textarea").Input("SELECT 1");
         component.Find("button[title='Execute (Ctrl+Enter)']").Click();

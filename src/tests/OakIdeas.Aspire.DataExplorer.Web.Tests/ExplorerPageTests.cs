@@ -9,7 +9,7 @@ using OakIdeas.Aspire.DataExplorer.Web.Components.Pages;
 
 namespace OakIdeas.Aspire.DataExplorer.Web.Tests;
 
-public sealed class ExplorerPageTests : TestContext
+public sealed class ExplorerPageTests : BunitContext
 {
     public ExplorerPageTests()
     {
@@ -23,7 +23,7 @@ public sealed class ExplorerPageTests : TestContext
         var navigationManager = Services.GetRequiredService<NavigationManager>();
         navigationManager.NavigateTo("/explorer?objectId=dbo.Users&objectType=table&objectName=Users&schemaName=dbo&connectionName=sql-main&databaseName=applicationdb");
 
-        var component = RenderComponent<ExplorerPage>();
+        var component = Render<ExplorerPage>();
 
         component.WaitForAssertion(() =>
         {
@@ -41,7 +41,7 @@ public sealed class ExplorerPageTests : TestContext
         var navigationManager = Services.GetRequiredService<NavigationManager>();
         navigationManager.NavigateTo("/explorer?objectId=dbo.SearchUsers&objectType=procedure&objectName=SearchUsers&schemaName=dbo&connectionName=sql-main&databaseName=applicationdb");
 
-        var component = RenderComponent<ExplorerPage>();
+        var component = Render<ExplorerPage>();
 
         component.WaitForAssertion(() =>
         {
@@ -58,7 +58,7 @@ public sealed class ExplorerPageTests : TestContext
         var navigationManager = Services.GetRequiredService<NavigationManager>();
         navigationManager.NavigateTo("/explorer?objectId=dbo.GetUserDisplayName&objectType=function&objectName=GetUserDisplayName&schemaName=dbo&connectionName=sql-main&databaseName=applicationdb");
 
-        var component = RenderComponent<ExplorerPage>();
+        var component = Render<ExplorerPage>();
 
         component.WaitForAssertion(() =>
         {
@@ -76,7 +76,7 @@ public sealed class ExplorerPageTests : TestContext
         var navigationManager = Services.GetRequiredService<NavigationManager>();
         navigationManager.NavigateTo("/explorer?objectId=dbo.Users&objectType=table&objectName=Users&schemaName=dbo&connectionName=sql-main&databaseName=applicationdb");
 
-        var component = RenderComponent<ExplorerPage>();
+        var component = Render<ExplorerPage>();
 
         component.WaitForAssertion(() =>
         {
@@ -103,7 +103,7 @@ public sealed class ExplorerPageTests : TestContext
         var navigationManager = Services.GetRequiredService<NavigationManager>();
         navigationManager.NavigateTo("/explorer?objectId=dbo.Users&objectType=table&objectName=Users&schemaName=dbo&connectionName=sql-main&databaseName=applicationdb");
 
-        var component = RenderComponent<ExplorerPage>();
+        var component = Render<ExplorerPage>();
 
         component.WaitForAssertion(() =>
         {
