@@ -272,6 +272,36 @@ public sealed class ExplorerServiceTests
         response.ExecutionPlan.Provider.Should().Be("SqlServer");
     }
 
+    [Fact]
+    public async Task ExecuteQueryAsync_WhenWriteOperationsDisabled_RequestsReadOnlyExecution()
+    {
+        var provider = new DefinitionProvider("SELECT 1");
+        var service = CreateService(
+            providerFactory: new StubProviderFactory(provider),
+            options: new DataExplorerOptions { EnableWriteOperations = false });
+
+        var response = await service.ExecuteQueryAsync("SELECT id FROM dbo.Users", includeExecutionPlan: false, CancellationToken.None);
+
+        response.Error.Should().BeNull();
+        provider.LastRequest.Should().NotBeNull();
+        provider.LastRequest!.ReadOnly.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ExecuteQueryAsync_WhenWriteOperationsEnabled_DoesNotRequestReadOnlyExecution()
+    {
+        var provider = new DefinitionProvider("SELECT 1");
+        var service = CreateService(
+            providerFactory: new StubProviderFactory(provider),
+            options: new DataExplorerOptions { EnableWriteOperations = true });
+
+        var response = await service.ExecuteQueryAsync("SELECT id FROM dbo.Users", includeExecutionPlan: false, CancellationToken.None);
+
+        response.Error.Should().BeNull();
+        provider.LastRequest.Should().NotBeNull();
+        provider.LastRequest!.ReadOnly.Should().BeFalse();
+    }
+
     private static ExplorerService CreateService(
         IAspireResourceDiscovery? resourceDiscovery = null,
         ISelectedDatabaseService? selectedDatabaseService = null,

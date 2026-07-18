@@ -48,9 +48,11 @@ internal sealed class ConnectionStringAspireResourceDiscovery : IAspireResourceD
 
         try
         {
+            var requireLocalConnections = _options.Value.RequireLocalConnections;
+
             var descriptors = _configuration.GetSection("ConnectionStrings")
                 .GetChildren()
-                .Select(CreateDescriptor)
+                .Select(section => CreateDescriptor(section, requireLocalConnections))
                 .Where(static descriptor => descriptor is not null)
                 .Cast<DiscoveredDatabaseResourceDescriptor>()
                 .ToArray();
@@ -66,7 +68,9 @@ internal sealed class ConnectionStringAspireResourceDiscovery : IAspireResourceD
         }
     }
 
-    private static DiscoveredDatabaseResourceDescriptor? CreateDescriptor(IConfigurationSection section)
+    private static DiscoveredDatabaseResourceDescriptor? CreateDescriptor(
+        IConfigurationSection section,
+        bool requireLocalConnections)
     {
         if (string.IsNullOrWhiteSpace(section.Key) || string.IsNullOrWhiteSpace(section.Value))
         {
@@ -75,6 +79,14 @@ internal sealed class ConnectionStringAspireResourceDiscovery : IAspireResourceD
 
         var key = section.Key.Trim();
         var connectionString = section.Value;
+
+        // When RequireLocalConnections is enabled, refuse to surface any resource whose server
+        // is not on the local machine so the tool cannot be pointed at a remote/shared database.
+        if (requireLocalConnections && !IsLocalConnection(connectionString))
+        {
+            return null;
+        }
+
         var databaseName = TryGetDatabaseName(connectionString) ?? key;
         var providerHint = InferProviderHint(connectionString);
 
@@ -114,6 +126,93 @@ internal sealed class ConnectionStringAspireResourceDiscovery : IAspireResourceD
         }
 
         return null;
+    }
+
+    private static bool IsLocalConnection(string connectionString)
+    {
+        string? server = null;
+        try
+        {
+            var builder = new DbConnectionStringBuilder { ConnectionString = connectionString };
+
+            if (!TryGetValue(builder, "Server", out server)
+                && !TryGetValue(builder, "Data Source", out server)
+                && !TryGetValue(builder, "Host", out server))
+            {
+                // No server key means an in-process/relative source (for example SQLite) — treat as local.
+                return true;
+            }
+        }
+        catch (ArgumentException)
+        {
+            // Unparseable connection strings are treated as non-local so they are not surfaced.
+            return false;
+        }
+
+        return IsLocalHost(server);
+    }
+
+    private static bool IsLocalHost(string? server)
+    {
+        if (string.IsNullOrWhiteSpace(server))
+        {
+            return true;
+        }
+
+        var host = server.Trim();
+
+        // Bracketed IPv6 literal ("[::1]" or "[::1]:5432"): extract the address inside the brackets.
+        if (host.StartsWith('['))
+        {
+            var closingBracket = host.IndexOf(']');
+            if (closingBracket > 0)
+            {
+                return IsLoopbackOrMachine(host[1..closingBracket]);
+            }
+        }
+
+        // Strip a leading protocol prefix such as "tcp:" or "np:" (an alphabetic token before ':').
+        var protocolSeparator = host.IndexOf(':');
+        if (protocolSeparator > 1 && host[..protocolSeparator].All(char.IsLetter))
+        {
+            host = host[(protocolSeparator + 1)..];
+        }
+
+        // Drop a named-instance suffix ("host\\instance").
+        var instanceSeparator = host.IndexOf('\\');
+        if (instanceSeparator >= 0)
+        {
+            host = host[..instanceSeparator];
+        }
+
+        // Drop a port suffix ("host,1433" for SQL Server or "host:5432" for others).
+        var portSeparator = host.IndexOfAny([',', ':']);
+        if (portSeparator >= 0)
+        {
+            host = host[..portSeparator];
+        }
+
+        return IsLoopbackOrMachine(host.Trim());
+    }
+
+    private static bool IsLoopbackOrMachine(string host)
+    {
+        if (host.Length == 0
+            || host is "."
+            || host.StartsWith("(local)", StringComparison.OrdinalIgnoreCase)
+            || host.StartsWith("(localdb)", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+            || host.Equals("127.0.0.1", StringComparison.Ordinal)
+            || host.Equals("::1", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return host.Equals(Environment.MachineName, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool TryGetValue(DbConnectionStringBuilder builder, string key, out string? value)

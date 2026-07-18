@@ -59,9 +59,12 @@ public static class DataExplorerHostingExtensions
                 : throw new InvalidOperationException(
                     $"The packaged Data Explorer app was not found in '{runtimeDirectory}'. Ensure the package assets were copied to the application output.");
 
+        // Bind to loopback only and do NOT publish an external endpoint. Data Explorer runs
+        // arbitrary developer SQL with no authentication, so it must never be reachable from
+        // other hosts on the network. Consumers that deliberately need remote access can add
+        // `.WithExternalHttpEndpoints()` themselves.
         return resource
             .WithHttpEndpoint(env: "HTTP_PORTS")
-            .WithExternalHttpEndpoints()
             .WithEnvironment("ASPNETCORE_ENVIRONMENT", builder.Environment.EnvironmentName)
             .WithEnvironment("DOTNET_ENVIRONMENT", builder.Environment.EnvironmentName)
             .WithEnvironment("ASPNETCORE_FORWARDEDHEADERS_ENABLED", "true");
