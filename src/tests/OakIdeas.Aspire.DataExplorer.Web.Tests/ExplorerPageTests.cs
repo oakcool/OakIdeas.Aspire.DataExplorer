@@ -6,6 +6,7 @@ using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer;
 using OakIdeas.Aspire.DataExplorer.Web.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Web.Components.Pages;
+using OakIdeas.Aspire.DataExplorer.Web.Services;
 
 namespace OakIdeas.Aspire.DataExplorer.Web.Tests;
 
@@ -14,14 +15,22 @@ public sealed class ExplorerPageTests : BunitContext
     public ExplorerPageTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
+        // ExplorerNavigationState is a circuit-scoped service required by ExplorerPage
+        Services.AddScoped<ExplorerNavigationState>();
     }
 
     [Fact]
     public void TableSelection_LoadsKeysAndTriggers()
     {
         Services.AddSingleton<IExplorerService>(new FakeExplorerService());
-        var navigationManager = Services.GetRequiredService<NavigationManager>();
-        navigationManager.NavigateTo("/explorer?objectId=dbo.Users&objectType=table&objectName=Users&schemaName=dbo&connectionName=sql-main&databaseName=applicationdb");
+        var state = Services.GetRequiredService<ExplorerNavigationState>();
+        state.SetSelection(new ExplorerObjectSelection(
+            ObjectId: "dbo.Users",
+            ObjectType: "table",
+            ObjectName: "Users",
+            SchemaName: "dbo",
+            ConnectionName: "sql-main",
+            DatabaseName: "applicationdb"));
 
         var component = Render<ExplorerPage>();
 
@@ -38,8 +47,14 @@ public sealed class ExplorerPageTests : BunitContext
     public void ProcedureSelection_LoadsParameterDirectionAndDefault()
     {
         Services.AddSingleton<IExplorerService>(new FakeExplorerService());
-        var navigationManager = Services.GetRequiredService<NavigationManager>();
-        navigationManager.NavigateTo("/explorer?objectId=dbo.SearchUsers&objectType=procedure&objectName=SearchUsers&schemaName=dbo&connectionName=sql-main&databaseName=applicationdb");
+        var state = Services.GetRequiredService<ExplorerNavigationState>();
+        state.SetSelection(new ExplorerObjectSelection(
+            ObjectId: "dbo.SearchUsers",
+            ObjectType: "procedure",
+            ObjectName: "SearchUsers",
+            SchemaName: "dbo",
+            ConnectionName: "sql-main",
+            DatabaseName: "applicationdb"));
 
         var component = Render<ExplorerPage>();
 
@@ -55,8 +70,14 @@ public sealed class ExplorerPageTests : BunitContext
     public void FunctionSelection_LoadsParametersAndReturnType()
     {
         Services.AddSingleton<IExplorerService>(new FakeExplorerService());
-        var navigationManager = Services.GetRequiredService<NavigationManager>();
-        navigationManager.NavigateTo("/explorer?objectId=dbo.GetUserDisplayName&objectType=function&objectName=GetUserDisplayName&schemaName=dbo&connectionName=sql-main&databaseName=applicationdb");
+        var state = Services.GetRequiredService<ExplorerNavigationState>();
+        state.SetSelection(new ExplorerObjectSelection(
+            ObjectId: "dbo.GetUserDisplayName",
+            ObjectType: "function",
+            ObjectName: "GetUserDisplayName",
+            SchemaName: "dbo",
+            ConnectionName: "sql-main",
+            DatabaseName: "applicationdb"));
 
         var component = Render<ExplorerPage>();
 
@@ -73,8 +94,14 @@ public sealed class ExplorerPageTests : BunitContext
     public void TableSelection_LoadsMetadata_WhenAggregatedTableKeysUseQuotedNames()
     {
         Services.AddSingleton<IExplorerService>(new FakeExplorerService(useQuotedObjectKeys: true));
-        var navigationManager = Services.GetRequiredService<NavigationManager>();
-        navigationManager.NavigateTo("/explorer?objectId=dbo.Users&objectType=table&objectName=Users&schemaName=dbo&connectionName=sql-main&databaseName=applicationdb");
+        var state = Services.GetRequiredService<ExplorerNavigationState>();
+        state.SetSelection(new ExplorerObjectSelection(
+            ObjectId: "dbo.Users",
+            ObjectType: "table",
+            ObjectName: "Users",
+            SchemaName: "dbo",
+            ConnectionName: "sql-main",
+            DatabaseName: "applicationdb"));
 
         var component = Render<ExplorerPage>();
 
@@ -100,8 +127,14 @@ public sealed class ExplorerPageTests : BunitContext
                 "applicationdb",
                 DateTimeOffset.UtcNow,
                 "metadata-partial-failure")));
-        var navigationManager = Services.GetRequiredService<NavigationManager>();
-        navigationManager.NavigateTo("/explorer?objectId=dbo.Users&objectType=table&objectName=Users&schemaName=dbo&connectionName=sql-main&databaseName=applicationdb");
+        var state = Services.GetRequiredService<ExplorerNavigationState>();
+        state.SetSelection(new ExplorerObjectSelection(
+            ObjectId: "dbo.Users",
+            ObjectType: "table",
+            ObjectName: "Users",
+            SchemaName: "dbo",
+            ConnectionName: "sql-main",
+            DatabaseName: "applicationdb"));
 
         var component = Render<ExplorerPage>();
 
@@ -111,6 +144,22 @@ public sealed class ExplorerPageTests : BunitContext
             component.Markup.Should().NotContain("metadata-partial-failure");
             component.Markup.Should().NotContain("SQL Server reported an error while completing this operation.");
         });
+    }
+
+    [Fact]
+    public void DirectNavigation_WithoutState_ShowsEmptyExplorer()
+    {
+        // Regression: navigating directly to /explorer without setting state
+        // must not crash; page should render with no object selected.
+        Services.AddSingleton<IExplorerService>(new FakeExplorerService());
+        var navigationManager = Services.GetRequiredService<NavigationManager>();
+        navigationManager.NavigateTo("/explorer");
+
+        var component = Render<ExplorerPage>();
+
+        // Page renders without throwing and shows the empty-selection status.
+        component.Markup.Should().Contain("Select an object");
+        component.Markup.Should().NotContain("PK_Users");
     }
 
     private sealed class FakeExplorerService : IExplorerService

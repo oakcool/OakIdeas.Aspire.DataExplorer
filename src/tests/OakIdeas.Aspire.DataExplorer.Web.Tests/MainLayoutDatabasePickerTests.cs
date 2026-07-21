@@ -14,8 +14,9 @@ public sealed class MainLayoutDatabasePickerTests : BunitContext
 {
     public MainLayoutDatabasePickerTests()
     {
-        // MainLayout now injects QueryNavigationState
+        // MainLayout now injects QueryNavigationState and ExplorerNavigationState
         Services.AddScoped<QueryNavigationState>();
+        Services.AddScoped<ExplorerNavigationState>();
     }
     [Fact]
     public void DatabasePicker_ChangingSelection_UpdatesExplorerMetadata()

@@ -222,6 +222,49 @@ public sealed class QueryPageTests : BunitContext
     }
 
     [Fact]
+    public void PendingSql_ViaNavigationState_PopulatesEditor()
+    {
+        // State-service SQL (from context-menu navigation) must populate the editor
+        // without requiring a ?sql= URL parameter.
+        var service = new FakeExplorerService();
+        Services.AddSingleton<IExplorerService>(service);
+        Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
+        var navigationManager = Services.GetRequiredService<NavigationManager>();
+        var navState = Services.GetRequiredService<QueryNavigationState>();
+
+        navState.SetPendingSql("SELECT TOP 100 * FROM dbo.Orders");
+        navigationManager.NavigateTo("/query");
+
+        var component = Render<QueryPage>();
+        component.Render();
+
+        component.Find("textarea").GetAttribute("value").Should().Be("SELECT TOP 100 * FROM dbo.Orders");
+        service.ExecuteCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public void PendingSql_WithAutoExecute_ViaNavigationState_ExecutesSql()
+    {
+        // State-service SQL + auto-execute flag (context-menu "Select Top 1000") must
+        // populate the editor AND trigger execution — without any URL parameters.
+        var service = new FakeExplorerService();
+        Services.AddSingleton<IExplorerService>(service);
+        Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
+        var navigationManager = Services.GetRequiredService<NavigationManager>();
+        var navState = Services.GetRequiredService<QueryNavigationState>();
+
+        navState.SetPendingSql("SELECT TOP 1000 * FROM dbo.Users");
+        navState.RequestAutoExecute();
+        navigationManager.NavigateTo("/query");
+
+        var component = Render<QueryPage>();
+        component.Render();
+
+        component.WaitForAssertion(() => service.ExecuteCalls.Should().Be(1));
+        component.Find("textarea").GetAttribute("value").Should().Be("SELECT TOP 1000 * FROM dbo.Users");
+    }
+
+    [Fact]
     public void AutoExecute_ViaUrlParameter_DoesNotExecute()
     {
         // F-01 regression: URL-supplied ?autoexec=true must NOT trigger execution.

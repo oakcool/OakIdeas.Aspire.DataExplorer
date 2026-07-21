@@ -3,8 +3,11 @@
 @using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer
 @using OakIdeas.Aspire.DataExplorer.Web.Abstractions
 @using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Atoms
+@using OakIdeas.Aspire.DataExplorer.Web.Services
 @implements IDisposable
 @inject IExplorerService ExplorerService
+@inject ExplorerNavigationState ExplorerNavigationState
+@inject NavigationManager NavigationManager
 
 <PageTitle>@PageTitle</PageTitle>
 
@@ -65,24 +68,6 @@
 </div>
 
 @code {
-    [SupplyParameterFromQuery(Name = "objectId")]
-    public string? ObjectId { get; set; }
-
-    [SupplyParameterFromQuery(Name = "objectType")]
-    public string? ObjectType { get; set; }
-
-    [SupplyParameterFromQuery(Name = "objectName")]
-    public string? ObjectName { get; set; }
-
-    [SupplyParameterFromQuery(Name = "schemaName")]
-    public string? SchemaName { get; set; }
-
-    [SupplyParameterFromQuery(Name = "connectionName")]
-    public string? ConnectionName { get; set; }
-
-    [SupplyParameterFromQuery(Name = "databaseName")]
-    public string? DatabaseName { get; set; }
-
     private ObjectDetails.ObjectModel? _selection;
     private ObjectDetails.ObjectMetadata? _objectMetadata;
     private ObjectDetails.DefinitionModel? _definitionModel;
@@ -108,10 +93,27 @@
             _ => "Object",
         };
 
-    protected override async Task OnParametersSetAsync()
+    protected override async Task OnInitializedAsync()
     {
-        var kind = ParseObjectKind(ObjectType);
-        if (string.IsNullOrWhiteSpace(ObjectId) || kind is null)
+        NavigationManager.LocationChanged += HandleLocationChanged;
+        await LoadFromStateAsync();
+    }
+
+    private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        _ = InvokeAsync(LoadFromStateAsync);
+    }
+
+    private async Task LoadFromStateAsync()
+    {
+        var nav = ExplorerNavigationState.ConsumeSelection();
+        if (nav is null)
+        {
+            return;
+        }
+
+        var kind = ParseObjectKind(nav.ObjectType);
+        if (string.IsNullOrWhiteSpace(nav.ObjectId) || kind is null)
         {
             _selection = null;
             _objectMetadata = null;
@@ -127,11 +129,11 @@
         _loadCts = cts;
 
         _selection = new ObjectDetails.ObjectModel(
-            ObjectId: ObjectId,
-            ObjectName: ObjectName ?? ObjectId,
-            SchemaName: SchemaName ?? string.Empty,
-            ConnectionName: ConnectionName ?? string.Empty,
-            DatabaseName: DatabaseName ?? string.Empty,
+            ObjectId: nav.ObjectId,
+            ObjectName: nav.ObjectName,
+            SchemaName: nav.SchemaName,
+            ConnectionName: nav.ConnectionName,
+            DatabaseName: nav.DatabaseName,
             Kind: kind.Value);
         _objectMetadata = null;
         _definitionModel = null;
@@ -139,6 +141,8 @@
         _definitionError = null;
         _isLoading = true;
         _isDefinitionLoading = true;
+
+        await InvokeAsync(StateHasChanged);
 
         try
         {
@@ -347,7 +351,7 @@
 
     private async Task LoadDefinitionAsync(ObjectDetails.ObjectKind kind, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(ObjectId))
+        if (_selection is null || string.IsNullOrWhiteSpace(_selection.ObjectId))
         {
             _definitionModel = new ObjectDetails.DefinitionModel(null, false, "Object ID is required.");
             _isDefinitionLoading = false;
@@ -364,7 +368,7 @@
             _ => DatabaseObjectType.Unknown,
         };
 
-        var response = await ExplorerService.GetObjectDefinitionAsync(ObjectId, contractType, cancellationToken);
+        var response = await ExplorerService.GetObjectDefinitionAsync(_selection.ObjectId, contractType, cancellationToken);
         _definitionError = response.Error;
 
         _definitionModel = new ObjectDetails.DefinitionModel(
@@ -458,6 +462,7 @@
 
     public void Dispose()
     {
+        NavigationManager.LocationChanged -= HandleLocationChanged;
         _loadCts?.Cancel();
         _loadCts?.Dispose();
     }

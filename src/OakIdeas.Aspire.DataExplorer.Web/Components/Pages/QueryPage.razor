@@ -200,13 +200,19 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        if (string.IsNullOrWhiteSpace(InitialSql))
+        // In-process navigation (context-menu) carries SQL via QueryNavigationState.
+        // External deep-link navigation carries SQL via the ?sql= URL parameter.
+        // The state service takes priority when both are present.
+        var pendingSql = QueryNavigationState.ConsumePendingSql();
+        var effectiveSql = pendingSql ?? InitialSql;
+
+        if (string.IsNullOrWhiteSpace(effectiveSql))
         {
             _lastAppliedInitialSql = null;
             return;
         }
 
-        var sqlChanged = !string.Equals(_lastAppliedInitialSql, InitialSql, StringComparison.Ordinal);
+        var sqlChanged = !string.Equals(_lastAppliedInitialSql, effectiveSql, StringComparison.Ordinal);
 
         // Consume the auto-execute flag from the circuit-scoped state service.
         // This flag can only be set by in-process navigation (e.g. Object Explorer context menu).
@@ -218,8 +224,8 @@
             return;
         }
 
-        _sql = InitialSql;
-        _lastAppliedInitialSql = InitialSql;
+        _sql = effectiveSql;
+        _lastAppliedInitialSql = effectiveSql;
 
         if (autoExecute)
         {
