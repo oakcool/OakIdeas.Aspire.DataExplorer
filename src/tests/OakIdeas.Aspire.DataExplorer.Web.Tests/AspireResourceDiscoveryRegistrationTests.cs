@@ -45,8 +45,8 @@ public sealed class AspireResourceDiscoveryRegistrationTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["ConnectionStrings:sampledb"] = "Server=localhost;Database=sampledb;User Id=sa;******;",
-                ["ConnectionStrings:warehousedb"] = "Server=localhost;Database=warehousedb;User Id=sa;******;",
+                ["ConnectionStrings:sampledb"] = "Server=localhost;Database=sampledb;User Id=sa;Password=placeholder;",
+                ["ConnectionStrings:warehousedb"] = "Server=localhost;Database=warehousedb;User Id=sa;Password=placeholder;",
             })
             .Build();
 
