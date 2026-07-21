@@ -6,11 +6,17 @@ using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer;
 using OakIdeas.Aspire.DataExplorer.Web.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Web.Components.Layout;
+using OakIdeas.Aspire.DataExplorer.Web.Services;
 
 namespace OakIdeas.Aspire.DataExplorer.Web.Tests;
 
 public sealed class MainLayoutDatabasePickerTests : BunitContext
 {
+    public MainLayoutDatabasePickerTests()
+    {
+        // MainLayout now injects QueryNavigationState
+        Services.AddScoped<QueryNavigationState>();
+    }
     [Fact]
     public void DatabasePicker_ChangingSelection_UpdatesExplorerMetadata()
     {

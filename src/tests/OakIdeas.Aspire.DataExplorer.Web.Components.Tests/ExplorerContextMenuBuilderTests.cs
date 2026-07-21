@@ -263,7 +263,7 @@ public sealed class ExplorerContextMenuBuilderTests
         raisedAction.Should().NotBeNull();
         raisedAction!.AutoExecute.Should().BeFalse();
         raisedAction.Sql.Should().Contain("sp_helptext");
-        raisedAction.Sql.Should().Contain("[dbo].[ActiveUsers]");
+        raisedAction.Sql.Should().Contain("dbo.ActiveUsers");
     }
 
     private static ObjectExplorer.ObjectSelection CreateSelection(

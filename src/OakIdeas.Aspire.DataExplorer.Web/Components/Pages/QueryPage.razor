@@ -4,8 +4,10 @@
 @using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer
 @using OakIdeas.Aspire.DataExplorer.Core.Configuration
 @using OakIdeas.Aspire.DataExplorer.Web.Abstractions
+@using OakIdeas.Aspire.DataExplorer.Web.Services
 @inject IExplorerService ExplorerService
 @inject IOptions<DataExplorerOptions> DataExplorerOptions
+@inject QueryNavigationState QueryNavigationState
 
 <PageTitle>Query — Data Explorer</PageTitle>
 
@@ -161,9 +163,6 @@
     [SupplyParameterFromQuery(Name = "sql")]
     public string? InitialSql { get; set; }
 
-    [SupplyParameterFromQuery(Name = "autoexec")]
-    public bool AutoExecute { get; set; }
-
     private enum ResultTab { Results, Errors, ExecutionPlan }
 
     private string _sql = string.Empty;
@@ -181,7 +180,6 @@
     private CancellationTokenSource? _queryCts;
     private string _activeConnectionName = string.Empty;
     private string? _lastAppliedInitialSql;
-    private bool _lastAppliedAutoExecute;
 
     private bool IsReadOnlyMode => !DataExplorerOptions.Value.EnableWriteOperations;
 
@@ -205,23 +203,25 @@
         if (string.IsNullOrWhiteSpace(InitialSql))
         {
             _lastAppliedInitialSql = null;
-            _lastAppliedAutoExecute = false;
             return;
         }
 
         var sqlChanged = !string.Equals(_lastAppliedInitialSql, InitialSql, StringComparison.Ordinal);
-        var autoExecuteChanged = _lastAppliedAutoExecute != AutoExecute;
 
-        if (!sqlChanged && !autoExecuteChanged)
+        // Consume the auto-execute flag from the circuit-scoped state service.
+        // This flag can only be set by in-process navigation (e.g. Object Explorer context menu).
+        // External URLs cannot trigger auto-execution even when they supply a ?sql= parameter.
+        var autoExecute = sqlChanged && QueryNavigationState.ConsumeAutoExecute();
+
+        if (!sqlChanged && !autoExecute)
         {
             return;
         }
 
         _sql = InitialSql;
         _lastAppliedInitialSql = InitialSql;
-        _lastAppliedAutoExecute = AutoExecute;
 
-        if (AutoExecute)
+        if (autoExecute)
         {
             await RunQuery(_sql);
         }

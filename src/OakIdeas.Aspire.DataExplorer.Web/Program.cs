@@ -39,6 +39,7 @@ builder.Services.AddSelectedDatabaseService();
 builder.Services.AddAspireResourceDiscovery(builder.Configuration);
 builder.Services.AddMetadataRefreshService();
 builder.Services.AddScoped<IExplorerService, ExplorerService>();
+builder.Services.AddScoped<QueryNavigationState>();
 
 var app = builder.Build();
 

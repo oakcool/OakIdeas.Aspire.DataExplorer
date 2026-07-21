@@ -8,8 +8,10 @@
 @using OakIdeas.Aspire.DataExplorer.Web.Abstractions
 @using OakIdeas.Aspire.DataExplorer.Core.Models
 @using Microsoft.AspNetCore.Components.Web
+@using OakIdeas.Aspire.DataExplorer.Web.Services
 @inject NavigationManager NavigationManager
 @inject IExplorerService ExplorerService
+@inject QueryNavigationState QueryNavigationState
 
 <div class="de-shell flex h-screen min-h-screen flex-col overflow-hidden bg-slate-950 text-slate-100">
     <AlertBanner />
@@ -221,7 +223,7 @@
         var queryBuilder = $"sql={Uri.EscapeDataString(action.Sql)}";
         if (action.AutoExecute)
         {
-            queryBuilder += "&autoexec=true";
+            QueryNavigationState.RequestAutoExecute();
         }
 
         NavigationManager.NavigateTo($"/query?{queryBuilder}");
