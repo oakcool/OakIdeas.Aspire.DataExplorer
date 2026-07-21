@@ -73,6 +73,42 @@
     font-size: 0.68rem;
 }
 
+.de-query-status__pill--write {
+    border-color: rgba(239, 68, 68, 0.4);
+    background: rgba(239, 68, 68, 0.14);
+    color: #fca5a5;
+}
+
+.de-query-status__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    background: transparent;
+    color: #fcd34d;
+    border-radius: 999px;
+    padding: 0.1rem 0.55rem;
+    font-size: 0.68rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+}
+
+.de-query-status__toggle:hover {
+    background: rgba(245, 158, 11, 0.18);
+    border-color: rgba(245, 158, 11, 0.6);
+}
+
+.de-query-status__toggle--active {
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #fca5a5;
+}
+
+.de-query-status__toggle--active:hover {
+    background: rgba(239, 68, 68, 0.18);
+    border-color: rgba(239, 68, 68, 0.6);
+}
+
 .de-query-divider {
     height: 4px;
     flex-shrink: 0;

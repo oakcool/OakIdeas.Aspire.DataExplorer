@@ -61,7 +61,11 @@ public interface IExplorerService
     /// </summary>
     /// <param name="sql">The SQL text to execute.</param>
     /// <param name="includeExecutionPlan">Whether the provider should include execution plan data when supported.</param>
+    /// <param name="readOnly">
+    /// When <see langword="true"/>, the query runs inside a rolled-back transaction so no changes persist.
+    /// The caller is responsible for determining the effective read-only state (e.g. from session state).
+    /// </param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A typed response containing query results and execution metrics.</returns>
-    Task<ExecuteDatabaseQueryResponse> ExecuteQueryAsync(string sql, bool includeExecutionPlan, CancellationToken cancellationToken);
+    Task<ExecuteDatabaseQueryResponse> ExecuteQueryAsync(string sql, bool includeExecutionPlan, bool readOnly, CancellationToken cancellationToken);
 }

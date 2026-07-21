@@ -1,13 +1,11 @@
 @page "/query/{connectionName?}"
-@using Microsoft.Extensions.Options
 @using OakIdeas.Aspire.DataExplorer.Contracts.Models
 @using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer
-@using OakIdeas.Aspire.DataExplorer.Core.Configuration
 @using OakIdeas.Aspire.DataExplorer.Web.Abstractions
 @using OakIdeas.Aspire.DataExplorer.Web.Services
 @inject IExplorerService ExplorerService
-@inject IOptions<DataExplorerOptions> DataExplorerOptions
 @inject QueryNavigationState QueryNavigationState
+@inject QuerySessionState QuerySessionState
 
 <PageTitle>Query — Data Explorer</PageTitle>
 
@@ -35,6 +33,18 @@
             @if (IsReadOnlyMode)
             {
                 <span class="de-query-status__pill">Read-only mode</span>
+                <button type="button" class="de-query-status__toggle" @onclick="ToggleWriteMode" title="Enable write operations for this session">
+                    <HeroIcon Kind="HeroIconKind.Eye" Size="12" />
+                    Enable writes
+                </button>
+            }
+            else
+            {
+                <span class="de-query-status__pill de-query-status__pill--write">Write mode</span>
+                <button type="button" class="de-query-status__toggle de-query-status__toggle--active" @onclick="ToggleWriteMode" title="Return to read-only mode for this session">
+                    <HeroIcon Kind="HeroIconKind.ExclamationTriangle" Size="12" />
+                    Disable writes
+                </button>
             }
         </div>
         <QueryPanel ConnectionName="@_activeConnectionName"
@@ -160,9 +170,6 @@
     [Parameter]
     public string? ConnectionName { get; set; }
 
-    [SupplyParameterFromQuery(Name = "sql")]
-    public string? InitialSql { get; set; }
-
     private enum ResultTab { Results, Errors, ExecutionPlan }
 
     private string _sql = string.Empty;
@@ -179,9 +186,8 @@
     private bool _isDestructiveConfirmationPending;
     private CancellationTokenSource? _queryCts;
     private string _activeConnectionName = string.Empty;
-    private string? _lastAppliedInitialSql;
 
-    private bool IsReadOnlyMode => !DataExplorerOptions.Value.EnableWriteOperations;
+    private bool IsReadOnlyMode => !QuerySessionState.WriteEnabled;
 
     protected override async Task OnInitializedAsync()
     {
@@ -201,31 +207,18 @@
     protected override async Task OnParametersSetAsync()
     {
         // In-process navigation (context-menu) carries SQL via QueryNavigationState.
-        // External deep-link navigation carries SQL via the ?sql= URL parameter.
-        // The state service takes priority when both are present.
+        // External deep-link navigation via URL parameters is not supported to prevent
+        // drive-by SQL pre-population from crafted links.
         var pendingSql = QueryNavigationState.ConsumePendingSql();
-        var effectiveSql = pendingSql ?? InitialSql;
 
-        if (string.IsNullOrWhiteSpace(effectiveSql))
-        {
-            _lastAppliedInitialSql = null;
-            return;
-        }
-
-        var sqlChanged = !string.Equals(_lastAppliedInitialSql, effectiveSql, StringComparison.Ordinal);
-
-        // Consume the auto-execute flag from the circuit-scoped state service.
-        // This flag can only be set by in-process navigation (e.g. Object Explorer context menu).
-        // External URLs cannot trigger auto-execution even when they supply a ?sql= parameter.
-        var autoExecute = sqlChanged && QueryNavigationState.ConsumeAutoExecute();
-
-        if (!sqlChanged && !autoExecute)
+        if (string.IsNullOrWhiteSpace(pendingSql))
         {
             return;
         }
 
-        _sql = effectiveSql;
-        _lastAppliedInitialSql = effectiveSql;
+        var autoExecute = QueryNavigationState.ConsumeAutoExecute();
+
+        _sql = pendingSql;
 
         if (autoExecute)
         {
@@ -245,7 +238,7 @@
             _queryError = new DataExplorerError(
                 Category: ErrorCategory.PermissionDenied,
                 Message: "Read-only mode is enabled. Run a SELECT query or enable write operations.",
-                RecoverySuggestion: "Disable read-only mode to run write operations.",
+                RecoverySuggestion: "Use the 'Enable writes' toggle in the status bar to run write operations for this session.",
                 Operation: "execute-query",
                 Target: null,
                 Timestamp: DateTimeOffset.UtcNow,
@@ -275,7 +268,7 @@
 
         try
         {
-            var response = await ExplorerService.ExecuteQueryAsync(sql, _includeExecutionPlan, _queryCts.Token);
+            var response = await ExplorerService.ExecuteQueryAsync(sql, _includeExecutionPlan, readOnly: IsReadOnlyMode, _queryCts.Token);
             if (response.Error is not null)
             {
                 _queryError = response.Error;
@@ -310,6 +303,13 @@
         {
             _running = false;
         }
+    }
+
+    private void ToggleWriteMode()
+    {
+        QuerySessionState.WriteEnabled = !QuerySessionState.WriteEnabled;
+        _isDestructiveConfirmationPending = false;
+        _status = string.Empty;
     }
 
     private void CancelQuery()

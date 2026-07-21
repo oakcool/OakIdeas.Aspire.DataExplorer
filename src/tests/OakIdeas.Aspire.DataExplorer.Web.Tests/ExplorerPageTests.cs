@@ -202,7 +202,7 @@ public sealed class ExplorerPageTests : BunitContext
         public Task<GetObjectDefinitionResponse> GetObjectDefinitionAsync(string objectId, DatabaseObjectType objectType, CancellationToken cancellationToken)
             => Task.FromResult(new GetObjectDefinitionResponse(objectId, objectType, $"CREATE {objectType} {objectId}", true, null, []));
 
-        public Task<ExecuteDatabaseQueryResponse> ExecuteQueryAsync(string sql, bool includeExecutionPlan, CancellationToken cancellationToken)
+        public Task<ExecuteDatabaseQueryResponse> ExecuteQueryAsync(string sql, bool includeExecutionPlan, bool readOnly, CancellationToken cancellationToken)
             => throw new NotSupportedException();
 
         private static DatabaseMetadata CreateMetadata(bool useQuotedObjectKeys)

@@ -170,7 +170,7 @@ public sealed class ExplorerServiceTests
     {
         var service = CreateService(selectedDatabaseService: new StubSelectedDatabaseService(selectedContext: null));
 
-        var response = await service.ExecuteQueryAsync("SELECT 1", includeExecutionPlan: false, CancellationToken.None);
+        var response = await service.ExecuteQueryAsync("SELECT 1", includeExecutionPlan: false, readOnly: false, CancellationToken.None);
 
         response.Error.Should().NotBeNull();
         response.Error!.Category.Should().Be(ErrorCategory.ResourceNotFound);
@@ -191,7 +191,7 @@ public sealed class ExplorerServiceTests
 
         var service = CreateService(providerFactory: new StubProviderFactory(provider));
 
-        var response = await service.ExecuteQueryAsync("SELECT id FROM dbo.Users", includeExecutionPlan: false, CancellationToken.None);
+        var response = await service.ExecuteQueryAsync("SELECT id FROM dbo.Users", includeExecutionPlan: false, readOnly: false, CancellationToken.None);
 
         response.Error.Should().BeNull();
         response.Columns.Should().ContainSingle().Which.Should().Be("id");
@@ -205,7 +205,7 @@ public sealed class ExplorerServiceTests
         var provider = new DefinitionProvider("SELECT 1", null, new InvalidOperationException("Server=secret;Database=app"));
         var service = CreateService(providerFactory: new StubProviderFactory(provider));
 
-        var response = await service.ExecuteQueryAsync("SELECT 1", includeExecutionPlan: false, CancellationToken.None);
+        var response = await service.ExecuteQueryAsync("SELECT 1", includeExecutionPlan: false, readOnly: false, CancellationToken.None);
 
         response.Error.Should().NotBeNull();
         response.Error!.Message.Should().NotContain("Server=secret");
@@ -233,7 +233,7 @@ public sealed class ExplorerServiceTests
                 selectedDatabaseService: new StubSelectedDatabaseService(selected),
                 providerFactory: new StubProviderFactory(provider));
 
-            var response = await service.ExecuteQueryAsync("SELECT 1", includeExecutionPlan: false, CancellationToken.None);
+            var response = await service.ExecuteQueryAsync("SELECT 1", includeExecutionPlan: false, readOnly: false, CancellationToken.None);
 
             response.Error.Should().BeNull();
             provider.LastExecutedConnectionString.Should().Be(expectedConnectionString);
@@ -263,7 +263,7 @@ public sealed class ExplorerServiceTests
 
         var service = CreateService(providerFactory: new StubProviderFactory(provider));
 
-        var response = await service.ExecuteQueryAsync("SELECT id FROM dbo.Users", includeExecutionPlan: true, CancellationToken.None);
+        var response = await service.ExecuteQueryAsync("SELECT id FROM dbo.Users", includeExecutionPlan: true, readOnly: false, CancellationToken.None);
 
         provider.LastRequest.Should().NotBeNull();
         provider.LastRequest!.IncludeExecutionPlan.Should().BeTrue();
@@ -273,14 +273,12 @@ public sealed class ExplorerServiceTests
     }
 
     [Fact]
-    public async Task ExecuteQueryAsync_WhenWriteOperationsDisabled_RequestsReadOnlyExecution()
+    public async Task ExecuteQueryAsync_WhenReadOnlyTrue_RequestsReadOnlyExecution()
     {
         var provider = new DefinitionProvider("SELECT 1");
-        var service = CreateService(
-            providerFactory: new StubProviderFactory(provider),
-            options: new DataExplorerOptions { EnableWriteOperations = false });
+        var service = CreateService(providerFactory: new StubProviderFactory(provider));
 
-        var response = await service.ExecuteQueryAsync("SELECT id FROM dbo.Users", includeExecutionPlan: false, CancellationToken.None);
+        var response = await service.ExecuteQueryAsync("SELECT id FROM dbo.Users", includeExecutionPlan: false, readOnly: true, CancellationToken.None);
 
         response.Error.Should().BeNull();
         provider.LastRequest.Should().NotBeNull();
@@ -288,14 +286,12 @@ public sealed class ExplorerServiceTests
     }
 
     [Fact]
-    public async Task ExecuteQueryAsync_WhenWriteOperationsEnabled_DoesNotRequestReadOnlyExecution()
+    public async Task ExecuteQueryAsync_WhenReadOnlyFalse_DoesNotRequestReadOnlyExecution()
     {
         var provider = new DefinitionProvider("SELECT 1");
-        var service = CreateService(
-            providerFactory: new StubProviderFactory(provider),
-            options: new DataExplorerOptions { EnableWriteOperations = true });
+        var service = CreateService(providerFactory: new StubProviderFactory(provider));
 
-        var response = await service.ExecuteQueryAsync("SELECT id FROM dbo.Users", includeExecutionPlan: false, CancellationToken.None);
+        var response = await service.ExecuteQueryAsync("SELECT id FROM dbo.Users", includeExecutionPlan: false, readOnly: false, CancellationToken.None);
 
         response.Error.Should().BeNull();
         provider.LastRequest.Should().NotBeNull();

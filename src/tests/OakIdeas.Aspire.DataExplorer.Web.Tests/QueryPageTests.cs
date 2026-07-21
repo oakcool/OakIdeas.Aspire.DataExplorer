@@ -18,8 +18,9 @@ public sealed class QueryPageTests : BunitContext
     {
         // QueryPanel uses IJSRuntime for the editor JS module; allow all calls to succeed silently
         JSInterop.Mode = JSRuntimeMode.Loose;
-        // QueryNavigationState is a circuit-scoped service required by QueryPage
+        // Circuit-scoped services required by QueryPage
         Services.AddScoped<QueryNavigationState>();
+        Services.AddScoped<QuerySessionState>();
     }
 
     [Fact]
@@ -181,25 +182,6 @@ public sealed class QueryPageTests : BunitContext
     }
 
     [Fact]
-    public void InitialSql_WhenParametersChange_UpdatesEditorSql()
-    {
-        var service = new FakeExplorerService();
-        Services.AddSingleton<IExplorerService>(service);
-        Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
-        var navigationManager = Services.GetRequiredService<NavigationManager>();
-        navigationManager.NavigateTo(navigationManager.GetUriWithQueryParameter("sql", "SELECT 1"));
-
-        var component = Render<QueryPage>();
-
-        component.Find("textarea").GetAttribute("value").Should().Be("SELECT 1");
-
-        navigationManager.NavigateTo(navigationManager.GetUriWithQueryParameter("sql", "SELECT TOP 1000 * FROM dbo.Users"));
-        component.Render();
-
-        component.Find("textarea").GetAttribute("value").Should().Be("SELECT TOP 1000 * FROM dbo.Users");
-    }
-
-    [Fact]
     public void AutoExecute_ViaNavigationState_ExecutesSql()
     {
         var service = new FakeExplorerService();
@@ -208,13 +190,13 @@ public sealed class QueryPageTests : BunitContext
         var navigationManager = Services.GetRequiredService<NavigationManager>();
         var navState = Services.GetRequiredService<QueryNavigationState>();
 
-        navigationManager.NavigateTo(navigationManager.GetUriWithQueryParameter("sql", "SELECT 1"));
         var component = Render<QueryPage>();
         service.ExecuteCalls.Should().Be(0);
 
-        // Simulate Object Explorer context menu: set the state flag then navigate
+        // Simulate Object Explorer context menu: set the SQL + auto-execute flag then navigate
+        navState.SetPendingSql("SELECT COUNT(*) FROM dbo.Users");
         navState.RequestAutoExecute();
-        navigationManager.NavigateTo(navigationManager.GetUriWithQueryParameter("sql", "SELECT COUNT(*) FROM dbo.Users"));
+        navigationManager.NavigateTo("/query");
         component.Render();
 
         component.WaitForAssertion(() => service.ExecuteCalls.Should().Be(1));
@@ -262,29 +244,6 @@ public sealed class QueryPageTests : BunitContext
 
         component.WaitForAssertion(() => service.ExecuteCalls.Should().Be(1));
         component.Find("textarea").GetAttribute("value").Should().Be("SELECT TOP 1000 * FROM dbo.Users");
-    }
-
-    [Fact]
-    public void AutoExecute_ViaUrlParameter_DoesNotExecute()
-    {
-        // F-01 regression: URL-supplied ?autoexec=true must NOT trigger execution.
-        // Only in-process navigation via QueryNavigationState may trigger auto-execute.
-        var service = new FakeExplorerService();
-        Services.AddSingleton<IExplorerService>(service);
-        Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
-        var navigationManager = Services.GetRequiredService<NavigationManager>();
-
-        navigationManager.NavigateTo(navigationManager.GetUriWithQueryParameters(new Dictionary<string, object?>
-        {
-            ["sql"] = "SELECT COUNT(*) FROM dbo.Users",
-            ["autoexec"] = true,
-        }));
-        var component = Render<QueryPage>();
-        component.Render();
-
-        // SQL should be populated in the editor but NOT auto-executed
-        component.Find("textarea").GetAttribute("value").Should().Be("SELECT COUNT(*) FROM dbo.Users");
-        service.ExecuteCalls.Should().Be(0);
     }
 
     [Fact]
@@ -403,6 +362,85 @@ public sealed class QueryPageTests : BunitContext
     }
 
 
+    [Fact]
+    public void WriteModeToggle_WhenReadOnlyMode_ShowsEnableWritesButton()
+    {
+        var service = new FakeExplorerService();
+        Services.AddSingleton<IExplorerService>(service);
+        Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions { EnableWriteOperations = false }));
+
+        var component = Render<QueryPage>();
+
+        component.Markup.Should().Contain("Read-only mode");
+        component.Markup.Should().Contain("Enable writes");
+        component.Markup.Should().NotContain("Write mode");
+    }
+
+    [Fact]
+    public void WriteModeToggle_WhenClickedInReadOnlyMode_SwitchesToWriteMode()
+    {
+        var service = new FakeExplorerService();
+        Services.AddSingleton<IExplorerService>(service);
+        Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions { EnableWriteOperations = false }));
+
+        var component = Render<QueryPage>();
+        component.Find("button[title='Enable write operations for this session']").Click();
+
+        component.Markup.Should().Contain("Write mode");
+        component.Markup.Should().Contain("Disable writes");
+        component.Markup.Should().NotContain("Read-only mode");
+    }
+
+    [Fact]
+    public void WriteModeToggle_WhenWriteEnabled_ShowsDisableWritesButton()
+    {
+        var service = new FakeExplorerService();
+        Services.AddSingleton<IExplorerService>(service);
+        Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions { EnableWriteOperations = true }));
+
+        var component = Render<QueryPage>();
+
+        component.Markup.Should().Contain("Write mode");
+        component.Markup.Should().Contain("Disable writes");
+        component.Markup.Should().NotContain("Read-only mode");
+    }
+
+    [Fact]
+    public void WriteModeToggle_WhenClickedInWriteMode_ReturnsToReadOnlyMode()
+    {
+        var service = new FakeExplorerService();
+        Services.AddSingleton<IExplorerService>(service);
+        Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions { EnableWriteOperations = true }));
+
+        var component = Render<QueryPage>();
+        component.Find("button[title='Return to read-only mode for this session']").Click();
+
+        component.Markup.Should().Contain("Read-only mode");
+        component.Markup.Should().Contain("Enable writes");
+        component.Markup.Should().NotContain("Write mode");
+    }
+
+    [Fact]
+    public void DestructiveQuery_WhenWriteEnabledViaToggle_ExecutesAfterConfirmation()
+    {
+        var service = new FakeExplorerService();
+        Services.AddSingleton<IExplorerService>(service);
+        Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions { EnableWriteOperations = false }));
+
+        var component = Render<QueryPage>();
+        // Enable writes via toggle
+        component.Find("button[title='Enable write operations for this session']").Click();
+
+        component.Find("textarea").Input("DELETE FROM dbo.Users");
+        component.Find("button[title='Execute (Ctrl+Enter)']").Click();
+        component.Markup.Should().Contain("Run Execute again to confirm");
+        service.ExecuteCalls.Should().Be(0);
+
+        component.Find("button[title='Execute (Ctrl+Enter)']").Click();
+        component.WaitForAssertion(() => service.ExecuteCalls.Should().Be(1));
+    }
+
+
     private sealed class FakeExplorerService(bool returnError = false) : IExplorerService
     {
         public int ExecuteCalls { get; private set; }
@@ -479,7 +517,7 @@ public sealed class QueryPageTests : BunitContext
         public Task<GetObjectDefinitionResponse> GetObjectDefinitionAsync(string objectId, DatabaseObjectType objectType, CancellationToken cancellationToken)
             => Task.FromResult(new GetObjectDefinitionResponse(objectId, objectType, null, false, null, []));
 
-        public Task<ExecuteDatabaseQueryResponse> ExecuteQueryAsync(string sql, bool includeExecutionPlan, CancellationToken cancellationToken)
+        public Task<ExecuteDatabaseQueryResponse> ExecuteQueryAsync(string sql, bool includeExecutionPlan, bool readOnly, CancellationToken cancellationToken)
         {
             ExecuteCalls++;
             LastIncludeExecutionPlan = includeExecutionPlan;
