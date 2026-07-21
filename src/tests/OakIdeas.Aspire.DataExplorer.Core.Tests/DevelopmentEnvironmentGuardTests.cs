@@ -28,7 +28,7 @@ public sealed class DevelopmentEnvironmentGuardTests
     {
         var options = new DataExplorerOptions();
 
-        options.EnableWriteOperations.Should().BeTrue();
+        options.EnableWriteOperations.Should().BeFalse();
         options.EnableAdHocQueries.Should().BeTrue();
         options.EnableAspireResourceDiscovery.Should().BeTrue();
         options.IncludeUnavailableResources.Should().BeTrue();

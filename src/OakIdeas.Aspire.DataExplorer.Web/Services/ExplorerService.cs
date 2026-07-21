@@ -431,7 +431,8 @@ public sealed class ExplorerService(
                     Sql: sql.Trim(),
                     MaxRows: Math.Max(1, _options.MaxQueryRows),
                     TimeoutSeconds: Math.Max(1, _options.QueryTimeoutSeconds),
-                    IncludeExecutionPlan: includeExecutionPlan),
+                    IncludeExecutionPlan: includeExecutionPlan,
+                    ReadOnly: !_options.EnableWriteOperations),
                 cancellationToken);
 
             return new ExecuteDatabaseQueryResponse(

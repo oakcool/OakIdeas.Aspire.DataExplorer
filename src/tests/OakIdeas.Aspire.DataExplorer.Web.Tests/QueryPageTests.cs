@@ -62,7 +62,10 @@ public sealed class QueryPageTests : BunitContext
     {
         var service = new FakeExplorerService();
         Services.AddSingleton<IExplorerService>(service);
-        Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
+        Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions
+        {
+            EnableWriteOperations = true,
+        }));
 
         var component = Render<QueryPage>();
         component.Find("textarea").Input("DELETE FROM dbo.Users");

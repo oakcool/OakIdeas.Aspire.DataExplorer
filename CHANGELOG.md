@@ -21,3 +21,10 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 - Consolidated public-facing documentation and removed temporary development artifacts ahead of public release.
+
+### Security
+- The Data Explorer resource is no longer published as an external endpoint by default; it binds for local development only. Consumers that deliberately need remote access can add `.WithExternalHttpEndpoints()` themselves. (**Breaking** for anyone relying on external reachability.)
+- `DataExplorerOptions.EnableWriteOperations` now defaults to `false` (secure by default). Enable it explicitly to allow write/DDL statements from the Query Window.
+- Read-only query execution is now enforced at the transaction level (statements run inside an always-rolled-back transaction) instead of first-token keyword matching, closing multi-statement/comment/CTE bypasses.
+- `DataExplorerOptions.RequireLocalConnections` (default `true`) is now enforced: discovered database resources whose server is not on the local machine are excluded.
+- `AllowedHosts` for the web app is scoped to loopback hosts instead of `*`.

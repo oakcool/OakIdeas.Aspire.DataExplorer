@@ -4,7 +4,9 @@ public sealed class DataExplorerOptions
 {
     public const string SectionName = "OakIdeas:Aspire:DataExplorer";
 
-    public bool EnableWriteOperations { get; set; } = true;
+    // Secure by default: writes are the destructive capability, so they are opt-in.
+    // When false, queries run inside a rolled-back transaction so no changes persist.
+    public bool EnableWriteOperations { get; set; } = false;
 
     public bool EnableAdHocQueries { get; set; } = true;
 

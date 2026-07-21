@@ -460,7 +460,15 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         await using var connection = new SqlConnection(resource.ConnectionString);
         await connection.OpenAsync(cancellationToken);
 
+        // Read-only enforcement: run inside a transaction that is always rolled back so no
+        // statement can persist changes, regardless of multi-statement batches or leading
+        // comments/CTEs that would defeat a keyword check. Reads still return their result sets.
+        await using var transaction = request.ReadOnly
+            ? (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken)
+            : null;
+
         await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandType = CommandType.Text;
         command.CommandText = request.IncludeExecutionPlan
             ? BuildStatisticsXmlCommandText(request.Sql)
