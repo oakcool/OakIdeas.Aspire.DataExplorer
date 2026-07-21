@@ -8,6 +8,7 @@ using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer;
 using OakIdeas.Aspire.DataExplorer.Core.Configuration;
 using OakIdeas.Aspire.DataExplorer.Web.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Web.Components.Pages;
+using OakIdeas.Aspire.DataExplorer.Web.Services;
 
 namespace OakIdeas.Aspire.DataExplorer.Web.Tests;
 
@@ -17,6 +18,8 @@ public sealed class QueryPageTests : BunitContext
     {
         // QueryPanel uses IJSRuntime for the editor JS module; allow all calls to succeed silently
         JSInterop.Mode = JSRuntimeMode.Loose;
+        // QueryNavigationState is a circuit-scoped service required by QueryPage
+        Services.AddScoped<QueryNavigationState>();
     }
 
     [Fact]
@@ -197,27 +200,48 @@ public sealed class QueryPageTests : BunitContext
     }
 
     [Fact]
-    public void AutoExecute_WhenParametersChange_ExecutesUpdatedSql()
+    public void AutoExecute_ViaNavigationState_ExecutesSql()
     {
         var service = new FakeExplorerService();
         Services.AddSingleton<IExplorerService>(service);
         Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
         var navigationManager = Services.GetRequiredService<NavigationManager>();
+        var navState = Services.GetRequiredService<QueryNavigationState>();
+
         navigationManager.NavigateTo(navigationManager.GetUriWithQueryParameter("sql", "SELECT 1"));
-
         var component = Render<QueryPage>();
-
         service.ExecuteCalls.Should().Be(0);
+
+        // Simulate Object Explorer context menu: set the state flag then navigate
+        navState.RequestAutoExecute();
+        navigationManager.NavigateTo(navigationManager.GetUriWithQueryParameter("sql", "SELECT COUNT(*) FROM dbo.Users"));
+        component.Render();
+
+        component.WaitForAssertion(() => service.ExecuteCalls.Should().Be(1));
+        component.Find("textarea").GetAttribute("value").Should().Be("SELECT COUNT(*) FROM dbo.Users");
+    }
+
+    [Fact]
+    public void AutoExecute_ViaUrlParameter_DoesNotExecute()
+    {
+        // F-01 regression: URL-supplied ?autoexec=true must NOT trigger execution.
+        // Only in-process navigation via QueryNavigationState may trigger auto-execute.
+        var service = new FakeExplorerService();
+        Services.AddSingleton<IExplorerService>(service);
+        Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
+        var navigationManager = Services.GetRequiredService<NavigationManager>();
 
         navigationManager.NavigateTo(navigationManager.GetUriWithQueryParameters(new Dictionary<string, object?>
         {
             ["sql"] = "SELECT COUNT(*) FROM dbo.Users",
             ["autoexec"] = true,
         }));
+        var component = Render<QueryPage>();
         component.Render();
 
-        component.WaitForAssertion(() => service.ExecuteCalls.Should().Be(1));
+        // SQL should be populated in the editor but NOT auto-executed
         component.Find("textarea").GetAttribute("value").Should().Be("SELECT COUNT(*) FROM dbo.Users");
+        service.ExecuteCalls.Should().Be(0);
     }
 
     [Fact]
