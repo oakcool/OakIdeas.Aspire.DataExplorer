@@ -16,7 +16,9 @@ public sealed class QuerySessionState(IOptions<DataExplorerOptions> options)
 {
     /// <summary>
     /// Whether write operations are enabled for the current session.
-    /// Initialized from <see cref="DataExplorerOptions.EnableWriteOperations"/>.
+    /// Initialized from <see cref="DataExplorerOptions.EnableWriteOperations"/> at session start,
+    /// but can be toggled by the user without restarting the application.
+    /// When <see langword="false"/>, queries run inside a rolled-back transaction so no changes persist.
     /// </summary>
     public bool WriteEnabled { get; set; } = options.Value.EnableWriteOperations;
 }
