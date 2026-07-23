@@ -331,7 +331,7 @@ public sealed class ExplorerService(
         }
     }
 
-    public async Task<ExecuteDatabaseQueryResponse> ExecuteQueryAsync(string sql, bool includeExecutionPlan, CancellationToken cancellationToken)
+    public async Task<ExecuteDatabaseQueryResponse> ExecuteQueryAsync(string sql, bool includeExecutionPlan, bool readOnly, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -369,7 +369,7 @@ public sealed class ExplorerService(
                     new ErrorContext("execute-query")));
         }
 
-        if (!_options.EnableWriteOperations && IsPotentiallyDestructiveSql(sql))
+        if (readOnly && IsPotentiallyDestructiveSql(sql))
         {
             return new ExecuteDatabaseQueryResponse(
                 DatabaseName: string.Empty,
@@ -381,8 +381,8 @@ public sealed class ExplorerService(
                 IsTruncated: false,
                 Error: _errorHandler.CreateError(
                     ErrorCategory.PermissionDenied,
-                    "Write operations are disabled by configuration.",
-                    "Run a read-only query or enable write operations for development.",
+                    "Write operations are not enabled for this session.",
+                    "Enable write operations using the session toggle to run write queries.",
                     new ErrorContext("execute-query")));
         }
 
@@ -432,7 +432,7 @@ public sealed class ExplorerService(
                     MaxRows: Math.Max(1, _options.MaxQueryRows),
                     TimeoutSeconds: Math.Max(1, _options.QueryTimeoutSeconds),
                     IncludeExecutionPlan: includeExecutionPlan,
-                    ReadOnly: !_options.EnableWriteOperations),
+                    ReadOnly: readOnly),
                 cancellationToken);
 
             return new ExecuteDatabaseQueryResponse(

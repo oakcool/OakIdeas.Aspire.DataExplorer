@@ -14,6 +14,7 @@ This document records the verification and remediation status of every finding f
 | F-03 | Write Detection — First SQL Token  | Low      | ✅ Already Fixed |
 | F-04 | Identifier Escaping                | Low      | ✅ Resolved    |
 | F-05 | Mermaid Loaded From CDN            | Low      | ✅ Resolved    |
+| F-06 | Operational State Exposed in URLs  | Low      | ✅ Resolved    |
 
 ---
 
@@ -183,3 +184,53 @@ could serve malicious JavaScript to users.
 > **Upgrade note:** When Mermaid is upgraded in future, recompute the SRI hash with
 > `openssl dgst -sha384 -binary mermaid.min.js | base64` and update both the version pin
 > and the `integrity` attribute in `App.razor`.
+
+---
+
+## F-06 — Operational State Exposed in URLs
+
+**Severity:** Low | **Status:** Resolved
+
+### Verification
+
+Multiple pages passed operational state through URL query parameters:
+
+- `ExplorerPage` accepted six query parameters: `objectId`, `objectType`, `objectName`,
+  `schemaName`, `connectionName`, and `databaseName`.
+- `MainLayout.HandleContextAction` built a `?sql=...` query string for Query page navigation.
+- Internal schema names, database names, connection identifiers, and SQL fragments appeared
+  in browser history, server access logs, and HTTP `Referer` headers on every navigation.
+
+### Remediation
+
+- Introduced `ExplorerNavigationState` — a circuit-scoped service that carries the selected
+  database object's identity from the Object Explorer sidebar to `ExplorerPage` without any
+  URL parameters.  `ExplorerPage` subscribes to `NavigationManager.LocationChanged` so that
+  re-selection while the page is already active is also handled without a URL change.
+- Extended `QueryNavigationState` with `SetPendingSql` / `ConsumePendingSql` — carries the
+  context-menu SQL text to `QueryPage` without a `?sql=` URL parameter for in-process
+  navigation.
+- `MainLayout.HandleObjectSelect` now calls `ExplorerNavigationState.SetSelection` and
+  navigates to `/explorer` (no query string).
+- `MainLayout.HandleContextAction` now calls `QueryNavigationState.SetPendingSql` and
+  navigates to `/query` (no query string).
+- `ExplorerPage` no longer declares `[SupplyParameterFromQuery]` parameters.
+- `QueryPage` consumes `ConsumePendingSql()` first; the `?sql=` URL parameter is retained
+  as a backwards-compatible deep-link entry point for external tools — but it cannot
+  trigger execution (unchanged from F-01 remediation).
+
+### Tests Added
+
+- `ExplorerPageTests` updated to use `ExplorerNavigationState` instead of URL parameters.
+- `ExplorerPageTests.DirectNavigation_WithoutState_ShowsEmptyExplorer` — regression test
+  proving that direct navigation to `/explorer` renders gracefully with no object selected.
+- `QueryPageTests.PendingSql_ViaNavigationState_PopulatesEditor` — verifies that SQL set
+  via the state service populates the editor when navigating to `/query` with no URL params.
+- `QueryPageTests.PendingSql_WithAutoExecute_ViaNavigationState_ExecutesSql` — verifies that
+  the state-service SQL + auto-execute flag triggers execution without any URL parameters.
+
+### Documentation
+
+- ADR 0010 created: `docs/decisions/0010-blazor-state-navigation.md`.
+- CHANGELOG updated.
+

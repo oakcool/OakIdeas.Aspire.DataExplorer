@@ -14,8 +14,9 @@ public sealed class MainLayoutDatabasePickerTests : BunitContext
 {
     public MainLayoutDatabasePickerTests()
     {
-        // MainLayout now injects QueryNavigationState
+        // MainLayout now injects QueryNavigationState and ExplorerNavigationState
         Services.AddScoped<QueryNavigationState>();
+        Services.AddScoped<ExplorerNavigationState>();
     }
     [Fact]
     public void DatabasePicker_ChangingSelection_UpdatesExplorerMetadata()
@@ -384,7 +385,7 @@ public sealed class MainLayoutDatabasePickerTests : BunitContext
                 Errors: []));
         }
 
-        public Task<ExecuteDatabaseQueryResponse> ExecuteQueryAsync(string sql, bool includeExecutionPlan, CancellationToken cancellationToken)
+        public Task<ExecuteDatabaseQueryResponse> ExecuteQueryAsync(string sql, bool includeExecutionPlan, bool readOnly, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(new ExecuteDatabaseQueryResponse(

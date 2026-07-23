@@ -12,6 +12,7 @@
 @inject NavigationManager NavigationManager
 @inject IExplorerService ExplorerService
 @inject QueryNavigationState QueryNavigationState
+@inject ExplorerNavigationState ExplorerNavigationState
 
 <div class="de-shell flex h-screen min-h-screen flex-col overflow-hidden bg-slate-950 text-slate-100">
     <AlertBanner />
@@ -197,14 +198,15 @@
             _ => "table",
         };
 
-        var query = $"objectId={Uri.EscapeDataString(selection.ObjectId)}" +
-                    $"&objectType={Uri.EscapeDataString(objectType)}" +
-                    $"&objectName={Uri.EscapeDataString(selection.ObjectName)}" +
-                    $"&schemaName={Uri.EscapeDataString(selection.SchemaName)}" +
-                    $"&connectionName={Uri.EscapeDataString(selection.ConnectionName)}" +
-                    $"&databaseName={Uri.EscapeDataString(selection.DatabaseName)}";
+        ExplorerNavigationState.SetSelection(new ExplorerObjectSelection(
+            ObjectId: selection.ObjectId,
+            ObjectType: objectType,
+            ObjectName: selection.ObjectName,
+            SchemaName: selection.SchemaName,
+            ConnectionName: selection.ConnectionName,
+            DatabaseName: selection.DatabaseName));
 
-        NavigationManager.NavigateTo($"/explorer?{query}");
+        NavigationManager.NavigateTo("/explorer");
     }
 
     private void HandleContextAction(ExplorerContextAction action)
@@ -220,13 +222,13 @@
             return;
         }
 
-        var queryBuilder = $"sql={Uri.EscapeDataString(action.Sql)}";
+        QueryNavigationState.SetPendingSql(action.Sql);
         if (action.AutoExecute)
         {
             QueryNavigationState.RequestAutoExecute();
         }
 
-        NavigationManager.NavigateTo($"/query?{queryBuilder}");
+        NavigationManager.NavigateTo("/query");
     }
 
     private void HandleExplorerMinimizeToggle(bool minimized)
