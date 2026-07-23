@@ -40,7 +40,16 @@ public sealed class ExplorerService(
                 new DiscoverResourcesRequest(IncludeUnavailableResources: true),
                 cancellationToken);
 
-            return new GetAvailableDatabasesResponse(discovered.Resources);
+            var multipleDbEnabled = await _featureFlagService.IsEnabledAsync(
+                ApplicationFeatures.MultipleDatabases, null, cancellationToken).ConfigureAwait(false);
+
+            var resources = multipleDbEnabled
+                ? discovered.Resources
+                : discovered.Resources.Count > 0
+                    ? [discovered.Resources[0]]
+                    : discovered.Resources;
+
+            return new GetAvailableDatabasesResponse(resources);
         }
         catch (OperationCanceledException)
         {
@@ -155,6 +164,24 @@ public sealed class ExplorerService(
                 Errors: [error.Message],
                 Error: error);
         }
+    }
+
+    public async Task<GetDatabaseMetadataResponse> GetDiagramDataAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (await IsFeatureDisabledAsync(ApplicationFeatures.DatabaseDiagram, cancellationToken) is { } diagramDisabledError)
+        {
+            return new GetDatabaseMetadataResponse(
+                Metadata: null,
+                AggregatedMetadata: null,
+                CollectionStatus: MetadataCollectionStatus.Failed,
+                FailureDetails: [],
+                Errors: [diagramDisabledError.Message],
+                Error: diagramDisabledError);
+        }
+
+        return await GetDatabaseMetadataAsync(cancellationToken);
     }
 
     public async Task<RefreshMetadataResponse> RefreshDatabaseMetadataAsync(CancellationToken cancellationToken)
@@ -361,6 +388,19 @@ public sealed class ExplorerService(
     {
         cancellationToken.ThrowIfCancellationRequested();
 
+        if (await IsFeatureDisabledAsync(ApplicationFeatures.QueryEditor, cancellationToken) is { } queryDisabledError)
+        {
+            return new ExecuteDatabaseQueryResponse(
+                DatabaseName: string.Empty,
+                Columns: [],
+                Rows: [],
+                RowCount: 0,
+                AffectedRowCount: null,
+                Duration: TimeSpan.Zero,
+                IsTruncated: false,
+                Error: queryDisabledError);
+        }
+
         if (!_options.EnableAdHocQueries)
         {
             return new ExecuteDatabaseQueryResponse(
@@ -449,6 +489,9 @@ public sealed class ExplorerService(
 
         try
         {
+            var executionPlanEnabled = includeExecutionPlan
+                && await _featureFlagService.IsEnabledAsync(ApplicationFeatures.QueryExecutionPlan, null, cancellationToken).ConfigureAwait(false);
+
             var provider = _providerFactory.Create(selected.Resource.ProviderType);
             var result = await provider.ExecuteQueryAsync(
                 CreateDatabaseResource(selected.Resource),
@@ -457,7 +500,7 @@ public sealed class ExplorerService(
                     Sql: sql.Trim(),
                     MaxRows: Math.Max(1, _options.MaxQueryRows),
                     TimeoutSeconds: Math.Max(1, _options.QueryTimeoutSeconds),
-                    IncludeExecutionPlan: includeExecutionPlan,
+                    IncludeExecutionPlan: executionPlanEnabled,
                     ReadOnly: readOnly),
                 cancellationToken);
 

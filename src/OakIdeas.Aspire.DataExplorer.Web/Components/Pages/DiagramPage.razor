@@ -68,7 +68,7 @@
 
         try
         {
-            var response = await ExplorerService.GetDatabaseMetadataAsync(cts.Token);
+            var response = await ExplorerService.GetDiagramDataAsync(cts.Token);
 
             if (cts.IsCancellationRequested) return;
 

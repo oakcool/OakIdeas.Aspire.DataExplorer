@@ -385,6 +385,9 @@ public sealed class MainLayoutDatabasePickerTests : BunitContext
                 Errors: []));
         }
 
+        public Task<GetDatabaseMetadataResponse> GetDiagramDataAsync(CancellationToken cancellationToken)
+            => GetDatabaseMetadataAsync(cancellationToken);
+
         public Task<ExecuteDatabaseQueryResponse> ExecuteQueryAsync(string sql, bool includeExecutionPlan, bool readOnly, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();

@@ -299,6 +299,100 @@ public sealed class ExplorerServiceTests
         provider.LastRequest!.ReadOnly.Should().BeFalse();
     }
 
+    [Fact]
+    public async Task ExecuteQueryAsync_WhenQueryEditorFeatureDisabled_ReturnsFeatureDisabledError()
+    {
+        var service = CreateService(featureFlagService: new SingleFeatureDisabledService(ApplicationFeatures.QueryEditor));
+
+        var response = await service.ExecuteQueryAsync("SELECT 1", includeExecutionPlan: false, readOnly: false, CancellationToken.None);
+
+        response.Error.Should().NotBeNull();
+        response.Error!.Category.Should().Be(ErrorCategory.FeatureDisabled);
+    }
+
+    [Fact]
+    public async Task ExecuteQueryAsync_WhenExecutionPlanFeatureDisabled_SuppressesExecutionPlan()
+    {
+        var provider = new DefinitionProvider(
+            "SELECT 1",
+            new QueryResult(
+                Columns: ["id"],
+                Rows: [new Dictionary<string, object?> { ["id"] = 1 }],
+                RowCount: 1,
+                Duration: TimeSpan.FromMilliseconds(5),
+                ExecutionPlan: new QueryExecutionPlanResult(
+                    IsAvailable: false,
+                    Provider: "SqlServer",
+                    MermaidDiagram: null,
+                    RawPlan: null,
+                    Message: null)));
+
+        var service = CreateService(
+            providerFactory: new StubProviderFactory(provider),
+            featureFlagService: new SingleFeatureDisabledService(ApplicationFeatures.QueryExecutionPlan));
+
+        var response = await service.ExecuteQueryAsync("SELECT 1", includeExecutionPlan: true, readOnly: false, CancellationToken.None);
+
+        response.Error.Should().BeNull();
+        provider.LastRequest.Should().NotBeNull();
+        provider.LastRequest!.IncludeExecutionPlan.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetAvailableDatabasesAsync_WhenMultipleDatabasesFeatureEnabled_ReturnsAllResources()
+    {
+        var resources = new[]
+        {
+            CreateResource("sql-a"),
+            CreateResource("sql-b"),
+        };
+        var service = CreateService(resourceDiscovery: new StubResourceDiscovery(resources));
+
+        var response = await service.GetAvailableDatabasesAsync(CancellationToken.None);
+
+        response.Resources.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task GetAvailableDatabasesAsync_WhenMultipleDatabasesFeatureDisabled_ReturnsAtMostOneResource()
+    {
+        var resources = new[]
+        {
+            CreateResource("sql-a"),
+            CreateResource("sql-b"),
+        };
+        var service = CreateService(
+            resourceDiscovery: new StubResourceDiscovery(resources),
+            featureFlagService: new SingleFeatureDisabledService(ApplicationFeatures.MultipleDatabases));
+
+        var response = await service.GetAvailableDatabasesAsync(CancellationToken.None);
+
+        response.Resources.Should().HaveCount(1);
+        response.Resources[0].ResourceId.Should().Be("sql-a");
+    }
+
+    [Fact]
+    public async Task GetDiagramDataAsync_WhenDiagramFeatureDisabled_ReturnsFeatureDisabledError()
+    {
+        var service = CreateService(featureFlagService: new SingleFeatureDisabledService(ApplicationFeatures.DatabaseDiagram));
+
+        var response = await service.GetDiagramDataAsync(CancellationToken.None);
+
+        response.Error.Should().NotBeNull();
+        response.Error!.Category.Should().Be(ErrorCategory.FeatureDisabled);
+    }
+
+    [Fact]
+    public async Task GetDiagramDataAsync_WhenDiagramFeatureEnabled_ReturnsDatabaseMetadata()
+    {
+        var service = CreateService();
+
+        var response = await service.GetDiagramDataAsync(CancellationToken.None);
+
+        response.Error.Should().BeNull();
+        response.Metadata.Should().NotBeNull();
+    }
+
     private static ExplorerService CreateService(
         IAspireResourceDiscovery? resourceDiscovery = null,
         ISelectedDatabaseService? selectedDatabaseService = null,
@@ -498,6 +592,25 @@ public sealed class ExplorerServiceTests
 
         public ValueTask<bool> IsEnabledAsync(FeatureFlag feature, FeatureEvaluationContext? context = null, CancellationToken cancellationToken = default)
             => ValueTask.FromResult(true);
+    }
+
+    private sealed class SingleFeatureDisabledService(FeatureFlag disabledFeature) : IFeatureFlagService
+    {
+        public ValueTask<FeatureFlagResult> EvaluateAsync(FeatureFlag feature, FeatureEvaluationContext context, CancellationToken cancellationToken = default)
+        {
+            var enabled = feature.Key != disabledFeature.Key;
+            return ValueTask.FromResult(new FeatureFlagResult
+            {
+                Key = feature.Key,
+                IsEnabled = enabled,
+                WinningSource = "Test",
+                UsedCatalogDefault = false,
+                EvaluationTrace = [],
+            });
+        }
+
+        public ValueTask<bool> IsEnabledAsync(FeatureFlag feature, FeatureEvaluationContext? context = null, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(feature.Key != disabledFeature.Key);
     }
 
     private sealed class DefinitionProvider(
