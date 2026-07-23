@@ -2,6 +2,7 @@ using OakIdeas.Aspire.DataExplorer.Core.Guards;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Configuration;
 using OakIdeas.Aspire.DataExplorer.Core.Extensions;
+using OakIdeas.Aspire.DataExplorer.Core.FeatureFlags;
 using OakIdeas.Aspire.DataExplorer.Core.Services;
 using OakIdeas.Aspire.DataExplorer.SqlServer.Diagnostics;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
@@ -38,6 +39,8 @@ builder.Services.AddOptions<MetadataProviderFactoryOptions>()
 builder.Services.AddSelectedDatabaseService();
 builder.Services.AddAspireResourceDiscovery(builder.Configuration);
 builder.Services.AddMetadataRefreshService();
+builder.Services.AddFeatureFlags()
+    .AddConfigurationFeatureFlagSource();
 builder.Services.AddScoped<IExplorerService, ExplorerService>();
 builder.Services.AddScoped<QueryNavigationState>();
 builder.Services.AddScoped<QuerySessionState>();
