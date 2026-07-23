@@ -164,3 +164,13 @@ public sealed record FeatureFlagResult
     /// <summary>Any warnings produced during evaluation, such as invalid source values or source errors.</summary>
     public IReadOnlyList<string> Warnings { get; init; } = [];
 }
+
+/// <summary>
+/// Describes why a requested operation was rejected because its governing feature flag is disabled.
+/// Consumers surface this through the shared <c>DataExplorerError</c> contract using
+/// <c>ErrorCategory.FeatureDisabled</c> rather than raising a dedicated exception type.
+/// </summary>
+public sealed record FeatureDisabledResult(
+    string Key,
+    string Message,
+    string? ReasonCode = null);

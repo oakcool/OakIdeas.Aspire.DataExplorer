@@ -2,6 +2,7 @@ using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Configuration;
+using OakIdeas.Aspire.DataExplorer.Core.FeatureFlags;
 using OakIdeas.Aspire.DataExplorer.Web.Abstractions;
 using Microsoft.Extensions.Options;
 using DataExplorerOperationException = OakIdeas.Aspire.DataExplorer.Core.Models.DataExplorerOperationException;
@@ -17,6 +18,7 @@ public sealed class ExplorerService(
     IMetadataRefreshService metadataRefreshService,
     IProviderFactory providerFactory,
     IErrorHandler errorHandler,
+    IFeatureFlagService featureFlagService,
     IOptions<DataExplorerOptions> options) : IExplorerService
 {
     private readonly IAspireResourceDiscovery _resourceDiscovery = resourceDiscovery;
@@ -25,6 +27,7 @@ public sealed class ExplorerService(
     private readonly IMetadataRefreshService _metadataRefreshService = metadataRefreshService;
     private readonly IProviderFactory _providerFactory = providerFactory;
     private readonly IErrorHandler _errorHandler = errorHandler;
+    private readonly IFeatureFlagService _featureFlagService = featureFlagService;
     private readonly DataExplorerOptions _options = options.Value;
 
     public async Task<GetAvailableDatabasesResponse> GetAvailableDatabasesAsync(CancellationToken cancellationToken)
@@ -82,6 +85,17 @@ public sealed class ExplorerService(
     public async Task<GetDatabaseMetadataResponse> GetDatabaseMetadataAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+
+        if (await IsFeatureDisabledAsync(ApplicationFeatures.ObjectExplorer, cancellationToken) is { } explorerDisabledError)
+        {
+            return new GetDatabaseMetadataResponse(
+                Metadata: null,
+                AggregatedMetadata: null,
+                CollectionStatus: MetadataCollectionStatus.Failed,
+                FailureDetails: [],
+                Errors: [explorerDisabledError.Message],
+                Error: explorerDisabledError);
+        }
 
         var selected = await _selectedDatabaseService.GetSelectedDatabaseAsync(cancellationToken);
         if (selected is null)
@@ -211,6 +225,18 @@ public sealed class ExplorerService(
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+
+        if (await IsFeatureDisabledAsync(ApplicationFeatures.ObjectDetails, cancellationToken) is { } detailsDisabledError)
+        {
+            return new GetObjectDefinitionResponse(
+                ObjectId: objectId,
+                ObjectType: objectType,
+                Definition: null,
+                IsAvailable: false,
+                UnavailableReason: detailsDisabledError.Message,
+                Errors: [detailsDisabledError.Message],
+                Error: detailsDisabledError);
+        }
 
         if (string.IsNullOrWhiteSpace(objectId))
         {

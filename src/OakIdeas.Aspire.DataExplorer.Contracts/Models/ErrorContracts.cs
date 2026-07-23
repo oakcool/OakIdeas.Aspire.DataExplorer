@@ -8,6 +8,7 @@ public enum ErrorCategory
     PermissionDenied = 4,
     ProviderError = 5,
     UnknownError = 6,
+    FeatureDisabled = 7,
 }
 
 public sealed record DataExplorerError(
