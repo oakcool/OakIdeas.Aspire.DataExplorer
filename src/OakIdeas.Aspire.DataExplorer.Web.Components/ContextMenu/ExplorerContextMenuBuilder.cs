@@ -4,6 +4,15 @@ using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Molecules;
 namespace OakIdeas.Aspire.DataExplorer.Web.Components.ContextMenu;
 
 /// <summary>
+/// Controls which data-editing context menu items are shown.
+/// </summary>
+/// <param name="InsertEnabled">Whether the INSERT statement item is visible.</param>
+/// <param name="DeleteEnabled">Whether the DELETE statement and RESET items are visible.</param>
+public sealed record DataEditingOptions(
+    bool InsertEnabled = true,
+    bool DeleteEnabled = true);
+
+/// <summary>
 /// Builds context menu items for a given Object Explorer selection.
 /// This builder is the extensibility point for adding new context menu actions.
 /// </summary>
@@ -14,11 +23,14 @@ public static class ExplorerContextMenuBuilder
     /// </summary>
     /// <param name="selection">The selected explorer object.</param>
     /// <param name="onAction">Callback invoked when a menu action is triggered.</param>
+    /// <param name="dataEditing">Controls which data-editing items are visible. Defaults to all enabled.</param>
     /// <returns>The menu items to display.</returns>
     public static IReadOnlyList<ExplorerContextMenuItem> Build(
         ObjectExplorer.ObjectSelection selection,
-        Func<ExplorerContextAction, Task> onAction)
+        Func<ExplorerContextAction, Task> onAction,
+        DataEditingOptions? dataEditing = null)
     {
+        dataEditing ??= new DataEditingOptions();
         var items = new List<ExplorerContextMenuItem>
         {
             new()
@@ -33,7 +45,7 @@ public static class ExplorerContextMenuBuilder
         switch (selection.ObjectKind)
         {
             case ObjectExplorer.ObjectKind.Table:
-                AddTableItems(items, selection, onAction);
+                AddTableItems(items, selection, onAction, dataEditing);
                 break;
 
             case ObjectExplorer.ObjectKind.View:
@@ -53,7 +65,8 @@ public static class ExplorerContextMenuBuilder
     private static void AddTableItems(
         List<ExplorerContextMenuItem> items,
         ObjectExplorer.ObjectSelection selection,
-        Func<ExplorerContextAction, Task> onAction)
+        Func<ExplorerContextAction, Task> onAction,
+        DataEditingOptions dataEditing)
     {
         items.Add(ExplorerContextMenuItem.Separator);
 
@@ -69,41 +82,47 @@ public static class ExplorerContextMenuBuilder
                 AutoExecute: true))
         });
 
-        items.Add(new ExplorerContextMenuItem
+        if (dataEditing.InsertEnabled)
         {
-            Id = "insert-statement",
-            Label = "INSERT Statement",
-            Icon = HeroIconKind.Plus,
-            Action = () => onAction(new ExplorerContextAction(
-                "insert-statement",
-                selection,
-                Sql: ExplorerQueryTemplates.InsertStatement(selection.SchemaName, selection.ObjectName),
-                AutoExecute: false))
-        });
+            items.Add(new ExplorerContextMenuItem
+            {
+                Id = "insert-statement",
+                Label = "INSERT Statement",
+                Icon = HeroIconKind.Plus,
+                Action = () => onAction(new ExplorerContextAction(
+                    "insert-statement",
+                    selection,
+                    Sql: ExplorerQueryTemplates.InsertStatement(selection.SchemaName, selection.ObjectName),
+                    AutoExecute: false))
+            });
+        }
 
-        items.Add(new ExplorerContextMenuItem
+        if (dataEditing.DeleteEnabled)
         {
-            Id = "delete-statement",
-            Label = "DELETE Statement",
-            Icon = HeroIconKind.Trash,
-            Action = () => onAction(new ExplorerContextAction(
-                "delete-statement",
-                selection,
-                Sql: ExplorerQueryTemplates.DeleteStatement(selection.SchemaName, selection.ObjectName),
-                AutoExecute: false))
-        });
+            items.Add(new ExplorerContextMenuItem
+            {
+                Id = "delete-statement",
+                Label = "DELETE Statement",
+                Icon = HeroIconKind.Trash,
+                Action = () => onAction(new ExplorerContextAction(
+                    "delete-statement",
+                    selection,
+                    Sql: ExplorerQueryTemplates.DeleteStatement(selection.SchemaName, selection.ObjectName),
+                    AutoExecute: false))
+            });
 
-        items.Add(new ExplorerContextMenuItem
-        {
-            Id = "reset-statement",
-            Label = "RESET / Truncate",
-            Icon = HeroIconKind.ArrowPath,
-            Action = () => onAction(new ExplorerContextAction(
-                "reset-statement",
-                selection,
-                Sql: ExplorerQueryTemplates.TruncateStatement(selection.SchemaName, selection.ObjectName),
-                AutoExecute: false))
-        });
+            items.Add(new ExplorerContextMenuItem
+            {
+                Id = "reset-statement",
+                Label = "RESET / Truncate",
+                Icon = HeroIconKind.ArrowPath,
+                Action = () => onAction(new ExplorerContextAction(
+                    "reset-statement",
+                    selection,
+                    Sql: ExplorerQueryTemplates.TruncateStatement(selection.SchemaName, selection.ObjectName),
+                    AutoExecute: false))
+            });
+        }
 
         items.Add(ExplorerContextMenuItem.Separator);
 

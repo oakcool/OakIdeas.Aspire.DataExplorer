@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer;
+using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Web.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Web.Components.Layout;
 using OakIdeas.Aspire.DataExplorer.Web.Services;
@@ -14,9 +15,11 @@ public sealed class MainLayoutDatabasePickerTests : BunitContext
 {
     public MainLayoutDatabasePickerTests()
     {
-        // MainLayout now injects QueryNavigationState and ExplorerNavigationState
+        // MainLayout now injects QueryNavigationState, ExplorerNavigationState, and FeatureFlagStateService
         Services.AddScoped<QueryNavigationState>();
         Services.AddScoped<ExplorerNavigationState>();
+        Services.AddSingleton<IFeatureFlagService, AllEnabledFeatureFlagService>();
+        Services.AddScoped<FeatureFlagStateService>();
     }
     [Fact]
     public void DatabasePicker_ChangingSelection_UpdatesExplorerMetadata()
@@ -420,5 +423,27 @@ public sealed class MainLayoutDatabasePickerTests : BunitContext
                 ConnectionMetadata: new ConnectionMetadata(new Dictionary<string, string?>()),
                 IsAvailable: true,
                 DiscoveredAt: DateTimeOffset.UtcNow);
+    }
+
+    private sealed class AllEnabledFeatureFlagService : IFeatureFlagService
+    {
+        public ValueTask<OakIdeas.Aspire.DataExplorer.Contracts.Models.FeatureFlagResult> EvaluateAsync(
+            OakIdeas.Aspire.DataExplorer.Contracts.Models.FeatureFlag feature,
+            OakIdeas.Aspire.DataExplorer.Contracts.Models.FeatureEvaluationContext context,
+            CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(new OakIdeas.Aspire.DataExplorer.Contracts.Models.FeatureFlagResult
+            {
+                Key = feature.Key,
+                IsEnabled = true,
+                WinningSource = "CatalogDefault",
+                UsedCatalogDefault = true,
+                EvaluationTrace = [],
+            });
+
+        public ValueTask<bool> IsEnabledAsync(
+            OakIdeas.Aspire.DataExplorer.Contracts.Models.FeatureFlag feature,
+            OakIdeas.Aspire.DataExplorer.Contracts.Models.FeatureEvaluationContext? context = null,
+            CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(true);
     }
 }

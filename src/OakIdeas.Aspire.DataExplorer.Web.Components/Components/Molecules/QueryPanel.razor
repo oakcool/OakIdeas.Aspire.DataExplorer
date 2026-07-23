@@ -19,11 +19,14 @@
                     Variant="ghost"
                     Disabled="IsExecuting"
                     OnClick="Clear" />
+        @if (ShowExecutionPlanToggle)
+        {
         <IconButton Icon="HeroIconKind.RectangleGroup"
                     Title="Include execution plan in query response when supported"
                     Variant="@(IncludeExecutionPlan ? "primary" : "ghost")"
                     Disabled="IsExecuting"
                     OnClick="HandleExecutionPlanToggle" />
+        }
         @if (!string.IsNullOrEmpty(ConnectionName))
         {
             <StatusBadge Text="@ConnectionName" Variant="connected" />
@@ -88,6 +91,7 @@
     [Parameter] public bool IsExecuting { get; set; }
     [Parameter] public bool IncludeExecutionPlan { get; set; }
     [Parameter] public EventCallback<bool> IncludeExecutionPlanChanged { get; set; }
+    [Parameter] public bool ShowExecutionPlanToggle { get; set; } = true;
     [Parameter] public EventCallback<string> OnExecute { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
     [Parameter] public IReadOnlyList<string> Suggestions { get; set; } = [];

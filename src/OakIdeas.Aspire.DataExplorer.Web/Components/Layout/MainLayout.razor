@@ -13,6 +13,7 @@
 @inject IExplorerService ExplorerService
 @inject QueryNavigationState QueryNavigationState
 @inject ExplorerNavigationState ExplorerNavigationState
+@inject FeatureFlagStateService FeatureFlags
 
 <div class="de-shell flex h-screen min-h-screen flex-col overflow-hidden bg-slate-950 text-slate-100">
     <AlertBanner />
@@ -29,18 +30,27 @@
                 <HeroIcon Kind="HeroIconKind.Home" Size="18" Class="de-nav-link__icon" />
                 <span class="de-nav-link__label hidden md:inline">Dashboard</span>
             </NavLink>
+            @if (FeatureFlags.ObjectExplorerEnabled)
+            {
             <NavLink class="de-nav-link inline-flex min-h-9 items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:border-sky-400 hover:bg-slate-800/80 hover:text-slate-100 [&.active]:border-sky-400 [&.active]:bg-sky-500/20 [&.active]:text-sky-200" href="explorer" title="Explorer">
                 <HeroIcon Kind="HeroIconKind.QueueList" Size="18" Class="de-nav-link__icon" />
                 <span class="de-nav-link__label hidden md:inline">Explorer</span>
             </NavLink>
+            }
+            @if (FeatureFlags.QueryEditorEnabled)
+            {
             <NavLink class="de-nav-link inline-flex min-h-9 items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:border-sky-400 hover:bg-slate-800/80 hover:text-slate-100 [&.active]:border-sky-400 [&.active]:bg-sky-500/20 [&.active]:text-sky-200" href="query" title="Query">
                 <HeroIcon Kind="HeroIconKind.CodeBracket" Size="18" Class="de-nav-link__icon" />
                 <span class="de-nav-link__label hidden md:inline">Query</span>
             </NavLink>
+            }
+            @if (FeatureFlags.DatabaseDiagramEnabled)
+            {
             <NavLink class="de-nav-link inline-flex min-h-9 items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:border-sky-400 hover:bg-slate-800/80 hover:text-slate-100 [&.active]:border-sky-400 [&.active]:bg-sky-500/20 [&.active]:text-sky-200" href="diagram" title="Database Diagram">
                 <HeroIcon Kind="HeroIconKind.ShareNodes" Size="18" Class="de-nav-link__icon" />
                 <span class="de-nav-link__label hidden md:inline">Diagram</span>
             </NavLink>
+            }
         </nav>
         <div class="de-header__end flex items-center gap-2">
             <span class="de-header__version rounded border border-sky-500/40 bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-sky-300">dev</span>
@@ -89,6 +99,7 @@
                             OnObjectSelect="HandleObjectSelect"
                             OnContextAction="HandleContextAction"
                             OnRefresh="HandleRefresh"
+                            DataEditing="@(new DataEditingOptions(InsertEnabled: FeatureFlags.DataInsertEnabled, DeleteEnabled: FeatureFlags.DataDeleteEnabled))"
                             OnMinimizeToggle="HandleExplorerMinimizeToggle" />
         </aside>
 
@@ -135,6 +146,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await FeatureFlags.EnsureLoadedAsync(CancellationToken.None);
         await LoadObjectExplorerAsync(forceRefresh: false);
     }
 

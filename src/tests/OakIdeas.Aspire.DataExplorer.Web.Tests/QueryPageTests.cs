@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer;
+using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Configuration;
 using OakIdeas.Aspire.DataExplorer.Web.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Web.Components.Pages;
@@ -21,6 +22,8 @@ public sealed class QueryPageTests : BunitContext
         // Circuit-scoped services required by QueryPage
         Services.AddScoped<QueryNavigationState>();
         Services.AddScoped<QuerySessionState>();
+        Services.AddSingleton<IFeatureFlagService, AllEnabledFeatureFlagService>();
+        Services.AddScoped<FeatureFlagStateService>();
     }
 
     [Fact]
@@ -555,5 +558,27 @@ public sealed class QueryPageTests : BunitContext
                 IsTruncated: false,
                 ExecutionPlan: includeExecutionPlan ? IncludeExecutionPlanResponse : null));
         }
+    }
+
+    private sealed class AllEnabledFeatureFlagService : IFeatureFlagService
+    {
+        public ValueTask<OakIdeas.Aspire.DataExplorer.Contracts.Models.FeatureFlagResult> EvaluateAsync(
+            OakIdeas.Aspire.DataExplorer.Contracts.Models.FeatureFlag feature,
+            OakIdeas.Aspire.DataExplorer.Contracts.Models.FeatureEvaluationContext context,
+            CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(new OakIdeas.Aspire.DataExplorer.Contracts.Models.FeatureFlagResult
+            {
+                Key = feature.Key,
+                IsEnabled = true,
+                WinningSource = "CatalogDefault",
+                UsedCatalogDefault = true,
+                EvaluationTrace = [],
+            });
+
+        public ValueTask<bool> IsEnabledAsync(
+            OakIdeas.Aspire.DataExplorer.Contracts.Models.FeatureFlag feature,
+            OakIdeas.Aspire.DataExplorer.Contracts.Models.FeatureEvaluationContext? context = null,
+            CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(true);
     }
 }

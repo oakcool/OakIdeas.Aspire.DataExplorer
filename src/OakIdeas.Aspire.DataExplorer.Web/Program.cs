@@ -45,6 +45,7 @@ builder.Services.AddScoped<IExplorerService, ExplorerService>();
 builder.Services.AddScoped<QueryNavigationState>();
 builder.Services.AddScoped<QuerySessionState>();
 builder.Services.AddScoped<ExplorerNavigationState>();
+builder.Services.AddScoped<FeatureFlagStateService>();
 
 var app = builder.Build();
 

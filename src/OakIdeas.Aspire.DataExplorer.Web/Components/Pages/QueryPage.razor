@@ -3,11 +3,23 @@
 @using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer
 @using OakIdeas.Aspire.DataExplorer.Web.Abstractions
 @using OakIdeas.Aspire.DataExplorer.Web.Services
+@using OakIdeas.Aspire.DataExplorer.Core.FeatureFlags
 @inject IExplorerService ExplorerService
 @inject QueryNavigationState QueryNavigationState
 @inject QuerySessionState QuerySessionState
+@inject FeatureFlagStateService FeatureFlags
 
 <PageTitle>Query — Data Explorer</PageTitle>
+
+@if (!FeatureFlags.QueryEditorEnabled)
+{
+    <div class="de-feature-unavailable">
+        <HeroIcon Kind="HeroIconKind.ExclamationTriangle" Size="32" Class="de-feature-unavailable__icon" />
+        <h2 class="de-feature-unavailable__title">Query Editor Unavailable</h2>
+        <p class="de-feature-unavailable__message">The Query Editor feature has been disabled. Update your configuration to enable it.</p>
+    </div>
+    return;
+}
 
 <div class="de-query-page">
     <div class="de-query-banner">
@@ -50,8 +62,9 @@
         <QueryPanel ConnectionName="@_activeConnectionName"
                     @bind-Sql="_sql"
                     IsExecuting="_running"
-                    IncludeExecutionPlan="_includeExecutionPlan"
+                    IncludeExecutionPlan="@(FeatureFlags.QueryExecutionPlanEnabled && _includeExecutionPlan)"
                     IncludeExecutionPlanChanged="HandleIncludeExecutionPlanChanged"
+                    ShowExecutionPlanToggle="FeatureFlags.QueryExecutionPlanEnabled"
                     OnExecute="RunQuery"
                     OnCancel="CancelQuery"
                     Suggestions="_suggestions" />
@@ -191,6 +204,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await FeatureFlags.EnsureLoadedAsync(CancellationToken.None);
+
         if (string.IsNullOrWhiteSpace(ConnectionName))
         {
             var selected = await ExplorerService.GetSelectedDatabaseAsync(CancellationToken.None);
@@ -220,7 +235,7 @@
 
         _sql = pendingSql;
 
-        if (autoExecute)
+        if (autoExecute && FeatureFlags.QueryAutoExecuteEnabled)
         {
             await RunQuery(_sql);
         }

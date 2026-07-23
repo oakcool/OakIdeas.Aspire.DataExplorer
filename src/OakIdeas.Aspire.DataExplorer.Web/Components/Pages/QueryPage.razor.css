@@ -257,3 +257,31 @@
         font-size: 0.64rem;
     }
 }
+
+.de-feature-unavailable {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    height: 100%;
+    padding: 3rem;
+    color: #94a3b8;
+    text-align: center;
+}
+
+.de-feature-unavailable__icon {
+    color: #475569;
+}
+
+.de-feature-unavailable__title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #e2e8f0;
+}
+
+.de-feature-unavailable__message {
+    font-size: 0.875rem;
+    max-width: 28rem;
+    color: #64748b;
+}

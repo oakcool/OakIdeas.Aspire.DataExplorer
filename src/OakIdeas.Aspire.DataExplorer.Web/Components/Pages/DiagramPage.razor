@@ -4,8 +4,22 @@
 @using OakIdeas.Aspire.DataExplorer.Web.Abstractions
 @using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Atoms
 @using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Molecules
+@using OakIdeas.Aspire.DataExplorer.Web.Services
 @implements IDisposable
 @inject IExplorerService ExplorerService
+@inject FeatureFlagStateService FeatureFlags
+
+<PageTitle>Database Diagram — Data Explorer</PageTitle>
+
+@if (!FeatureFlags.DatabaseDiagramEnabled)
+{
+    <div class="de-feature-unavailable">
+        <HeroIcon Kind="HeroIconKind.ExclamationTriangle" Size="32" Class="de-feature-unavailable__icon" />
+        <h2 class="de-feature-unavailable__title">Database Diagram Unavailable</h2>
+        <p class="de-feature-unavailable__message">The Database Diagram feature has been disabled. Update your configuration to enable it.</p>
+    </div>
+    return;
+}
 
 <PageTitle>Database Diagram — Data Explorer</PageTitle>
 
@@ -52,6 +66,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await FeatureFlags.EnsureLoadedAsync(CancellationToken.None);
         await LoadDiagramAsync();
     }
 
