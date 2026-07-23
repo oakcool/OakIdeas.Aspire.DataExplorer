@@ -40,7 +40,8 @@ builder.Services.AddSelectedDatabaseService();
 builder.Services.AddAspireResourceDiscovery(builder.Configuration);
 builder.Services.AddMetadataRefreshService();
 builder.Services.AddFeatureFlags()
-    .AddConfigurationFeatureFlagSource();
+    .AddConfigurationFeatureFlagSource()
+    .AddStartupValidation();
 builder.Services.AddScoped<IExplorerService, ExplorerService>();
 builder.Services.AddScoped<QueryNavigationState>();
 builder.Services.AddScoped<QuerySessionState>();

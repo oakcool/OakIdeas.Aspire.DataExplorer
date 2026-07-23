@@ -1,0 +1,89 @@
+@page "/feature-flags"
+@using OakIdeas.Aspire.DataExplorer.Contracts.Models
+@using OakIdeas.Aspire.DataExplorer.Core.Abstractions
+@using OakIdeas.Aspire.DataExplorer.Core.FeatureFlags
+@inject IFeatureFlagService FeatureFlagService
+@inject IFeatureFlagCatalog Catalog
+
+<PageTitle>Feature Flags — Data Explorer</PageTitle>
+
+<div class="de-feature-flags-page">
+    <div class="de-main__header">
+        <span class="de-feature-flags-page__icon" aria-hidden="true">
+            <HeroIcon Kind="HeroIconKind.Cog6Tooth" Size="18" />
+        </span>
+        <span class="de-feature-flags-page__title">Feature Flags</span>
+        <span class="de-feature-flags-page__subtitle">Active flag evaluations for this session. All flags default to enabled.</span>
+    </div>
+
+    <div class="de-feature-flags-body">
+        @if (_results is null)
+        {
+            <div class="de-feature-flags-loading">Loading&hellip;</div>
+        }
+        else
+        {
+            <table class="de-feature-flags-table" aria-label="Feature flag evaluations">
+                <thead>
+                    <tr>
+                        <th scope="col">Key</th>
+                        <th scope="col">Display Name</th>
+                        <th scope="col">Category</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Winning Source</th>
+                        <th scope="col">Dependencies</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in _results)
+                    {
+                        <tr>
+                            <td class="de-feature-flags-table__key">@row.Feature.Key</td>
+                            <td>@row.Feature.DisplayName</td>
+                            <td>@row.Feature.Category</td>
+                            <td>
+                                @if (row.Result.IsEnabled)
+                                {
+                                    <span class="de-feature-flags-badge de-feature-flags-badge--enabled">Enabled</span>
+                                }
+                                else
+                                {
+                                    <span class="de-feature-flags-badge de-feature-flags-badge--disabled">Disabled</span>
+                                }
+                            </td>
+                            <td>@row.Result.WinningSource</td>
+                            <td>
+                                @if (row.Feature.DependsOn.Count > 0)
+                                {
+                                    <span class="de-feature-flags-deps">@string.Join(", ", row.Feature.DependsOn)</span>
+                                }
+                                else
+                                {
+                                    <span class="de-feature-flags-none" aria-label="No dependencies">&mdash;</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+@code {
+    private sealed record FeatureFlagRow(FeatureFlag Feature, FeatureFlagResult Result);
+
+    private IReadOnlyList<FeatureFlagRow>? _results;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var rows = new List<FeatureFlagRow>(Catalog.Features.Count);
+        foreach (var feature in Catalog.Features)
+        {
+            var result = await FeatureFlagService.EvaluateAsync(feature, FeatureEvaluationContext.Empty);
+            rows.Add(new FeatureFlagRow(feature, result));
+        }
+
+        _results = rows;
+    }
+}

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
@@ -81,6 +82,17 @@ public static class FeatureFlagServiceCollectionExtensions
             return new OrderedSourceProvider(priority, provider);
         });
 
+        return builder;
+    }
+
+    /// <summary>
+    /// Registers the <see cref="FeatureFlagStartupValidator"/> hosted service, which validates the
+    /// feature catalog and smoke-tests all flag evaluations at application startup.
+    /// </summary>
+    public static FeatureFlagBuilder AddStartupValidation(this FeatureFlagBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        builder.Services.AddHostedService<FeatureFlagStartupValidator>();
         return builder;
     }
 }
