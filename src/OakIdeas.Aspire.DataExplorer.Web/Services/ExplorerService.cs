@@ -497,6 +497,21 @@ public sealed class ExplorerService(
         }
     }
 
+    private async ValueTask<DataExplorerError?> IsFeatureDisabledAsync(FeatureFlag feature, CancellationToken cancellationToken)
+    {
+        var isEnabled = await _featureFlagService.IsEnabledAsync(feature, null, cancellationToken).ConfigureAwait(false);
+        if (isEnabled)
+        {
+            return null;
+        }
+
+        return _errorHandler.CreateError(
+            ErrorCategory.FeatureDisabled,
+            $"The {feature.DisplayName} feature is not available.",
+            "This feature has been disabled. Update your configuration to enable it.",
+            new ErrorContext("feature-check"));
+    }
+
     private DataExplorerError ResolveError(Exception exception, ErrorContext context)
         => exception is DataExplorerOperationException dataExplorerException
             ? dataExplorerException.Error

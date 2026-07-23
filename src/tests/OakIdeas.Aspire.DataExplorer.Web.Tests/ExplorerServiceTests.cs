@@ -7,6 +7,7 @@ using OakIdeas.Aspire.DataExplorer.Core.Configuration;
 using OakIdeas.Aspire.DataExplorer.Core.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Services;
 using OakIdeas.Aspire.DataExplorer.Web.Services;
+using OakIdeas.Aspire.DataExplorer.Core.FeatureFlags;
 
 namespace OakIdeas.Aspire.DataExplorer.Web.Tests;
 
@@ -304,6 +305,7 @@ public sealed class ExplorerServiceTests
         IMetadataAggregationService? metadataAggregationService = null,
         IMetadataRefreshService? metadataRefreshService = null,
         IProviderFactory? providerFactory = null,
+        IFeatureFlagService? featureFlagService = null,
         DataExplorerOptions? options = null)
         => new(
             resourceDiscovery ?? new StubResourceDiscovery([]),
@@ -312,6 +314,7 @@ public sealed class ExplorerServiceTests
             metadataRefreshService ?? new StubMetadataRefreshService(),
             providerFactory ?? new StubProviderFactory(new DefinitionProvider("SELECT 1;")),
             new ErrorHandler(NullLogger<ErrorHandler>.Instance, []),
+            featureFlagService ?? new AllEnabledFeatureFlagService(),
             Options.Create(options ?? new DataExplorerOptions()));
 
     private static DiscoveredDatabaseResource CreateResource(string resourceId, string databaseName = "applicationdb")
@@ -479,6 +482,22 @@ public sealed class ExplorerServiceTests
             provider = _provider;
             return true;
         }
+    }
+
+    private sealed class AllEnabledFeatureFlagService : IFeatureFlagService
+    {
+        public ValueTask<FeatureFlagResult> EvaluateAsync(FeatureFlag feature, FeatureEvaluationContext context, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(new FeatureFlagResult
+            {
+                Key = feature.Key,
+                IsEnabled = true,
+                WinningSource = "CatalogDefault",
+                UsedCatalogDefault = true,
+                EvaluationTrace = [],
+            });
+
+        public ValueTask<bool> IsEnabledAsync(FeatureFlag feature, FeatureEvaluationContext? context = null, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(true);
     }
 
     private sealed class DefinitionProvider(
