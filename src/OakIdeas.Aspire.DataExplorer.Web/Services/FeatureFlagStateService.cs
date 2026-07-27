@@ -7,12 +7,21 @@ namespace OakIdeas.Aspire.DataExplorer.Web.Services;
 /// Circuit-scoped service that snapshots feature flag state for the current Blazor circuit.
 /// Evaluations are cached after the first call to <see cref="EnsureLoadedAsync"/> to avoid
 /// repeated source calls during a single page render cycle.
+/// In-session overrides can be applied via <see cref="SetOverride"/> and reset via <see cref="ResetAllOverrides"/>.
 /// </summary>
 public sealed class FeatureFlagStateService(IFeatureFlagService featureFlagService)
 {
     private readonly IFeatureFlagService _featureFlagService = featureFlagService;
     private readonly Dictionary<string, bool> _snapshot = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, bool> _overrides = new(StringComparer.OrdinalIgnoreCase);
     private bool _loaded;
+
+    /// <summary>
+    /// Raised when any flag override changes so UI consumers can re-render.
+    /// Subscribers must use <see cref="System.ComponentModel.ISynchronizeInvoke"/> or
+    /// <c>InvokeAsync</c> if they need to marshal back to the Blazor render thread.
+    /// </summary>
+    public event Action? FlagsChanged;
 
     /// <summary>
     /// Evaluates all application features and caches the results.
@@ -36,11 +45,64 @@ public sealed class FeatureFlagStateService(IFeatureFlagService featureFlagServi
     }
 
     /// <summary>
-    /// Returns whether the feature is enabled, using the cached snapshot.
+    /// Returns whether the feature is enabled, checking session overrides before the cached snapshot.
     /// Returns <see langword="true"/> (the safe default) when the snapshot has not been loaded yet.
     /// </summary>
     public bool IsEnabled(string featureKey)
-        => !_snapshot.TryGetValue(featureKey, out var value) || value;
+    {
+        if (_overrides.TryGetValue(featureKey, out var overrideValue))
+        {
+            return overrideValue;
+        }
+
+        return !_snapshot.TryGetValue(featureKey, out var value) || value;
+    }
+
+    /// <summary>
+    /// Returns the snapshot value (the initial evaluated state before any session override), or
+    /// <see langword="null"/> when the snapshot has not been loaded yet.
+    /// </summary>
+    public bool? GetSnapshotValue(string featureKey)
+        => _snapshot.TryGetValue(featureKey, out var value) ? value : null;
+
+    /// <summary>
+    /// Returns the current session override for the given feature key, or
+    /// <see langword="null"/> when no override has been set (i.e., the flag uses its evaluated default).
+    /// </summary>
+    public bool? GetOverride(string featureKey)
+        => _overrides.TryGetValue(featureKey, out var value) ? value : null;
+
+    /// <summary>
+    /// Sets a session override for the given feature key.
+    /// Pass <see langword="null"/> to clear the override and revert to the evaluated default.
+    /// Raises <see cref="FlagsChanged"/> after applying the change.
+    /// </summary>
+    public void SetOverride(string featureKey, bool? value)
+    {
+        if (value is null)
+        {
+            _overrides.Remove(featureKey);
+        }
+        else
+        {
+            _overrides[featureKey] = value.Value;
+        }
+
+        FlagsChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// Clears all session overrides and reverts all flags to their evaluated defaults.
+    /// Raises <see cref="FlagsChanged"/> after clearing.
+    /// </summary>
+    public void ResetAllOverrides()
+    {
+        _overrides.Clear();
+        FlagsChanged?.Invoke();
+    }
+
+    /// <summary>Returns <see langword="true"/> when at least one session override is active.</summary>
+    public bool HasOverrides => _overrides.Count > 0;
 
     /// <summary>Returns whether the Query Editor feature is enabled.</summary>
     public bool QueryEditorEnabled => IsEnabled(FeatureKeys.QueryEditor);

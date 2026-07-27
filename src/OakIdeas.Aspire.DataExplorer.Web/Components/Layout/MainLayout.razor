@@ -150,8 +150,14 @@
 
     protected override async Task OnInitializedAsync()
     {
+        FeatureFlags.FlagsChanged += HandleFlagsChanged;
         await FeatureFlags.EnsureLoadedAsync(CancellationToken.None);
         await LoadObjectExplorerAsync(forceRefresh: false);
+    }
+
+    private async void HandleFlagsChanged()
+    {
+        await InvokeAsync(StateHasChanged);
     }
 
     private Task HandleRefresh()
@@ -414,6 +420,7 @@
 
     public void Dispose()
     {
+        FeatureFlags.FlagsChanged -= HandleFlagsChanged;
         _explorerLoadCts?.Cancel();
         _explorerLoadCts?.Dispose();
     }
