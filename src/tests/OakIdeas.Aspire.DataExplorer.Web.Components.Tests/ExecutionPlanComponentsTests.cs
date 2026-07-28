@@ -1,5 +1,7 @@
 using Bunit;
 using FluentAssertions;
+using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer;
 using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Molecules;
 
@@ -101,5 +103,36 @@ public sealed class ExecutionPlanComponentsTests : BunitContext
 
         initPlanInvocations.Should().HaveCount(1);
     }
-}
 
+    [Fact]
+    public void ExecutionPlanViewer_WhenRendererFails_InvokesRenderErrorCallback()
+    {
+        string? errorMessage = null;
+
+        var nodes = new List<ExecutionPlanNode>
+        {
+            new("N1", "Index Seek", null, "dbo.Users", "access",
+                [new ExecutionPlanMetric("Est. Rows", "10")],
+                []),
+        };
+
+        var jsModule = JSInterop.SetupModule("./_content/OakIdeas.Aspire.DataExplorer.Web.Components/Components/Molecules/ExecutionPlanDiagram.razor.js");
+        jsModule.SetupVoid("initPlan", _ => true).SetException(new JSException("Synthetic render failure."));
+
+        var component = Render<ExecutionPlanViewer>(parameters => parameters
+            .Add(p => p.ExecutionPlan, new ExecutionPlanResponse(
+                IsAvailable: true,
+                Provider: "SqlServer",
+                Nodes: nodes,
+                Edges: [],
+                RawPlan: null,
+                Message: null))
+            .Add(p => p.OnRenderError, EventCallback.Factory.Create<string>(this, message => errorMessage = message)));
+
+        component.WaitForAssertion(() =>
+        {
+            errorMessage.Should().Contain("Failed to render execution plan diagram.");
+            errorMessage.Should().Contain("Synthetic render failure.");
+        });
+    }
+}

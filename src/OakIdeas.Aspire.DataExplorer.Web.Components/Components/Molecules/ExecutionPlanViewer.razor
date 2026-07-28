@@ -29,6 +29,7 @@
         </div>
         <ExecutionPlanDiagram Nodes="@ExecutionPlan.Nodes"
                               Edges="@ExecutionPlan.Edges"
+                              OnRenderError="OnRenderError"
                               Class="execution-plan-viewer__diagram" />
     }
 </div>
@@ -38,4 +39,3 @@
     [Parameter] public ExecutionPlanResponse? ExecutionPlan { get; set; }
     [Parameter] public EventCallback<string> OnRenderError { get; set; }
 }
-

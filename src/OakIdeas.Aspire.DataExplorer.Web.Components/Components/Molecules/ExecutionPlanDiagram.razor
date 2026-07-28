@@ -40,6 +40,7 @@
     [Parameter] public IReadOnlyList<ExecutionPlanNode>? Nodes { get; set; }
     [Parameter] public IReadOnlyList<ExecutionPlanEdge>? Edges { get; set; }
     [Parameter] public string Class { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> OnRenderError { get; set; }
 
     private ElementReference _canvasRef;
     private IJSObjectReference? _module;
@@ -70,9 +71,15 @@
                 edges = (IReadOnlyList<ExecutionPlanEdge>)(Edges ?? []),
             });
         }
-        catch (JSException)
+        catch (JSException ex)
         {
-            // Ignore JS interop failures in disconnected/test contexts.
+            if (OnRenderError.HasDelegate)
+            {
+                var details = string.IsNullOrWhiteSpace(ex.Message)
+                    ? "Failed to render execution plan diagram."
+                    : $"Failed to render execution plan diagram. {ex.Message.Trim()}";
+                await OnRenderError.InvokeAsync(details);
+            }
         }
     }
 

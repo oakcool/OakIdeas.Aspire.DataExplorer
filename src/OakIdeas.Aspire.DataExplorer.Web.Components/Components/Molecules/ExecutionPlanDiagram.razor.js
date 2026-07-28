@@ -290,7 +290,7 @@ function buildNodeGroup(node, x, y) {
     fill: colors.border,
     'font-size': '7',
     'font-weight': '700',
-    'font-family': 'ui-monospace, Cascadia Mono, Menlo, Consolas, monospace',
+    'font-family': 'ui-monospace, Cascadia Code, Menlo, Consolas, monospace',
     'letter-spacing': '0.06em',
     opacity: '0.75',
   });
@@ -304,7 +304,7 @@ function buildNodeGroup(node, x, y) {
     fill: COLORS.sectionLabel,
     'font-size': '7',
     'text-anchor': 'end',
-    'font-family': 'ui-monospace, Cascadia Mono, Menlo, Consolas, monospace',
+    'font-family': 'ui-monospace, Cascadia Code, Menlo, Consolas, monospace',
     opacity: '0.6',
   });
   idBadge.textContent = node.id;
@@ -343,7 +343,7 @@ function buildNodeGroup(node, x, y) {
       fill: colors.border,
       'font-size': '9.5',
       'font-weight': '500',
-      'font-family': 'ui-monospace, Cascadia Mono, Menlo, Consolas, monospace',
+      'font-family': 'ui-monospace, Cascadia Code, Menlo, Consolas, monospace',
     });
     objEl.textContent = truncate(node.objectName, 28);
     g.appendChild(objEl);
@@ -363,7 +363,7 @@ function buildNodeGroup(node, x, y) {
       fill: COLORS.sectionLabel,
       'font-size': '8',
       'text-anchor': 'middle',
-      'font-family': 'ui-monospace, Cascadia Mono, Menlo, Consolas, monospace',
+      'font-family': 'ui-monospace, Cascadia Code, Menlo, Consolas, monospace',
       'letter-spacing': '0.05em',
     });
     sectionEl.textContent = label;
@@ -376,7 +376,7 @@ function buildNodeGroup(node, x, y) {
         y: String(metricY + 12),
         fill: COLORS.metricLabel,
         'font-size': '9',
-        'font-family': 'ui-monospace, Cascadia Mono, Menlo, Consolas, monospace',
+        'font-family': 'ui-monospace, Cascadia Code, Menlo, Consolas, monospace',
       });
       labelEl.textContent = truncate(m.label, 16) + ':';
       g.appendChild(labelEl);
