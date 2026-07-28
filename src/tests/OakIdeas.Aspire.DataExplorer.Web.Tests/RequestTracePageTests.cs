@@ -41,6 +41,24 @@ public sealed class RequestTracePageTests : BunitContext
         });
     }
 
+    [Fact]
+    public void FlagDisabledAtRuntime_ReRendersUnavailableMessage()
+    {
+        Services.AddSingleton<IFeatureFlagService>(new FixedFeatureFlagService(true));
+        Services.AddSingleton<IFeatureFlagCatalog>(new FeatureFlagCatalog(ApplicationFeatures.All.ToList()));
+        Services.AddScoped<FeatureFlagStateService>();
+
+        var component = Render<RequestTracePage>();
+        component.WaitForAssertion(() =>
+            component.Markup.Should().Contain("Feature rollout is in progress"));
+
+        var flagService = Services.GetRequiredService<FeatureFlagStateService>();
+        flagService.SetOverride(FeatureKeys.TelemetryRequestTrace, false);
+
+        component.WaitForAssertion(() =>
+            component.Markup.Should().Contain("Request Trace Unavailable"));
+    }
+
     private sealed class FixedFeatureFlagService(bool enabled) : IFeatureFlagService
     {
         public ValueTask<FeatureFlagResult> EvaluateAsync(
