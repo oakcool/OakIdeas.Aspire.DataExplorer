@@ -17,7 +17,7 @@
                    type="search"
                    placeholder="Search settings&hellip;"
                    aria-label="Search settings"
-                   @bind="_searchText"
+                   @bind="SearchText"
                    @bind:event="oninput" />
             @if (ShowSearchResults)
             {
@@ -62,6 +62,7 @@
 @code {
     private string _searchText = string.Empty;
     private IReadOnlyList<SettingsSectionDefinition>? _sections;
+    private IReadOnlyList<SettingsSearchResult>? _searchResults;
 
     [Parameter]
     public string? SectionId { get; set; }
@@ -70,9 +71,24 @@
 
     private SettingsSectionDefinition? ActiveSection => ResolveActiveSection(SectionId);
 
-    private bool ShowSearchResults => !string.IsNullOrWhiteSpace(_searchText);
+    private string SearchText
+    {
+        get => _searchText;
+        set
+        {
+            if (string.Equals(_searchText, value, StringComparison.Ordinal))
+            {
+                return;
+            }
 
-    private IReadOnlyList<SettingsSearchResult> SearchResults => BuildSearchResults();
+            _searchText = value;
+            _searchResults = null;
+        }
+    }
+
+    private bool ShowSearchResults => !string.IsNullOrWhiteSpace(SearchText);
+
+    private IReadOnlyList<SettingsSearchResult> SearchResults => _searchResults ??= BuildSearchResults();
 
     private IReadOnlyList<SettingsSectionDefinition> BuildSections()
     {
@@ -101,13 +117,13 @@
 
     private IReadOnlyList<SettingsSearchResult> BuildSearchResults()
     {
-        if (string.IsNullOrWhiteSpace(_searchText))
+        if (string.IsNullOrWhiteSpace(SearchText))
         {
             return [];
         }
 
         return SectionProviders
-            .SelectMany(provider => provider.GetSearchResults(_searchText))
+            .SelectMany(provider => provider.GetSearchResults(SearchText))
             .OrderBy(result => result.Label, StringComparer.OrdinalIgnoreCase)
             .Select(result => new SettingsSearchResult(
                 result.Label,
