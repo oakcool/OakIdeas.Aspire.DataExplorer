@@ -48,9 +48,9 @@
     </aside>
 
     <section class="de-settings-content" aria-live="polite">
-        @if (ActiveSection is { } section)
+        @if (ActiveSection is { } activeSection)
         {
-            <DynamicComponent Type="section.ComponentType" />
+            <DynamicComponent Type="activeSection.ComponentType" />
         }
         else
         {
