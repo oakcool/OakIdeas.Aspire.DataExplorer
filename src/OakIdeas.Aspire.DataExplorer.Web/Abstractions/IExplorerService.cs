@@ -57,8 +57,13 @@ public interface IExplorerService
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Executes an ad-hoc SQL query for the currently selected database.
+    /// Gets metadata for the currently selected database specifically for diagram rendering.
+    /// Enforces the <c>Diagram.DatabaseDiagram</c> feature flag at the service boundary.
     /// </summary>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>A typed response containing metadata and any collection or validation errors.</returns>
+    Task<GetDatabaseMetadataResponse> GetDiagramDataAsync(CancellationToken cancellationToken);
+
     /// <param name="sql">The SQL text to execute.</param>
     /// <param name="includeExecutionPlan">Whether the provider should include execution plan data when supported.</param>
     /// <param name="readOnly">

@@ -2,6 +2,7 @@ using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Configuration;
+using OakIdeas.Aspire.DataExplorer.Core.FeatureFlags;
 using OakIdeas.Aspire.DataExplorer.Web.Abstractions;
 using Microsoft.Extensions.Options;
 using DataExplorerOperationException = OakIdeas.Aspire.DataExplorer.Core.Models.DataExplorerOperationException;
@@ -17,6 +18,7 @@ public sealed class ExplorerService(
     IMetadataRefreshService metadataRefreshService,
     IProviderFactory providerFactory,
     IErrorHandler errorHandler,
+    IFeatureFlagService featureFlagService,
     IOptions<DataExplorerOptions> options) : IExplorerService
 {
     private readonly IAspireResourceDiscovery _resourceDiscovery = resourceDiscovery;
@@ -25,6 +27,7 @@ public sealed class ExplorerService(
     private readonly IMetadataRefreshService _metadataRefreshService = metadataRefreshService;
     private readonly IProviderFactory _providerFactory = providerFactory;
     private readonly IErrorHandler _errorHandler = errorHandler;
+    private readonly IFeatureFlagService _featureFlagService = featureFlagService;
     private readonly DataExplorerOptions _options = options.Value;
 
     public async Task<GetAvailableDatabasesResponse> GetAvailableDatabasesAsync(CancellationToken cancellationToken)
@@ -37,7 +40,16 @@ public sealed class ExplorerService(
                 new DiscoverResourcesRequest(IncludeUnavailableResources: true),
                 cancellationToken);
 
-            return new GetAvailableDatabasesResponse(discovered.Resources);
+            var multipleDbEnabled = await _featureFlagService.IsEnabledAsync(
+                ApplicationFeatures.MultipleDatabases, null, cancellationToken).ConfigureAwait(false);
+
+            var resources = multipleDbEnabled
+                ? discovered.Resources
+                : discovered.Resources.Count > 0
+                    ? [discovered.Resources[0]]
+                    : discovered.Resources;
+
+            return new GetAvailableDatabasesResponse(resources);
         }
         catch (OperationCanceledException)
         {
@@ -82,6 +94,17 @@ public sealed class ExplorerService(
     public async Task<GetDatabaseMetadataResponse> GetDatabaseMetadataAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+
+        if (await IsFeatureDisabledAsync(ApplicationFeatures.ObjectExplorer, cancellationToken) is { } explorerDisabledError)
+        {
+            return new GetDatabaseMetadataResponse(
+                Metadata: null,
+                AggregatedMetadata: null,
+                CollectionStatus: MetadataCollectionStatus.Failed,
+                FailureDetails: [],
+                Errors: [explorerDisabledError.Message],
+                Error: explorerDisabledError);
+        }
 
         var selected = await _selectedDatabaseService.GetSelectedDatabaseAsync(cancellationToken);
         if (selected is null)
@@ -141,6 +164,24 @@ public sealed class ExplorerService(
                 Errors: [error.Message],
                 Error: error);
         }
+    }
+
+    public async Task<GetDatabaseMetadataResponse> GetDiagramDataAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (await IsFeatureDisabledAsync(ApplicationFeatures.DatabaseDiagram, cancellationToken) is { } diagramDisabledError)
+        {
+            return new GetDatabaseMetadataResponse(
+                Metadata: null,
+                AggregatedMetadata: null,
+                CollectionStatus: MetadataCollectionStatus.Failed,
+                FailureDetails: [],
+                Errors: [diagramDisabledError.Message],
+                Error: diagramDisabledError);
+        }
+
+        return await GetDatabaseMetadataAsync(cancellationToken);
     }
 
     public async Task<RefreshMetadataResponse> RefreshDatabaseMetadataAsync(CancellationToken cancellationToken)
@@ -211,6 +252,18 @@ public sealed class ExplorerService(
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+
+        if (await IsFeatureDisabledAsync(ApplicationFeatures.ObjectDetails, cancellationToken) is { } detailsDisabledError)
+        {
+            return new GetObjectDefinitionResponse(
+                ObjectId: objectId,
+                ObjectType: objectType,
+                Definition: null,
+                IsAvailable: false,
+                UnavailableReason: detailsDisabledError.Message,
+                Errors: [detailsDisabledError.Message],
+                Error: detailsDisabledError);
+        }
 
         if (string.IsNullOrWhiteSpace(objectId))
         {
@@ -335,6 +388,19 @@ public sealed class ExplorerService(
     {
         cancellationToken.ThrowIfCancellationRequested();
 
+        if (await IsFeatureDisabledAsync(ApplicationFeatures.QueryEditor, cancellationToken) is { } queryDisabledError)
+        {
+            return new ExecuteDatabaseQueryResponse(
+                DatabaseName: string.Empty,
+                Columns: [],
+                Rows: [],
+                RowCount: 0,
+                AffectedRowCount: null,
+                Duration: TimeSpan.Zero,
+                IsTruncated: false,
+                Error: queryDisabledError);
+        }
+
         if (!_options.EnableAdHocQueries)
         {
             return new ExecuteDatabaseQueryResponse(
@@ -423,6 +489,9 @@ public sealed class ExplorerService(
 
         try
         {
+            var executionPlanEnabled = includeExecutionPlan
+                && await _featureFlagService.IsEnabledAsync(ApplicationFeatures.QueryExecutionPlan, null, cancellationToken).ConfigureAwait(false);
+
             var provider = _providerFactory.Create(selected.Resource.ProviderType);
             var result = await provider.ExecuteQueryAsync(
                 CreateDatabaseResource(selected.Resource),
@@ -431,7 +500,7 @@ public sealed class ExplorerService(
                     Sql: sql.Trim(),
                     MaxRows: Math.Max(1, _options.MaxQueryRows),
                     TimeoutSeconds: Math.Max(1, _options.QueryTimeoutSeconds),
-                    IncludeExecutionPlan: includeExecutionPlan,
+                    IncludeExecutionPlan: executionPlanEnabled,
                     ReadOnly: readOnly),
                 cancellationToken);
 
@@ -469,6 +538,21 @@ public sealed class ExplorerService(
                 IsTruncated: false,
                 Error: error);
         }
+    }
+
+    private async ValueTask<DataExplorerError?> IsFeatureDisabledAsync(FeatureFlag feature, CancellationToken cancellationToken)
+    {
+        var isEnabled = await _featureFlagService.IsEnabledAsync(feature, null, cancellationToken).ConfigureAwait(false);
+        if (isEnabled)
+        {
+            return null;
+        }
+
+        return _errorHandler.CreateError(
+            ErrorCategory.FeatureDisabled,
+            $"The {feature.DisplayName} feature is not available.",
+            "This feature has been disabled. Update your configuration to enable it.",
+            new ErrorContext("feature-check"));
     }
 
     private DataExplorerError ResolveError(Exception exception, ErrorContext context)

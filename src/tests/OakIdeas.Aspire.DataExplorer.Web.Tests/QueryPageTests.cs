@@ -5,7 +5,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer;
+using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Configuration;
+using OakIdeas.Aspire.DataExplorer.Core.FeatureFlags;
 using OakIdeas.Aspire.DataExplorer.Web.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Web.Components.Pages;
 using OakIdeas.Aspire.DataExplorer.Web.Services;
@@ -21,6 +23,9 @@ public sealed class QueryPageTests : BunitContext
         // Circuit-scoped services required by QueryPage
         Services.AddScoped<QueryNavigationState>();
         Services.AddScoped<QuerySessionState>();
+        Services.AddSingleton<IFeatureFlagService, AllEnabledFeatureFlagService>();
+        Services.AddSingleton<IFeatureFlagCatalog>(new FeatureFlagCatalog(ApplicationFeatures.All.ToList()));
+        Services.AddScoped<FeatureFlagStateService>();
     }
 
     [Fact]
@@ -361,7 +366,6 @@ public sealed class QueryPageTests : BunitContext
         });
     }
 
-
     [Fact]
     public void WriteModeToggle_WhenReadOnlyMode_ShowsEnableWritesButton()
     {
@@ -440,7 +444,6 @@ public sealed class QueryPageTests : BunitContext
         component.WaitForAssertion(() => service.ExecuteCalls.Should().Be(1));
     }
 
-
     private sealed class FakeExplorerService(bool returnError = false) : IExplorerService
     {
         public int ExecuteCalls { get; private set; }
@@ -517,6 +520,9 @@ public sealed class QueryPageTests : BunitContext
         public Task<GetObjectDefinitionResponse> GetObjectDefinitionAsync(string objectId, DatabaseObjectType objectType, CancellationToken cancellationToken)
             => Task.FromResult(new GetObjectDefinitionResponse(objectId, objectType, null, false, null, []));
 
+        public Task<GetDatabaseMetadataResponse> GetDiagramDataAsync(CancellationToken cancellationToken)
+            => GetDatabaseMetadataAsync(cancellationToken);
+
         public Task<ExecuteDatabaseQueryResponse> ExecuteQueryAsync(string sql, bool includeExecutionPlan, bool readOnly, CancellationToken cancellationToken)
         {
             ExecuteCalls++;
@@ -552,5 +558,27 @@ public sealed class QueryPageTests : BunitContext
                 IsTruncated: false,
                 ExecutionPlan: includeExecutionPlan ? IncludeExecutionPlanResponse : null));
         }
+    }
+
+    private sealed class AllEnabledFeatureFlagService : IFeatureFlagService
+    {
+        public ValueTask<OakIdeas.Aspire.DataExplorer.Contracts.Models.FeatureFlagResult> EvaluateAsync(
+            OakIdeas.Aspire.DataExplorer.Contracts.Models.FeatureFlag feature,
+            OakIdeas.Aspire.DataExplorer.Contracts.Models.FeatureEvaluationContext context,
+            CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(new OakIdeas.Aspire.DataExplorer.Contracts.Models.FeatureFlagResult
+            {
+                Key = feature.Key,
+                IsEnabled = true,
+                WinningSource = "CatalogDefault",
+                UsedCatalogDefault = true,
+                EvaluationTrace = [],
+            });
+
+        public ValueTask<bool> IsEnabledAsync(
+            OakIdeas.Aspire.DataExplorer.Contracts.Models.FeatureFlag feature,
+            OakIdeas.Aspire.DataExplorer.Contracts.Models.FeatureEvaluationContext? context = null,
+            CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(true);
     }
 }

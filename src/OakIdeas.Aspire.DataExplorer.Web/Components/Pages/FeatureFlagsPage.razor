@@ -1,0 +1,172 @@
+@page "/feature-flags"
+@using OakIdeas.Aspire.DataExplorer.Contracts.Models
+@using OakIdeas.Aspire.DataExplorer.Core.Abstractions
+@using OakIdeas.Aspire.DataExplorer.Core.FeatureFlags
+@using OakIdeas.Aspire.DataExplorer.Web.Services
+@inject IFeatureFlagCatalog Catalog
+@inject FeatureFlagStateService FeatureFlags
+
+<PageTitle>Feature Flags — Data Explorer</PageTitle>
+
+<div class="de-feature-flags-page">
+    <div class="de-main__header">
+        <span class="de-feature-flags-page__icon" aria-hidden="true">
+            <HeroIcon Kind="HeroIconKind.Cog6Tooth" Size="18" />
+        </span>
+        <span class="de-feature-flags-page__title">Feature Flags</span>
+        <span class="de-feature-flags-page__subtitle">Override feature evaluations for this session. Changes apply immediately and reset when you reload.</span>
+    </div>
+
+    <div class="de-feature-flags-toolbar">
+        <div class="de-feature-flags-search-wrap">
+            <span class="de-feature-flags-search-icon" aria-hidden="true">
+                <HeroIcon Kind="HeroIconKind.MagnifyingGlass" Size="14" />
+            </span>
+            <input class="de-feature-flags-search"
+                   type="search"
+                   placeholder="Search flags&hellip;"
+                   aria-label="Search feature flags"
+                   @bind="_searchText"
+                   @bind:event="oninput" />
+        </div>
+        @if (FeatureFlags.HasOverrides)
+        {
+            <div class="de-feature-flags-overrides-notice">
+                <HeroIcon Kind="HeroIconKind.ExclamationTriangle" Size="13" />
+                <span>Some flags are non-default.</span>
+                <button class="de-feature-flags-reset-btn" type="button" @onclick="ResetAll">Reset all</button>
+            </div>
+        }
+    </div>
+
+    <div class="de-feature-flags-body">
+        @if (!_loaded)
+        {
+            <div class="de-feature-flags-loading">Loading&hellip;</div>
+        }
+        else
+        {
+            var groups = GetFilteredGroups();
+
+            @if (!groups.Any())
+            {
+                <div class="de-feature-flags-empty">
+                    <HeroIcon Kind="HeroIconKind.MagnifyingGlass" Size="20" />
+                    <span>No flags match &ldquo;@_searchText&rdquo;</span>
+                </div>
+            }
+            else
+            {
+                @foreach (var group in groups)
+                {
+                    <div class="de-feature-flags-group">
+                        <div class="de-feature-flags-group__header">@group.Key</div>
+                        @foreach (var feature in group)
+                        {
+                            var key = feature.Key;
+                            var overrideVal = FeatureFlags.GetOverride(key);
+                            var snapshotVal = FeatureFlags.GetSnapshotValue(key) ?? feature.DefaultEnabled;
+                            var selectValue = overrideVal switch { true => "enabled", false => "disabled", _ => "default" };
+                            var isOverriding = overrideVal.HasValue && overrideVal.Value != snapshotVal;
+                            var isEnabled = FeatureFlags.IsEnabled(key);
+                            var hasDeps = feature.DependsOn.Count > 0;
+
+                            <div class="de-feature-flags-row @(overrideVal.HasValue ? "de-feature-flags-row--overridden" : string.Empty)">
+                                <div class="de-feature-flags-row__info">
+                                    <div class="de-feature-flags-row__name-line">
+                                        <span class="de-feature-flags-row__name">@feature.DisplayName</span>
+                                        @if (feature.Lifecycle != FeatureLifecycle.GenerallyAvailable)
+                                        {
+                                            <span class="de-feature-flags-lifecycle de-feature-flags-lifecycle--@feature.Lifecycle.ToString().ToLowerInvariant()">@feature.Lifecycle</span>
+                                        }
+                                        @if (isEnabled)
+                                        {
+                                            <span class="de-feature-flags-badge de-feature-flags-badge--enabled">Enabled</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="de-feature-flags-badge de-feature-flags-badge--disabled">Disabled</span>
+                                        }
+                                    </div>
+                                    <p class="de-feature-flags-row__description">@feature.Description</p>
+                                    <div class="de-feature-flags-row__meta">
+                                        <span class="de-feature-flags-row__key">@feature.Key</span>
+                                        @if (hasDeps)
+                                        {
+                                            <span class="de-feature-flags-row__deps" title="Depends on: @string.Join(", ", feature.DependsOn)">
+                                                Depends on: @string.Join(", ", feature.DependsOn)
+                                            </span>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="de-feature-flags-row__control">
+                                    <select class="de-feature-flags-select @(overrideVal.HasValue ? "de-feature-flags-select--overridden" : string.Empty)"
+                                            aria-label="Override for @feature.DisplayName"
+                                            value="@selectValue"
+                                            @onchange="e => HandleOverrideChange(key, e)">
+                                        <option value="default">Default (@(snapshotVal ? "Enabled" : "Disabled"))</option>
+                                        <option value="enabled">Enabled</option>
+                                        <option value="disabled">Disabled</option>
+                                    </select>
+                                    @if (overrideVal.HasValue)
+                                    {
+                                        <button class="de-feature-flags-reset-single" type="button"
+                                                title="Reset to default"
+                                                aria-label="Reset @feature.DisplayName to default"
+                                                @onclick="() => FeatureFlags.SetOverride(key, null)">
+                                            <HeroIcon Kind="HeroIconKind.ArrowPath" Size="13" />
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private string _searchText = string.Empty;
+    private bool _loaded;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await FeatureFlags.EnsureLoadedAsync(CancellationToken.None);
+        _loaded = true;
+    }
+
+    private IEnumerable<IGrouping<string, FeatureFlag>> GetFilteredGroups()
+    {
+        var features = Catalog.Features.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(_searchText))
+        {
+            var term = _searchText.Trim();
+            features = features.Where(f =>
+                f.DisplayName.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                f.Description.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                f.Key.Contains(term, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return features.GroupBy(f => f.Category.ToString());
+    }
+
+    private void HandleOverrideChange(string featureKey, ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString();
+        bool? newOverride = value switch
+        {
+            "enabled" => true,
+            "disabled" => false,
+            _ => null
+        };
+        FeatureFlags.SetOverride(featureKey, newOverride);
+    }
+
+    private void ResetAll()
+    {
+        FeatureFlags.ResetAllOverrides();
+    }
+}

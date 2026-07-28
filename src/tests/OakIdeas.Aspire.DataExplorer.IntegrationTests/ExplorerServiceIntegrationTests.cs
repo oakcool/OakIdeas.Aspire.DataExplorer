@@ -4,6 +4,7 @@ using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Configuration;
 using OakIdeas.Aspire.DataExplorer.Core.Extensions;
+using OakIdeas.Aspire.DataExplorer.Core.FeatureFlags;
 using OakIdeas.Aspire.DataExplorer.Core.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Services;
 using OakIdeas.Aspire.DataExplorer.Web.Abstractions;
@@ -25,6 +26,7 @@ public sealed class ExplorerServiceIntegrationTests
             .Configure(options => options.Register(DatabaseProviderType.SqlServer, typeof(StubDatabaseProvider)));
         services.AddSelectedDatabaseService();
         services.AddMetadataRefreshService();
+        services.AddFeatureFlags();
         services.AddScoped<IExplorerService, ExplorerService>();
 
         await using var scope = services.BuildServiceProvider().CreateAsyncScope();

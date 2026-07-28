@@ -152,6 +152,8 @@
     [Parameter]
     public ObjectSelection? SelectedObject { get; set; }
 
+    [Parameter]
+    public DataEditingOptions? DataEditing { get; set; }
     private readonly HashSet<string> _expandedConnections = [];
     private readonly HashSet<string> _expandedDatabases = [];
     private readonly HashSet<string> _knownConnections = [];
@@ -237,7 +239,8 @@
     {
         _contextMenuItems = ExplorerContextMenuBuilder.Build(
             request.Selection,
-            action => OnContextAction.InvokeAsync(action));
+            action => OnContextAction.InvokeAsync(action),
+            DataEditing);
 
         var viewport = await TryGetViewportSizeAsync();
         _contextMenuOpenToLeft = ShouldOpenToLeft(request.ClientX, viewport.Width);

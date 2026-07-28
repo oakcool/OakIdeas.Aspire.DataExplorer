@@ -4,6 +4,7 @@ using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Configuration;
 using OakIdeas.Aspire.DataExplorer.Core.Extensions;
+using OakIdeas.Aspire.DataExplorer.Core.FeatureFlags;
 using OakIdeas.Aspire.DataExplorer.Core.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Services;
 using OakIdeas.Aspire.DataExplorer.Web.Abstractions;
@@ -117,6 +118,7 @@ public sealed class EndToEndValidationIntegrationTests
             .Configure(options => options.Register(DatabaseProviderType.SqlServer, typeof(MutableMetadataProvider)));
         services.AddSelectedDatabaseService();
         services.AddMetadataRefreshService();
+        services.AddFeatureFlags();
         services.AddScoped<IExplorerService, ExplorerService>();
         return services.BuildServiceProvider().CreateAsyncScope();
     }

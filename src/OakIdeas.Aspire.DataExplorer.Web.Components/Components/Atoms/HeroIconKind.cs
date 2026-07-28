@@ -10,6 +10,7 @@ public enum HeroIconKind
     ChevronRight,
     CircleStack,
     CodeBracket,
+    Cog6Tooth,
     ExclamationTriangle,
     Eye,
     Folder,

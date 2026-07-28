@@ -2,8 +2,10 @@ using OakIdeas.Aspire.DataExplorer.Core.Guards;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Configuration;
 using OakIdeas.Aspire.DataExplorer.Core.Extensions;
+using OakIdeas.Aspire.DataExplorer.Core.FeatureFlags;
 using OakIdeas.Aspire.DataExplorer.Core.Services;
 using OakIdeas.Aspire.DataExplorer.SqlServer.Diagnostics;
+using OakIdeas.Aspire.DataExplorer.SqlServer.FeatureFlags;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.SqlServer.Providers;
 using OakIdeas.Aspire.DataExplorer.Web.Abstractions;
@@ -38,10 +40,20 @@ builder.Services.AddOptions<MetadataProviderFactoryOptions>()
 builder.Services.AddSelectedDatabaseService();
 builder.Services.AddAspireResourceDiscovery(builder.Configuration);
 builder.Services.AddMetadataRefreshService();
+
+var featureFlagBuilder = builder.Services.AddFeatureFlags()
+    .AddConfigurationFeatureFlagSource()
+    .AddStartupValidation();
+
+if (sqlServerProviderEnabled)
+{
+    featureFlagBuilder.AddFeatureContributor<SqlServerFeatureContributor>();
+}
 builder.Services.AddScoped<IExplorerService, ExplorerService>();
 builder.Services.AddScoped<QueryNavigationState>();
 builder.Services.AddScoped<QuerySessionState>();
 builder.Services.AddScoped<ExplorerNavigationState>();
+builder.Services.AddScoped<FeatureFlagStateService>();
 
 var app = builder.Build();
 

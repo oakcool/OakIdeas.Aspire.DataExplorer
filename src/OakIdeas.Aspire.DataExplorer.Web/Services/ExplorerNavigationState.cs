@@ -31,14 +31,3 @@ public sealed class ExplorerNavigationState
         return value;
     }
 }
-
-/// <summary>
-/// Identifies a database object selected in the Object Explorer sidebar.
-/// </summary>
-public sealed record ExplorerObjectSelection(
-    string ObjectId,
-    string ObjectType,
-    string ObjectName,
-    string SchemaName,
-    string ConnectionName,
-    string DatabaseName);
