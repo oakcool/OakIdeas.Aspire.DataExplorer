@@ -143,6 +143,9 @@ public sealed class FeatureFlagStateService(
     /// <summary>Returns whether the Object Definition feature is enabled.</summary>
     public bool ObjectDefinitionEnabled => IsEnabled(FeatureKeys.ExplorerObjectDefinition);
 
+    /// <summary>Returns whether the Schema and Migrations feature is enabled.</summary>
+    public bool SchemaMigrationsEnabled => IsEnabled(FeatureKeys.ExplorerSchemaMigrations);
+
     // ── Query ─────────────────────────────────────────────────────────────────
 
     /// <summary>Returns whether the Query Editor feature is enabled.</summary>

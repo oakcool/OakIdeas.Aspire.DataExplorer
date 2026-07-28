@@ -38,13 +38,24 @@ public sealed class ApplicationFeaturesCatalogTests
     }
 
     [Fact]
-    public void All_EveryExistingFeatureDefaultsToEnabled()
+    public void All_EveryGenerallyAvailableFeatureDefaultsToEnabled()
     {
         foreach (var feature in ApplicationFeatures.All)
         {
+            if (string.Equals(feature.Key, FeatureKeys.ExplorerSchemaMigrations, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
             feature.DefaultEnabled.Should().BeTrue(
                 $"existing feature '{feature.Key}' must default to enabled to preserve current behavior");
         }
+    }
+
+    [Fact]
+    public void SchemaMigrations_DefaultsToDisabledForSafeRollout()
+    {
+        ApplicationFeatures.SchemaMigrations.DefaultEnabled.Should().BeFalse();
     }
 
     [Fact]
@@ -113,6 +124,7 @@ public sealed class ApplicationFeaturesCatalogTests
         keys.Should().Contain(FeatureKeys.ExplorerForeignKeys);
         keys.Should().Contain(FeatureKeys.ExplorerPrimaryKeys);
         keys.Should().Contain(FeatureKeys.ExplorerObjectDefinition);
+        keys.Should().Contain(FeatureKeys.ExplorerSchemaMigrations);
         keys.Should().Contain(FeatureKeys.QueryEditor);
         keys.Should().Contain(FeatureKeys.QueryAutoExecute);
         keys.Should().Contain(FeatureKeys.QueryExecutionPlan);

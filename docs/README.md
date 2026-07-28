@@ -16,6 +16,7 @@ This directory contains the public documentation for OakIdeas.Aspire.DataExplore
 - [Metadata discovery](architecture/metadata-discovery.md)
 - [Provider model](architecture/provider-model.md)
 - [Error handling](architecture/error-handling.md)
+- [Schema and Migrations explorer design](architecture/schema-migrations-explorer.md)
 - [Provider implementation guide](providers/implementation-guide.md)
 - [SQL Server provider notes](providers/sqlserver.md)
 

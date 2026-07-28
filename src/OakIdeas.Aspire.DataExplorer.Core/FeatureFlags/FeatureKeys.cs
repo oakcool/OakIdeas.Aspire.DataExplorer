@@ -38,6 +38,9 @@ public static class FeatureKeys
     /// <summary>Multiple Databases: connect to and explore more than one database resource simultaneously.</summary>
     public const string ProvidersMultipleDatabases = "Providers.MultipleDatabases";
 
+    /// <summary>Schema and Migrations: compare migration/model/schema state and inspect migration scripts.</summary>
+    public const string ExplorerSchemaMigrations = "Explorer.SchemaMigrations";
+
     /// <summary>Views: browse and inspect database views in the Object Explorer tree.</summary>
     public const string ExplorerViews = "Explorer.Views";
 

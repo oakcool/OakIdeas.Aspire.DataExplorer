@@ -249,6 +249,19 @@ public static class ApplicationFeatures
         Owner = "Explorer",
     };
 
+    /// <summary>Schema and Migrations feature.</summary>
+    public static readonly FeatureFlag SchemaMigrations = new()
+    {
+        Key = FeatureKeys.ExplorerSchemaMigrations,
+        DisplayName = "Schema and Migrations",
+        Description = "Compare schema and migration state across environments and inspect migration scripts before execution.",
+        Category = FeatureCategory.Explorer,
+        DefaultEnabled = false,
+        Lifecycle = FeatureLifecycle.Preview,
+        DependsOn = [FeatureKeys.ExplorerObjectExplorer],
+        Owner = "Explorer",
+    };
+
     /// <summary>
     /// Returns all features defined in the application catalog, in their canonical order.
     /// </summary>
@@ -265,6 +278,7 @@ public static class ApplicationFeatures
         ForeignKeys,
         PrimaryKeys,
         ObjectDefinition,
+        SchemaMigrations,
         QueryEditor,
         QueryAutoExecute,
         QueryExecutionPlan,

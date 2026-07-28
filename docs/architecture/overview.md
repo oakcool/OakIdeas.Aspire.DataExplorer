@@ -63,7 +63,7 @@ Feature flags control whether application capabilities are available. The system
 - `IFeatureFlagCatalog` (Core) holds all registered `FeatureFlag` definitions with their defaults.
 - `IFeatureFlagSourceProvider` (Core) is the extension point for new flag sources.
 - `ConfigurationFeatureFlagSourceProvider` reads flags from the standard `IConfiguration` pipeline.
-- All existing features are registered with `DefaultEnabled = true` to preserve current behavior.
+- Most existing features are registered with `DefaultEnabled = true` to preserve current behavior; rollout-gated preview features may default to `false`.
 
 See [Feature flag architecture](./feature-flags.md) for detailed design, source precedence, and the feature inventory.
 
