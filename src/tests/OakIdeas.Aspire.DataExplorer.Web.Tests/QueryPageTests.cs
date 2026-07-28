@@ -364,7 +364,6 @@ public sealed class QueryPageTests : BunitContext
         });
     }
 
-
     [Fact]
     public void WriteModeToggle_WhenReadOnlyMode_ShowsEnableWritesButton()
     {
@@ -442,7 +441,6 @@ public sealed class QueryPageTests : BunitContext
         component.Find("button[title='Execute (Ctrl+Enter)']").Click();
         component.WaitForAssertion(() => service.ExecuteCalls.Should().Be(1));
     }
-
 
     private sealed class FakeExplorerService(bool returnError = false) : IExplorerService
     {

@@ -132,5 +132,3 @@ public sealed class FeatureFlagService(
     }
 }
 
-/// <summary>Internal wrapper associating a source provider with its priority.</summary>
-public sealed record OrderedSourceProvider(int Priority, IFeatureFlagSourceProvider Provider);

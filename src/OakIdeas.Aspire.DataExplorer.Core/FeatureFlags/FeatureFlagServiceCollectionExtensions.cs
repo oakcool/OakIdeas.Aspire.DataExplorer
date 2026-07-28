@@ -97,11 +97,3 @@ public static class FeatureFlagServiceCollectionExtensions
     }
 }
 
-/// <summary>
-/// Builder returned by <see cref="FeatureFlagServiceCollectionExtensions.AddFeatureFlags"/> to enable fluent source registration.
-/// </summary>
-public sealed class FeatureFlagBuilder(IServiceCollection services)
-{
-    /// <summary>The underlying service collection.</summary>
-    public IServiceCollection Services { get; } = services;
-}
