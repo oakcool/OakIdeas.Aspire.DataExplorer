@@ -16,6 +16,9 @@ const INITIAL_ZOOM_STEP = 0.15;
 const MIN_ZOOM = 0.08;
 const MAX_ZOOM = 3;
 const SVG_NS = 'http://www.w3.org/2000/svg';
+const FIT_PADDING = 40;
+const DEFAULT_CANVAS_WIDTH = 600;
+const DEFAULT_CANVAS_HEIGHT = 400;
 
 let _idCounter = 0;
 function nextId(prefix) {
@@ -682,8 +685,8 @@ export function fitPlan(canvas) {
   const state = getState(canvas);
   if (!state || state.nodes.length === 0) return;
 
-  const cw = canvas.clientWidth || 600;
-  const ch = canvas.clientHeight || 400;
+  const cw = canvas.clientWidth || DEFAULT_CANVAS_WIDTH;
+  const ch = canvas.clientHeight || DEFAULT_CANVAS_HEIGHT;
 
   // Compute bounding box.
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -701,9 +704,8 @@ export function fitPlan(canvas) {
   const diagH = maxY - minY;
   if (diagW <= 0 || diagH <= 0) return;
 
-  const padding = 40;
-  const scaleX = (cw - padding * 2) / diagW;
-  const scaleY = (ch - padding * 2) / diagH;
+  const scaleX = (cw - FIT_PADDING * 2) / diagW;
+  const scaleY = (ch - FIT_PADDING * 2) / diagH;
   const scale = Math.min(scaleX, scaleY, 1);
 
   state.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, scale));

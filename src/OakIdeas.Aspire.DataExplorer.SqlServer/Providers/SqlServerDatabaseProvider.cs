@@ -339,6 +339,12 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
     public string ProviderName => "sqlserver";
     public DatabaseProviderType ProviderType => DatabaseProviderType.SqlServer;
 
+    /// <summary>Maximum number of execution plan RelOp nodes to extract from a single plan XML document.</summary>
+    private const int MaxExecutionPlanNodes = 64;
+
+    /// <summary>Maximum number of RunTimeCountersPerThread elements to aggregate per RelOp node.</summary>
+    private const int MaxRuntimeCounterThreads = 64;
+
     public ProviderCapabilities Capabilities { get; } = new()
     {
         SupportsSchemas = true,
@@ -613,7 +619,7 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
         XNamespace ns = document.Root?.Name.Namespace ?? XNamespace.None;
         var relOps = document
             .Descendants(ns + "RelOp")
-            .Take(64)
+            .Take(MaxExecutionPlanNodes)
             .ToList();
 
         if (relOps.Count == 0)
@@ -682,7 +688,7 @@ public sealed class SqlServerDatabaseProvider : IDatabaseProvider, ISchemaDiscov
 
         var runtimeCounters = relOp
             .Descendants(ns + "RunTimeCountersPerThread")
-            .Take(64)
+            .Take(MaxRuntimeCounterThreads)
             .ToList();
 
         var actualMetrics = new List<ExecutionPlanMetric>();
