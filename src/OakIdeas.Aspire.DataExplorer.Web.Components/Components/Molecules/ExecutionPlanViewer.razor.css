@@ -36,3 +36,10 @@
     color: #94a3b8;
     font-size: 0.86rem;
 }
+
+.execution-plan-viewer__diagram {
+    flex: 1;
+    min-height: 18rem;
+    max-height: 72vh;
+}
+

@@ -271,7 +271,7 @@ public sealed class QueryPageTests : BunitContext
     }
 
     [Fact]
-    public void ExecutionPlanTab_WhenToggleEnabled_ShowsMermaidViewer()
+    public void ExecutionPlanTab_WhenToggleEnabled_ShowsExecutionPlanDiagram()
     {
         var service = new FakeExplorerService();
         Services.AddSingleton<IExplorerService>(service);
@@ -287,7 +287,7 @@ public sealed class QueryPageTests : BunitContext
             .Single(button => button.TextContent.Contains("Execution Plan", StringComparison.Ordinal))
             .Click();
 
-        component.Markup.Should().Contain("mermaid-diagram");
+        component.Markup.Should().Contain("de-ep-diagram");
     }
 
     [Fact]
@@ -298,7 +298,8 @@ public sealed class QueryPageTests : BunitContext
             IncludeExecutionPlanResponse = new ExecutionPlanResponse(
                 IsAvailable: false,
                 Provider: "SqlServer",
-                MermaidDiagram: null,
+                Nodes: null,
+                Edges: null,
                 RawPlan: null,
                 Message: "Execution plan is not available for this query or provider."),
         };
@@ -333,37 +334,6 @@ public sealed class QueryPageTests : BunitContext
         tabButtons[0].TextContent.Should().Contain("Results");
         tabButtons[1].TextContent.Should().Contain("Execution Plan");
         tabButtons[2].TextContent.Should().Contain("Errors");
-    }
-
-    [Fact]
-    public void ExecutionPlanRenderFailure_SwitchesToErrorsTab_WithDetailedDiagnostics()
-    {
-        var mermaidModule = JSInterop.SetupModule("./_content/OakIdeas.Aspire.DataExplorer.Web.Components/Components/Atoms/MermaidDiagram.razor.js");
-        mermaidModule.Setup<string?>("renderMermaid", _ => true).SetResult("invalid: simulated parse failure");
-
-        var service = new FakeExplorerService();
-        Services.AddSingleton<IExplorerService>(service);
-        Services.AddSingleton<IOptions<DataExplorerOptions>>(Options.Create(new DataExplorerOptions()));
-
-        var component = Render<QueryPage>();
-        component.Find("button[title*='Include execution plan']").Click();
-        component.Find("textarea").Input("SELECT 1");
-        component.Find("button[title='Execute (Ctrl+Enter)']").Click();
-        component.WaitForAssertion(() => component.Markup.Should().Contain("Execution Plan"));
-
-        component.FindAll("button")
-            .Single(button => button.TextContent.Contains("Execution Plan", StringComparison.Ordinal))
-            .Click();
-
-        component.WaitForAssertion(() =>
-        {
-            component.Markup.Should().Contain("de-query-errors__panel");
-            component.Markup.Should().Contain("Execution plan rendering failed.");
-            component.Markup.Should().Contain("Unable to render execution plan diagram.");
-            component.Markup.Should().Contain("simulated parse failure");
-            component.Markup.Should().Contain("render-execution-plan");
-            component.Markup.Should().Contain("execution-plan-render-error");
-        });
     }
 
     [Fact]
@@ -452,7 +422,8 @@ public sealed class QueryPageTests : BunitContext
         public ExecutionPlanResponse? IncludeExecutionPlanResponse { get; set; } = new(
             IsAvailable: true,
             Provider: "SqlServer",
-            MermaidDiagram: "flowchart TD\nA[Query Start]-->B[Index Seek]",
+            Nodes: [new ExecutionPlanNode("N1", "Index Seek", null, "dbo.Users", "access", [], [])],
+            Edges: [],
             RawPlan: "<ShowPlanXML />",
             Message: null);
 
