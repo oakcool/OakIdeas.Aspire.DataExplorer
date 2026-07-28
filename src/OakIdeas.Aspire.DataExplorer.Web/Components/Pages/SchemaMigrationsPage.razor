@@ -42,28 +42,34 @@ dotnet ef database update</pre>
 
 @code {
     private string? _databaseName;
+    private CancellationTokenSource? _loadCts;
 
     protected override async Task OnInitializedAsync()
     {
         FeatureFlags.FlagsChanged += HandleFlagsChanged;
-        await FeatureFlags.EnsureLoadedAsync(CancellationToken.None);
+        _loadCts = new CancellationTokenSource();
+        var cancellationToken = _loadCts.Token;
+
+        await FeatureFlags.EnsureLoadedAsync(cancellationToken);
 
         if (!FeatureFlags.SchemaMigrationsEnabled)
         {
             return;
         }
 
-        var selected = await ExplorerService.GetSelectedDatabaseAsync(CancellationToken.None);
+        var selected = await ExplorerService.GetSelectedDatabaseAsync(cancellationToken);
         _databaseName = selected.Selection?.DatabaseName;
     }
 
-    private async void HandleFlagsChanged()
+    private void HandleFlagsChanged()
     {
-        await InvokeAsync(StateHasChanged);
+        _ = InvokeAsync(StateHasChanged);
     }
 
     public void Dispose()
     {
         FeatureFlags.FlagsChanged -= HandleFlagsChanged;
+        _loadCts?.Cancel();
+        _loadCts?.Dispose();
     }
 }
