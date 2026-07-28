@@ -1,7 +1,6 @@
 using Bunit;
 using FluentAssertions;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer;
-using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Atoms;
 using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Molecules;
 
 namespace OakIdeas.Aspire.DataExplorer.Web.Components.Tests;
@@ -14,44 +13,14 @@ public sealed class ExecutionPlanComponentsTests : BunitContext
     }
 
     [Fact]
-    public void MermaidDiagram_ValidateMermaidDiagram_WhenFlowchart_ReturnsNull()
-    {
-        var validation = MermaidDiagram.ValidateMermaidDiagram("flowchart TD\nA-->B");
-
-        validation.Should().BeNull();
-    }
-
-    [Fact]
-    public void MermaidDiagram_ValidateMermaidDiagram_WhenNonEmpty_ReturnsNull()
-    {
-        var validation = MermaidDiagram.ValidateMermaidDiagram("not a mermaid diagram");
-
-        validation.Should().BeNull();
-    }
-
-    [Fact]
-    public void MermaidDiagram_NormalizeMermaidDiagram_WhenFenced_RemovesMarkdownFence()
-    {
-        var normalized = MermaidDiagram.NormalizeMermaidDiagram(
-            """
-            ```mermaid
-            flowchart TD
-                A[Query Start] --> B[Index Seek]
-            ```
-            """);
-
-        normalized.Should().StartWith("flowchart TD");
-        normalized.Should().NotContain("```");
-    }
-
-    [Fact]
     public void ExecutionPlanViewer_WhenPlanUnavailable_ShowsEmptyState()
     {
         var component = Render<ExecutionPlanViewer>(parameters => parameters
             .Add(p => p.ExecutionPlan, new ExecutionPlanResponse(
                 IsAvailable: false,
                 Provider: "SqlServer",
-                MermaidDiagram: null,
+                Nodes: null,
+                Edges: null,
                 RawPlan: null,
                 Message: "Execution plan is not available for this query or provider.")));
 
@@ -59,48 +28,78 @@ public sealed class ExecutionPlanComponentsTests : BunitContext
     }
 
     [Fact]
-    public void ExecutionPlanViewer_WhenPlanAvailable_RendersMermaidDiagram()
+    public void ExecutionPlanViewer_WhenPlanAvailable_RendersExecutionPlanDiagram()
     {
+        var nodes = new List<ExecutionPlanNode>
+        {
+            new("N1", "Index Seek", null, "dbo.Users", "access",
+                [new ExecutionPlanMetric("Est. Rows", "10")],
+                []),
+        };
+
         var component = Render<ExecutionPlanViewer>(parameters => parameters
             .Add(p => p.ExecutionPlan, new ExecutionPlanResponse(
                 IsAvailable: true,
                 Provider: "SqlServer",
-                MermaidDiagram: "flowchart TD\nA-->B",
+                Nodes: nodes,
+                Edges: [],
                 RawPlan: "<ShowPlanXML />",
                 Message: null)));
 
-        component.Markup.Should().Contain("mermaid-diagram");
+        component.Markup.Should().Contain("de-ep-diagram");
     }
 
     [Fact]
-    public void ExecutionPlanViewer_WhenPlanAvailable_PassesDiagramValueToRenderer()
+    public void ExecutionPlanViewer_WhenPlanAvailable_ShowsProviderBadge()
     {
-        var expectedDiagram = "flowchart TD\nA-->B";
-        var mermaidModule = JSInterop.SetupModule("./_content/OakIdeas.Aspire.DataExplorer.Web.Components/Components/Atoms/MermaidDiagram.razor.js");
-        mermaidModule.Setup<string?>("renderMermaid", invocation =>
+        var nodes = new List<ExecutionPlanNode>
         {
-            if (invocation.Arguments.Count < 2)
-            {
-                return false;
-            }
+            new("N1", "Clustered Index Scan", null, null, "access", [], []),
+        };
 
-            return invocation.Arguments[1] is string source
-                && string.Equals(source, expectedDiagram, StringComparison.Ordinal);
-        }).SetResult(null);
+        var component = Render<ExecutionPlanViewer>(parameters => parameters
+            .Add(p => p.ExecutionPlan, new ExecutionPlanResponse(
+                IsAvailable: true,
+                Provider: "SqlServer",
+                Nodes: nodes,
+                Edges: [],
+                RawPlan: null,
+                Message: null)));
+
+        component.Markup.Should().Contain("SqlServer");
+    }
+
+    [Fact]
+    public void ExecutionPlanViewer_WhenPlanAvailable_PassesPlanDataToRenderer()
+    {
+        var expectedNodes = new List<ExecutionPlanNode>
+        {
+            new("N1", "Index Seek", null, "dbo.Users", "access",
+                [new ExecutionPlanMetric("Est. Rows", "10")],
+                []),
+        };
+        var expectedEdges = new List<ExecutionPlanEdge>
+        {
+            new("N0", "N1"),
+        };
+
+        var jsModule = JSInterop.SetupModule("./_content/OakIdeas.Aspire.DataExplorer.Web.Components/Components/Molecules/ExecutionPlanDiagram.razor.js");
+        jsModule.SetupVoid("initPlan", _ => true);
 
         Render<ExecutionPlanViewer>(parameters => parameters
             .Add(p => p.ExecutionPlan, new ExecutionPlanResponse(
                 IsAvailable: true,
                 Provider: "SqlServer",
-                MermaidDiagram: expectedDiagram,
-                RawPlan: "<ShowPlanXML />",
+                Nodes: expectedNodes,
+                Edges: expectedEdges,
+                RawPlan: null,
                 Message: null)));
 
-        var matchingInvocationCount = mermaidModule.Invocations.Count(invocation =>
-            invocation.Identifier == "renderMermaid"
-            && invocation.Arguments.Count >= 2
-            && string.Equals(invocation.Arguments[1]?.ToString(), expectedDiagram, StringComparison.Ordinal));
+        var initPlanInvocations = jsModule.Invocations
+            .Where(i => i.Identifier == "initPlan")
+            .ToList();
 
-        matchingInvocationCount.Should().Be(1);
+        initPlanInvocations.Should().HaveCount(1);
     }
 }
+

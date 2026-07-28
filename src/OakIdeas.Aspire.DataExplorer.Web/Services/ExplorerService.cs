@@ -517,7 +517,8 @@ public sealed class ExplorerService(
                     : new ExecutionPlanResponse(
                         IsAvailable: result.ExecutionPlan.IsAvailable,
                         Provider: result.ExecutionPlan.Provider,
-                        MermaidDiagram: result.ExecutionPlan.MermaidDiagram,
+                        Nodes: result.ExecutionPlan.Nodes,
+                        Edges: result.ExecutionPlan.Edges,
                         RawPlan: result.ExecutionPlan.RawPlan,
                         Message: result.ExecutionPlan.Message));
         }

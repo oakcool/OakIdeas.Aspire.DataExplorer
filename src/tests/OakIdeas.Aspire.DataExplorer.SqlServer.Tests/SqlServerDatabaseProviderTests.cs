@@ -112,7 +112,7 @@ public sealed class SqlServerDatabaseProviderTests
     }
 
     [Fact]
-    public void ConvertExecutionPlanXmlToMermaid_WhenRelOpsPresent_ReturnsFlowchart()
+    public void ConvertExecutionPlanXmlToGraph_WhenRelOpsPresent_ReturnsNodesAndEdges()
     {
         const string xml = """
             <ShowPlanXML xmlns="http://schemas.microsoft.com/sqlserver/2004/07/showplan">
@@ -121,8 +121,9 @@ public sealed class SqlServerDatabaseProviderTests
                   <Statements>
                     <StmtSimple>
                       <QueryPlan>
-                        <RelOp PhysicalOp="Index Seek" />
-                        <RelOp PhysicalOp="Nested Loops" />
+                        <RelOp NodeId="0" PhysicalOp="Nested Loops">
+                          <RelOp NodeId="1" PhysicalOp="Index Seek" />
+                        </RelOp>
                       </QueryPlan>
                     </StmtSimple>
                   </Statements>
@@ -131,15 +132,16 @@ public sealed class SqlServerDatabaseProviderTests
             </ShowPlanXML>
             """;
 
-        var diagram = SqlServerDatabaseProvider.ConvertExecutionPlanXmlToMermaid(xml);
+        var (nodes, edges) = SqlServerDatabaseProvider.ConvertExecutionPlanXmlToGraph(xml);
 
-        diagram.Should().Contain("flowchart LR");
-        diagram.Should().Contain("Index Seek");
-        diagram.Should().Contain("Nested Loops");
+        nodes.Should().HaveCount(2);
+        nodes.Should().Contain(n => n.PhysicalOp == "Nested Loops");
+        nodes.Should().Contain(n => n.PhysicalOp == "Index Seek");
+        edges.Should().HaveCount(1);
     }
 
     [Fact]
-    public void ConvertExecutionPlanXmlToMermaid_WhenStatisticsAvailable_IncludesEstimatedAndActualMetrics()
+    public void ConvertExecutionPlanXmlToGraph_WhenStatisticsAvailable_IncludesEstimatedAndActualMetrics()
     {
         const string xml = """
             <ShowPlanXML xmlns="http://schemas.microsoft.com/sqlserver/2004/07/showplan">
@@ -177,19 +179,19 @@ public sealed class SqlServerDatabaseProviderTests
             </ShowPlanXML>
             """;
 
-        var diagram = SqlServerDatabaseProvider.ConvertExecutionPlanXmlToMermaid(xml);
+        var (nodes, _) = SqlServerDatabaseProvider.ConvertExecutionPlanXmlToGraph(xml);
 
-        diagram.Should().Contain("N1[\"");
-        diagram.Should().Contain("classDef epOperator");
-        diagram.Should().Contain("classDef epAccess");
-        diagram.Should().Contain("class N1 epAccess");
-        diagram.Should().Contain("Estimated Rows: 12.5");
-        diagram.Should().Contain("Estimated Cost: 0.004125");
-        diagram.Should().Contain("Actual Rows: 15");
-        diagram.Should().Contain("Actual Execs: 2");
-        diagram.Should().Contain("Actual Reads: 20");
-        diagram.Should().Contain("--------");
-        diagram.Should().Contain("Object: dbo.Users (IX_Users_Name)");
+        nodes.Should().HaveCount(1);
+        var node = nodes[0];
+        node.Id.Should().Be("N1");
+        node.PhysicalOp.Should().Be("Clustered Index Scan");
+        node.ObjectName.Should().Be("dbo.Users (IX_Users_Name)");
+        node.NodeKind.Should().Be("access");
+        node.EstimatedMetrics.Should().Contain(m => m.Label == "Est. Rows" && m.Value == "12.5");
+        node.EstimatedMetrics.Should().Contain(m => m.Label == "Est. Cost" && m.Value == "0.004125");
+        node.ActualMetrics.Should().Contain(m => m.Label == "Actual Rows" && m.Value == "15");
+        node.ActualMetrics.Should().Contain(m => m.Label == "Actual Execs" && m.Value == "2");
+        node.ActualMetrics.Should().Contain(m => m.Label == "Logical Reads" && m.Value == "20");
     }
 
     [Fact]

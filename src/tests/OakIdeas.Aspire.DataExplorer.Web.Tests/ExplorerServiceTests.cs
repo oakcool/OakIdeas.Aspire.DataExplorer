@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
+using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Configuration;
 using OakIdeas.Aspire.DataExplorer.Core.Models;
@@ -258,7 +259,8 @@ public sealed class ExplorerServiceTests
                 ExecutionPlan: new QueryExecutionPlanResult(
                     IsAvailable: true,
                     Provider: "SqlServer",
-                    MermaidDiagram: "flowchart TD\nA[Query Start]-->B[Index Seek]",
+                    Nodes: [new ExecutionPlanNode("N1", "Index Seek", null, null, "access", [], [])],
+                    Edges: [],
                     RawPlan: "<ShowPlanXML />",
                     Message: null)));
 
@@ -323,7 +325,8 @@ public sealed class ExplorerServiceTests
                 ExecutionPlan: new QueryExecutionPlanResult(
                     IsAvailable: false,
                     Provider: "SqlServer",
-                    MermaidDiagram: null,
+                    Nodes: null,
+                    Edges: null,
                     RawPlan: null,
                     Message: null)));
 

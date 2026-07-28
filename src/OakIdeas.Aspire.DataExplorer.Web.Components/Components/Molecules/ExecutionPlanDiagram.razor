@@ -1,0 +1,118 @@
+@using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer
+@using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Atoms
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<div class="de-ep-diagram @Class" aria-label="Execution plan diagram">
+    <div class="de-ep-diagram__toolbar" role="toolbar" aria-label="Execution plan controls">
+        <div class="de-ep-diagram__toolbar-group">
+            <button class="de-ep-diagram__tool-btn"
+                    type="button"
+                    title="Zoom in"
+                    aria-label="Zoom in"
+                    @onclick="ZoomInAsync">
+                <HeroIcon Kind="HeroIconKind.Plus" Size="13" />
+            </button>
+            <button class="de-ep-diagram__tool-btn"
+                    type="button"
+                    title="Zoom out"
+                    aria-label="Zoom out"
+                    @onclick="ZoomOutAsync">
+                <span class="de-ep-diagram__zoom-out-icon" aria-hidden="true">−</span>
+            </button>
+            <button class="de-ep-diagram__tool-btn"
+                    type="button"
+                    title="Fit to screen"
+                    aria-label="Fit to screen"
+                    @onclick="FitAsync">
+                <HeroIcon Kind="HeroIconKind.ViewColumns" Size="13" />
+                <span class="de-ep-diagram__tool-label hidden md:inline">Fit</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="de-ep-diagram__canvas-wrapper">
+        <div class="de-ep-diagram__canvas" @ref="_canvasRef" tabindex="0" aria-label="Execution plan canvas"></div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<ExecutionPlanNode>? Nodes { get; set; }
+    [Parameter] public IReadOnlyList<ExecutionPlanEdge>? Edges { get; set; }
+    [Parameter] public string Class { get; set; } = string.Empty;
+
+    private ElementReference _canvasRef;
+    private IJSObjectReference? _module;
+    private IReadOnlyList<ExecutionPlanNode>? _lastRenderedNodes;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Nodes is null || Nodes.Count == 0)
+        {
+            return;
+        }
+
+        if (ReferenceEquals(_lastRenderedNodes, Nodes))
+        {
+            return;
+        }
+
+        try
+        {
+            _module ??= await JS.InvokeAsync<IJSObjectReference>("import",
+                "./_content/OakIdeas.Aspire.DataExplorer.Web.Components/Components/Molecules/ExecutionPlanDiagram.razor.js");
+
+            _lastRenderedNodes = Nodes;
+
+            await _module.InvokeVoidAsync("initPlan", _canvasRef, new
+            {
+                nodes = Nodes,
+                edges = (IReadOnlyList<ExecutionPlanEdge>)(Edges ?? []),
+            });
+        }
+        catch (JSException)
+        {
+            // Ignore JS interop failures in disconnected/test contexts.
+        }
+    }
+
+    private async Task ZoomInAsync()
+    {
+        if (_module is not null)
+        {
+            await _module.InvokeVoidAsync("zoomIn", _canvasRef);
+        }
+    }
+
+    private async Task ZoomOutAsync()
+    {
+        if (_module is not null)
+        {
+            await _module.InvokeVoidAsync("zoomOut", _canvasRef);
+        }
+    }
+
+    private async Task FitAsync()
+    {
+        if (_module is not null)
+        {
+            await _module.InvokeVoidAsync("fitPlan", _canvasRef);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module is not null)
+        {
+            try
+            {
+                await _module.InvokeVoidAsync("destroyPlan", _canvasRef);
+                await _module.DisposeAsync();
+            }
+            catch
+            {
+                // Ignore disposal errors in disconnected/test contexts.
+            }
+        }
+    }
+}
