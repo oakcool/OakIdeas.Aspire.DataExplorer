@@ -1,0 +1,69 @@
+@page "/schema-migrations"
+@using OakIdeas.Aspire.DataExplorer.Web.Abstractions
+@using OakIdeas.Aspire.DataExplorer.Web.Services
+@implements IDisposable
+@inject IExplorerService ExplorerService
+@inject FeatureFlagStateService FeatureFlags
+
+<PageTitle>Schema and Migrations — Data Explorer</PageTitle>
+
+@if (!FeatureFlags.SchemaMigrationsEnabled)
+{
+    <div class="de-feature-unavailable">
+        <HeroIcon Kind="HeroIconKind.ExclamationTriangle" Size="32" Class="de-feature-unavailable__icon" />
+        <h2 class="de-feature-unavailable__title">Schema and Migrations Unavailable</h2>
+        <p class="de-feature-unavailable__message">The Schema and Migrations feature is disabled by configuration.</p>
+    </div>
+    return;
+}
+
+<div class="de-main-page flex h-full min-h-0 flex-col bg-slate-950">
+    <div class="de-main__header flex shrink-0 items-center gap-3 border-b border-slate-800 bg-slate-900/80 px-5 py-3">
+        <h2 class="de-main__title flex min-w-0 items-center gap-2 text-sm font-semibold text-slate-100">
+            <HeroIcon Kind="HeroIconKind.CircleStack" Size="18" Class="de-main__title-icon" />
+            <span>Schema and Migrations</span>
+        </h2>
+    </div>
+
+    <div class="p-5 text-sm text-slate-300">
+        <p class="mb-2">
+            Feature rollout is in progress. This area is enabled, but full schema drift comparison and migration execution controls are not yet available.
+        </p>
+        @if (!string.IsNullOrWhiteSpace(_databaseName))
+        {
+            <p class="mb-4">Selected database: <span class="font-semibold text-slate-100">@_databaseName</span></p>
+        }
+        <p class="mb-2 font-semibold text-slate-100">EF Core CLI command templates</p>
+        <pre class="rounded-lg border border-slate-700 bg-slate-900 p-3 text-xs text-slate-200">dotnet ef migrations list
+dotnet ef migrations script --idempotent
+dotnet ef database update</pre>
+    </div>
+</div>
+
+@code {
+    private string? _databaseName;
+
+    protected override async Task OnInitializedAsync()
+    {
+        FeatureFlags.FlagsChanged += HandleFlagsChanged;
+        await FeatureFlags.EnsureLoadedAsync(CancellationToken.None);
+
+        if (!FeatureFlags.SchemaMigrationsEnabled)
+        {
+            return;
+        }
+
+        var selected = await ExplorerService.GetSelectedDatabaseAsync(CancellationToken.None);
+        _databaseName = selected.Selection?.DatabaseName;
+    }
+
+    private async void HandleFlagsChanged()
+    {
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        FeatureFlags.FlagsChanged -= HandleFlagsChanged;
+    }
+}

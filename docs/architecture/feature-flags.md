@@ -25,7 +25,7 @@ The catalog (`IFeatureFlagCatalog`) holds all registered `FeatureFlag` definitio
 - **Key** — stable dot-notation string, e.g., `Query.Editor`.
 - **DisplayName** and **Description** — for diagnostics and admin UIs.
 - **Category** — the application area (`Explorer`, `Query`, `Diagram`, `DataEditing`, `Providers`, `Infrastructure`).
-- **DefaultEnabled** — value used when no source defines the flag. All existing features default to `true`.
+- **DefaultEnabled** — value used when no source defines the flag. Most existing features default to `true`; rollout-gated preview features can default to `false`.
 - **Lifecycle** — `Planned`, `Development`, `Preview`, `GenerallyAvailable`, `Deprecated`, `Retired`.
 - **DependsOn** — optional list of keys that must also be enabled.
 
@@ -117,20 +117,21 @@ The legacy `/feature-flags` route remains available as a compatibility redirect 
 
 ## Feature Inventory
 
-All existing features are registered with `DefaultEnabled = true`:
+Feature defaults are explicitly declared in the catalog:
 
-| Key | Display Name | Category |
-|-----|-------------|----------|
-| `Explorer.ObjectExplorer` | Object Explorer | Explorer |
-| `Explorer.ObjectDetails` | Object Details | Explorer |
-| `Query.Editor` | Query Editor | Query |
-| `Query.AutoExecute` | Auto-Execute | Query |
-| `Query.ExecutionPlan` | Execution Plan | Query |
-| `Diagram.DatabaseDiagram` | Database Diagram | Diagram |
-| `DataEditing.Insert` | Data Insert | DataEditing |
-| `DataEditing.Update` | Data Update | DataEditing |
-| `DataEditing.Delete` | Data Delete | DataEditing |
-| `Providers.MultipleDatabases` | Multiple Databases | Providers |
+| Key | Display Name | Category | Default |
+|-----|-------------|----------|---------|
+| `Explorer.ObjectExplorer` | Object Explorer | Explorer | `true` |
+| `Explorer.ObjectDetails` | Object Details | Explorer | `true` |
+| `Explorer.SchemaMigrations` | Schema and Migrations | Explorer | `false` |
+| `Query.Editor` | Query Editor | Query | `true` |
+| `Query.AutoExecute` | Auto-Execute | Query | `true` |
+| `Query.ExecutionPlan` | Execution Plan | Query | `true` |
+| `Diagram.DatabaseDiagram` | Database Diagram | Diagram | `true` |
+| `DataEditing.Insert` | Data Insert | DataEditing | `true` |
+| `DataEditing.Update` | Data Update | DataEditing | `true` |
+| `DataEditing.Delete` | Data Delete | DataEditing | `true` |
+| `Providers.MultipleDatabases` | Multiple Databases | Providers | `true` |
 
 ## Distinction from Provider Capabilities and Authorization
 

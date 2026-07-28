@@ -181,6 +181,29 @@ public sealed class MainLayoutDatabasePickerTests : BunitContext
         });
     }
 
+    [Fact]
+    public void Navigation_ShowsSchemaLink_WhenFeatureEnabled()
+    {
+        Services.AddSingleton<IExplorerService>(new FakeExplorerService());
+
+        var component = Render<MainLayout>();
+
+        component.WaitForAssertion(() =>
+            component.Markup.Should().Contain("href=\"schema-migrations\""));
+    }
+
+    [Fact]
+    public void Navigation_HidesSchemaLink_WhenFeatureDisabled()
+    {
+        Services.AddSingleton<IFeatureFlagService>(new SchemaDisabledFeatureFlagService());
+        Services.AddSingleton<IExplorerService>(new FakeExplorerService());
+
+        var component = Render<MainLayout>();
+
+        component.WaitForAssertion(() =>
+            component.Markup.Should().NotContain("href=\"schema-migrations\""));
+    }
+
     private sealed class FakeExplorerService : IExplorerService
     {
         private readonly List<DiscoveredDatabaseResource> _resources =
@@ -447,5 +470,27 @@ public sealed class MainLayoutDatabasePickerTests : BunitContext
             OakIdeas.Aspire.DataExplorer.Contracts.Models.FeatureEvaluationContext? context = null,
             CancellationToken cancellationToken = default)
             => ValueTask.FromResult(true);
+    }
+
+    private sealed class SchemaDisabledFeatureFlagService : IFeatureFlagService
+    {
+        public ValueTask<OakIdeas.Aspire.DataExplorer.Contracts.Models.FeatureFlagResult> EvaluateAsync(
+            OakIdeas.Aspire.DataExplorer.Contracts.Models.FeatureFlag feature,
+            OakIdeas.Aspire.DataExplorer.Contracts.Models.FeatureEvaluationContext context,
+            CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(new OakIdeas.Aspire.DataExplorer.Contracts.Models.FeatureFlagResult
+            {
+                Key = feature.Key,
+                IsEnabled = !string.Equals(feature.Key, FeatureKeys.ExplorerSchemaMigrations, StringComparison.Ordinal),
+                WinningSource = "Test",
+                UsedCatalogDefault = false,
+                EvaluationTrace = [],
+            });
+
+        public ValueTask<bool> IsEnabledAsync(
+            OakIdeas.Aspire.DataExplorer.Contracts.Models.FeatureFlag feature,
+            OakIdeas.Aspire.DataExplorer.Contracts.Models.FeatureEvaluationContext? context = null,
+            CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(!string.Equals(feature.Key, FeatureKeys.ExplorerSchemaMigrations, StringComparison.Ordinal));
     }
 }
