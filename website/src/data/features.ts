@@ -25,6 +25,11 @@ export const features: Feature[] = [
       'Visualize execution plans when supported and inspect entity relationships through an interactive database diagram surface.',
   },
   {
+    title: 'Settings Center',
+    description:
+      'Manage configuration from a centralized settings experience with category navigation and searchable options, including Feature Flags.',
+  },
+  {
     title: 'Provider-based architecture',
     description:
       'Shared layers define contracts and orchestration, while providers own SQL, capability-specific discovery, and exception mapping.',

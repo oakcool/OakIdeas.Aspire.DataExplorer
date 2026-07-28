@@ -1,0 +1,141 @@
+@page "/settings"
+@page "/settings/{SectionId}"
+@using OakIdeas.Aspire.DataExplorer.Web.Abstractions
+@using OakIdeas.Aspire.DataExplorer.Web.Models
+@inject IEnumerable<ISettingsSectionProvider> SectionProviders
+
+<PageTitle>Settings — Data Explorer</PageTitle>
+
+<div class="de-settings-page">
+    <aside class="de-settings-nav">
+        <div class="de-settings-nav__header">Settings</div>
+        <div class="de-settings-search">
+            <span class="de-settings-search__icon" aria-hidden="true">
+                <HeroIcon Kind="HeroIconKind.MagnifyingGlass" Size="14" />
+            </span>
+            <input class="de-settings-search__input"
+                   type="search"
+                   placeholder="Search settings&hellip;"
+                   aria-label="Search settings"
+                   @bind="SearchText"
+                   @bind:event="oninput" />
+            @if (ShowSearchResults)
+            {
+                <div class="de-settings-search-results">
+                    @foreach (var result in SearchResults)
+                    {
+                        <a class="de-settings-search-results__item"
+                           href="@result.Href"
+                           title="@result.Description">
+                            <span class="de-settings-search-results__name">@result.Label</span>
+                            <span class="de-settings-search-results__section">@result.SectionTitle</span>
+                        </a>
+                    }
+                </div>
+            }
+        </div>
+        <nav class="de-settings-nav__sections" aria-label="Settings sections">
+            @foreach (var section in Sections)
+            {
+                <NavLink class="de-settings-nav__section"
+                         href="@section.Href"
+                         Match="NavLinkMatch.Prefix">
+                    <HeroIcon Kind="@section.Icon" Size="16" />
+                    <span>@section.Title</span>
+                </NavLink>
+            }
+        </nav>
+    </aside>
+
+    <section class="de-settings-content" aria-live="polite">
+        @if (ActiveSection is { } activeSection)
+        {
+            <DynamicComponent Type="activeSection.ComponentType" />
+        }
+        else
+        {
+            <div class="de-settings-content__empty">Select a settings section.</div>
+        }
+    </section>
+</div>
+
+@code {
+    private string _searchText = string.Empty;
+    private IReadOnlyList<SettingsSectionDefinition>? _sections;
+    private IReadOnlyList<SettingsSearchResult>? _searchResults;
+
+    [Parameter]
+    public string? SectionId { get; set; }
+
+    private IReadOnlyList<SettingsSectionDefinition> Sections => _sections ??= BuildSections();
+
+    private SettingsSectionDefinition? ActiveSection => ResolveActiveSection(SectionId);
+
+    private string SearchText
+    {
+        get => _searchText;
+        set
+        {
+            if (string.Equals(_searchText, value, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _searchText = value;
+            _searchResults = null;
+        }
+    }
+
+    private bool ShowSearchResults => !string.IsNullOrWhiteSpace(SearchText);
+
+    private IReadOnlyList<SettingsSearchResult> SearchResults => _searchResults ??= BuildSearchResults();
+
+    private IReadOnlyList<SettingsSectionDefinition> BuildSections()
+    {
+        return SectionProviders
+            .SelectMany(provider => provider.GetSections())
+            .DistinctBy(section => section.Id, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private SettingsSectionDefinition? ResolveActiveSection(string? sectionId)
+    {
+        if (Sections.Count == 0)
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(sectionId))
+        {
+            return Sections[0];
+        }
+
+        return Sections.FirstOrDefault(section =>
+                   string.Equals(section.Id, sectionId, StringComparison.OrdinalIgnoreCase))
+               ?? Sections[0];
+    }
+
+    private IReadOnlyList<SettingsSearchResult> BuildSearchResults()
+    {
+        if (string.IsNullOrWhiteSpace(SearchText))
+        {
+            return [];
+        }
+
+        return SectionProviders
+            .SelectMany(provider => provider.GetSearchResults(SearchText))
+            .OrderBy(result => result.Label, StringComparer.OrdinalIgnoreCase)
+            .Select(result => new SettingsSearchResult(
+                result.Label,
+                result.Description,
+                result.Href,
+                result.SectionTitle))
+            .ToList();
+    }
+
+    private sealed record SettingsSearchResult(
+        string Label,
+        string Description,
+        string Href,
+        string SectionTitle);
+}

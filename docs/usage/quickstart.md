@@ -65,6 +65,9 @@
    - Execution plan output is shown in the **Execution Plan** result tab.
    - Destructive statements require an explicit confirmation run.
 7. If multiple database resources are configured, use the database picker above Object Explorer to switch resources before browsing metadata or executing queries.
+8. Open **Settings** in the top navigation to manage application configuration.
+   - **Feature Flags** are available under **Settings → Feature Flags**.
+   - Legacy `/feature-flags` links automatically route to the Settings section.
 
 For full multi-resource registration guidance, see [Multiple database configuration](./multiple-databases.md).
 
