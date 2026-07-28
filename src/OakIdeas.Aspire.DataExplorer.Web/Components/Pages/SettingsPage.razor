@@ -1,7 +1,8 @@
 @page "/settings"
 @page "/settings/{SectionId}"
-@using OakIdeas.Aspire.DataExplorer.Core.Abstractions
-@inject IFeatureFlagCatalog Catalog
+@using OakIdeas.Aspire.DataExplorer.Web.Abstractions
+@using OakIdeas.Aspire.DataExplorer.Web.Models
+@inject IEnumerable<ISettingsSectionProvider> SectionProviders
 
 <PageTitle>Settings — Data Explorer</PageTitle>
 
@@ -47,47 +48,55 @@
     </aside>
 
     <section class="de-settings-content" aria-live="polite">
-        @switch (ActiveSectionId)
+        @if (ActiveSection is { } section)
         {
-            case FeatureFlagsSectionId:
-                <FeatureFlagsSettingsSection />
-                break;
-            default:
-                <div class="de-settings-content__empty">Select a settings section.</div>
-                break;
+            <DynamicComponent Type="section.ComponentType" />
+        }
+        else
+        {
+            <div class="de-settings-content__empty">Select a settings section.</div>
         }
     </section>
 </div>
 
 @code {
-    private const string FeatureFlagsSectionId = "feature-flags";
     private string _searchText = string.Empty;
+    private IReadOnlyList<SettingsSectionDefinition>? _sections;
 
     [Parameter]
     public string? SectionId { get; set; }
 
-    private IReadOnlyList<SettingsSection> Sections { get; } =
-    [
-        new SettingsSection(FeatureFlagsSectionId, "Feature Flags", HeroIconKind.Cog6Tooth),
-    ];
+    private IReadOnlyList<SettingsSectionDefinition> Sections => _sections ??= BuildSections();
 
-    private string ActiveSectionId => ResolveSectionId(SectionId);
+    private SettingsSectionDefinition? ActiveSection => ResolveActiveSection(SectionId);
 
     private bool ShowSearchResults => !string.IsNullOrWhiteSpace(_searchText);
 
     private IReadOnlyList<SettingsSearchResult> SearchResults => BuildSearchResults();
 
-    private string ResolveSectionId(string? sectionId)
+    private IReadOnlyList<SettingsSectionDefinition> BuildSections()
     {
-        if (string.IsNullOrWhiteSpace(sectionId))
+        return SectionProviders
+            .SelectMany(provider => provider.GetSections())
+            .DistinctBy(section => section.Id, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private SettingsSectionDefinition? ResolveActiveSection(string? sectionId)
+    {
+        if (Sections.Count == 0)
         {
-            return FeatureFlagsSectionId;
+            return null;
         }
 
-        return Sections.Any(section =>
-            string.Equals(section.Id, sectionId, StringComparison.OrdinalIgnoreCase))
-            ? sectionId.ToLowerInvariant()
-            : FeatureFlagsSectionId;
+        if (string.IsNullOrWhiteSpace(sectionId))
+        {
+            return Sections[0];
+        }
+
+        return Sections.FirstOrDefault(section =>
+                   string.Equals(section.Id, sectionId, StringComparison.OrdinalIgnoreCase))
+               ?? Sections[0];
     }
 
     private IReadOnlyList<SettingsSearchResult> BuildSearchResults()
@@ -97,25 +106,15 @@
             return [];
         }
 
-        var term = _searchText.Trim();
-
-        return Catalog.Features
-            .Where(feature =>
-                feature.DisplayName.Contains(term, StringComparison.OrdinalIgnoreCase)
-                || feature.Description.Contains(term, StringComparison.OrdinalIgnoreCase)
-                || feature.Key.Contains(term, StringComparison.OrdinalIgnoreCase))
-            .OrderBy(feature => feature.DisplayName, StringComparer.OrdinalIgnoreCase)
-            .Select(feature => new SettingsSearchResult(
-                feature.DisplayName,
-                feature.Description,
-                $"/settings/{FeatureFlagsSectionId}#{FeatureFlagAnchorBuilder.Build(feature.Key)}",
-                "Feature Flags"))
+        return SectionProviders
+            .SelectMany(provider => provider.GetSearchResults(_searchText))
+            .OrderBy(result => result.Label, StringComparer.OrdinalIgnoreCase)
+            .Select(result => new SettingsSearchResult(
+                result.Label,
+                result.Description,
+                result.Href,
+                result.SectionTitle))
             .ToList();
-    }
-
-    private sealed record SettingsSection(string Id, string Title, HeroIconKind Icon)
-    {
-        public string Href => $"/settings/{Id}";
     }
 
     private sealed record SettingsSearchResult(

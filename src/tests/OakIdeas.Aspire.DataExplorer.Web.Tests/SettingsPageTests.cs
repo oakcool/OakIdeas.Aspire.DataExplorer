@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.FeatureFlags;
+using OakIdeas.Aspire.DataExplorer.Web.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Web.Components.Pages;
 using OakIdeas.Aspire.DataExplorer.Web.Services;
 
@@ -27,6 +28,7 @@ public sealed class SettingsPageTests : BunitContext
             },
         ]));
         Services.AddScoped<FeatureFlagStateService>();
+        Services.AddScoped<ISettingsSectionProvider, FeatureFlagsSettingsSectionProvider>();
     }
 
     [Fact]
