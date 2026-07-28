@@ -5,4 +5,3 @@ public sealed record DatabaseResourceResponse(
     string Provider,
     string? DisplayName,
     bool IsAvailable);
-

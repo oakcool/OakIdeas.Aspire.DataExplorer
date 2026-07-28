@@ -23,4 +23,3 @@ public sealed record FeatureFlagResult
     /// <summary>Any warnings produced during evaluation, such as invalid source values or source errors.</summary>
     public IReadOnlyList<string> Warnings { get; init; } = [];
 }
-

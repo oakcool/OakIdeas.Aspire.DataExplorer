@@ -39,4 +39,3 @@ public abstract record SchemaBoundDatabaseObject : DatabaseObject
         return value.Trim();
     }
 }
-

@@ -10,4 +10,3 @@ public interface IFunctionDiscoveryProvider
         DiscoverFunctionsRequest request,
         CancellationToken cancellationToken);
 }
-

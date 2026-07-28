@@ -14,4 +14,3 @@ public enum FeatureFlagFailureBehavior
     /// <summary>Treat the flag as disabled when all sources fail and no catalog default applies.</summary>
     FailClosed = 1,
 }
-

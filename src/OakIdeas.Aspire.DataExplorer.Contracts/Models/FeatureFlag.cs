@@ -29,4 +29,3 @@ public sealed record FeatureFlag
     /// <summary>Owner or owning area identifier. Used for governance and cleanup.</summary>
     public string? Owner { get; init; }
 }
-

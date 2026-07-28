@@ -5,4 +5,3 @@ public sealed record UpdateRowRequest(
     string Table,
     IReadOnlyDictionary<string, object?> KeyValues,
     IReadOnlyDictionary<string, object?> Values);
-

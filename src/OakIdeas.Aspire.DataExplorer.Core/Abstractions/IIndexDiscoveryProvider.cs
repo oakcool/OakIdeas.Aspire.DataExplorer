@@ -10,4 +10,3 @@ public interface IIndexDiscoveryProvider
         DiscoverIndexesRequest request,
         CancellationToken cancellationToken);
 }
-

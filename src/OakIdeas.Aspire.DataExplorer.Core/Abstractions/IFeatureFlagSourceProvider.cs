@@ -21,4 +21,3 @@ public interface IFeatureFlagSourceProvider
         FeatureEvaluationContext context,
         CancellationToken cancellationToken = default);
 }
-

@@ -8,4 +8,3 @@ public sealed record ExplorerDatabaseSelection(
     bool IsAvailable,
     bool IsValid,
     string? ValidationMessage);
-

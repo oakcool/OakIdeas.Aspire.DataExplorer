@@ -10,4 +10,3 @@ public interface ITriggerDiscoveryProvider
         DiscoverTriggersRequest request,
         CancellationToken cancellationToken);
 }
-

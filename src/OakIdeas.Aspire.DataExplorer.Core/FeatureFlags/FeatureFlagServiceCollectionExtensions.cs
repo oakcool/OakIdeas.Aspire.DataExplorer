@@ -96,4 +96,3 @@ public static class FeatureFlagServiceCollectionExtensions
         return builder;
     }
 }
-

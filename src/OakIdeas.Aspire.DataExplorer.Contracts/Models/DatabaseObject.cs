@@ -47,4 +47,3 @@ public abstract record DatabaseObject
         return value.Trim();
     }
 }
-

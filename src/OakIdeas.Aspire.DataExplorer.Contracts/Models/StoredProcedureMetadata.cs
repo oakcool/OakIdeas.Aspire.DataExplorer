@@ -9,4 +9,3 @@ public sealed record StoredProcedureMetadata(
     bool HasDefinitionAvailable,
     IReadOnlyList<StoredProcedureParameterMetadata>? Parameters,
     DateTimeOffset? CreatedAt);
-

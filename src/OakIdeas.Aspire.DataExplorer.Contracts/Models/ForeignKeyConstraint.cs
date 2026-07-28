@@ -13,4 +13,3 @@ public sealed record ForeignKeyConstraint(
     ReferentialActionBehavior OnUpdateBehavior,
     bool IsDisabled,
     string ObjectId);
-

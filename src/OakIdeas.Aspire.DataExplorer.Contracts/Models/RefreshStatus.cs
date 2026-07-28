@@ -7,4 +7,3 @@ public enum RefreshStatus
     Failed = 3,
     Cancelled = 4,
 }
-

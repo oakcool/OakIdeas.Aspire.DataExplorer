@@ -11,4 +11,3 @@ namespace OakIdeas.Aspire.DataExplorer.Web.Components.ContextMenu;
 public sealed record DataEditingOptions(
     bool InsertEnabled = true,
     bool DeleteEnabled = true);
-

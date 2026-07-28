@@ -8,4 +8,3 @@ public sealed record GetObjectDefinitionResponse(
     string? UnavailableReason,
     IReadOnlyList<string> Errors,
     DataExplorerError? Error = null);
-

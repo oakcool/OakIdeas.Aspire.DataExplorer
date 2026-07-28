@@ -6,4 +6,3 @@ public sealed record ExecutionPlanResponse(
     string? MermaidDiagram = null,
     string? RawPlan = null,
     string? Message = null);
-

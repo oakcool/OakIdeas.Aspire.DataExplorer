@@ -5,4 +5,3 @@ public sealed record TableRowsRequest(
     string Table,
     int Page,
     int PageSize);
-

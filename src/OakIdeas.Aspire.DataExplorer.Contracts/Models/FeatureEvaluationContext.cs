@@ -23,4 +23,3 @@ public sealed record FeatureEvaluationContext
     /// <summary>Returns an empty context with no scoping information.</summary>
     public static FeatureEvaluationContext Empty { get; } = new();
 }
-

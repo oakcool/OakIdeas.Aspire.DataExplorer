@@ -11,4 +11,3 @@ public sealed record FunctionMetadata(
     bool HasDefinitionAvailable,
     DateTimeOffset? CreatedAt,
     IReadOnlyList<FunctionParameterMetadata>? Parameters = null);
-

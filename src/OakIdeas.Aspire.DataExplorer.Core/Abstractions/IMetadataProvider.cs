@@ -18,4 +18,3 @@ public interface IMetadataProvider
         ExecuteQueryRequest request,
         CancellationToken cancellationToken);
 }
-

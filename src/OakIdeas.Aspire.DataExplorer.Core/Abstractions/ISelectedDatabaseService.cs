@@ -18,4 +18,3 @@ public interface ISelectedDatabaseService
 
     Task<bool> IsSelectedAsync(CancellationToken cancellationToken);
 }
-

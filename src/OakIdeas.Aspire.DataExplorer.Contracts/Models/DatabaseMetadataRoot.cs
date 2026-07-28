@@ -64,4 +64,3 @@ public sealed record DatabaseMetadataRoot
         return value.Trim();
     }
 }
-

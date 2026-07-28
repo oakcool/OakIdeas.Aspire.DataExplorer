@@ -6,4 +6,3 @@ public sealed record ObjectDefinitionResponse(
     string? Definition,
     bool IsAvailable,
     string? UnavailableReason = null);
-

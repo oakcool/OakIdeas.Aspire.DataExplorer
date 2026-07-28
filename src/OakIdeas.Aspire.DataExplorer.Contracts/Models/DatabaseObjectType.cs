@@ -13,4 +13,3 @@ public enum DatabaseObjectType
     Trigger = 6,
     Index = 7,
 }
-

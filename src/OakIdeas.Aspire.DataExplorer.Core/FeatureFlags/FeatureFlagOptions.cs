@@ -51,4 +51,3 @@ public sealed class FeatureFlagOptions
         return this;
     }
 }
-

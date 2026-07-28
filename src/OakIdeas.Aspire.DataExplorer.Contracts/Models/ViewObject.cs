@@ -26,4 +26,3 @@ public sealed record ViewObject : SchemaBoundDatabaseObject
 
     public bool HasDefinitionAvailable { get; }
 }
-

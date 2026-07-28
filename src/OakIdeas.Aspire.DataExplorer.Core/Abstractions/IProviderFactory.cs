@@ -9,4 +9,3 @@ public interface IProviderFactory
 
     bool TryCreate(DatabaseProviderType providerType, out IMetadataProvider? provider);
 }
-

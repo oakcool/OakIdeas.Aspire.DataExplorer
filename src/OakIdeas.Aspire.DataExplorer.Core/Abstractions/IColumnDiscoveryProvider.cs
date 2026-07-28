@@ -10,4 +10,3 @@ public interface IColumnDiscoveryProvider
         DiscoverColumnsRequest request,
         CancellationToken cancellationToken);
 }
-

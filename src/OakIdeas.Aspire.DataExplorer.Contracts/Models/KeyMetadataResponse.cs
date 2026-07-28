@@ -4,4 +4,3 @@ public sealed record KeyMetadataResponse(
     string Name,
     string Type,
     IReadOnlyList<string> Columns);
-

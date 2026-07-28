@@ -25,4 +25,3 @@ public interface ITableDataService
         DeleteRowRequest request,
         CancellationToken cancellationToken);
 }
-

@@ -149,4 +149,3 @@ public static class ApplicationFeatures
         MultipleDatabases,
     ];
 }
-

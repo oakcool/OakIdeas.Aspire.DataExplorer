@@ -21,4 +21,3 @@ public sealed record SchemaObject : DatabaseObject
     {
     }
 }
-

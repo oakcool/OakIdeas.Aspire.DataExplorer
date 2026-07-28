@@ -8,4 +8,3 @@ public sealed record QueryResult(
     int? AffectedRowCount = null,
     bool IsTruncated = false,
     QueryExecutionPlanResult? ExecutionPlan = null);
-

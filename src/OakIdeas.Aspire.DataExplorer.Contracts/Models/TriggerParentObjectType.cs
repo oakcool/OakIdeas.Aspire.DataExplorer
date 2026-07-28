@@ -7,4 +7,3 @@ public enum TriggerParentObjectType
     Table = 1,
     Database = 2,
 }
-

@@ -6,4 +6,3 @@ namespace OakIdeas.Aspire.DataExplorer.Web.Components.Components.Molecules;
 public sealed record DiagramModel(
     IReadOnlyList<DiagramEntityNode> Entities,
     IReadOnlyList<DiagramRelationshipEdge> Relationships);
-

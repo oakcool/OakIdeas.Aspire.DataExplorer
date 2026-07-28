@@ -8,4 +8,3 @@ public sealed record RelationshipMetadata(
     string ToTable,
     IReadOnlyList<string> FromColumns,
     IReadOnlyList<string> ToColumns);
-

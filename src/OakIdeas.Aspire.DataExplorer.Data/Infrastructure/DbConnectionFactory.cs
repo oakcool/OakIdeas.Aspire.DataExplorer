@@ -6,4 +6,3 @@ public sealed class DbConnectionFactory : IDbConnectionFactory
 {
     public SqlConnection CreateSqlConnection(string connectionString) => new(connectionString);
 }
-

@@ -20,4 +20,3 @@ public sealed record DatabaseMetadata(
     DateTimeOffset MetadataCollectionTime,
     MetadataCollectionStatus CollectionStatus,
     IReadOnlyList<MetadataCollectionFailure> FailureDetails);
-

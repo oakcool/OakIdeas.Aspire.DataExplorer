@@ -6,4 +6,3 @@ public sealed record SelectedDatabaseContext(
     DiscoveredDatabaseResource Resource,
     bool IsValid,
     string? ValidationMessage);
-

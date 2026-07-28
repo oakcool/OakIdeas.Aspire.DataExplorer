@@ -8,4 +8,3 @@ public enum ConstraintType
     Check = 2,
     Unique = 3,
 }
-

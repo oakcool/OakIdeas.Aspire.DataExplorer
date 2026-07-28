@@ -21,4 +21,3 @@ public interface IMetadataCache
         string databaseName,
         CancellationToken cancellationToken);
 }
-

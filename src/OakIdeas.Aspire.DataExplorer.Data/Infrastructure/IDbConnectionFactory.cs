@@ -6,4 +6,3 @@ public interface IDbConnectionFactory
 {
     SqlConnection CreateSqlConnection(string connectionString);
 }
-

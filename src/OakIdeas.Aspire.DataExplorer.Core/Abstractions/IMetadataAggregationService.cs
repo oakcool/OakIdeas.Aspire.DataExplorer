@@ -9,4 +9,3 @@ public interface IMetadataAggregationService
         SelectedDatabaseContext selectedDbContext,
         CancellationToken cancellationToken);
 }
-

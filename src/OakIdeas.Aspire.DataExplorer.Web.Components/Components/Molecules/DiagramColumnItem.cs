@@ -10,4 +10,3 @@ public sealed record DiagramColumnItem(
     bool IsForeignKey,
     bool IsNullable,
     bool IsIdentity);
-

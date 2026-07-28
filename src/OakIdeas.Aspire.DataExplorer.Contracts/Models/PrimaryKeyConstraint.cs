@@ -9,4 +9,3 @@ public sealed record PrimaryKeyConstraint(
     IReadOnlyList<string> KeyColumns,
     bool IsClustered,
     string ObjectId);
-

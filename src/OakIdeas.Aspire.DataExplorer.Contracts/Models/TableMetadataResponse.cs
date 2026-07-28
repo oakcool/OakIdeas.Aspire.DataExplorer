@@ -5,4 +5,3 @@ public sealed record TableMetadataResponse(
     string Name,
     IReadOnlyList<ColumnMetadataResponse> Columns,
     IReadOnlyList<KeyMetadataResponse> Keys);
-

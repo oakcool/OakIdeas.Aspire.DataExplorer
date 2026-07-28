@@ -8,4 +8,3 @@ public sealed record DiscoveredDatabaseResource(
     ConnectionMetadata ConnectionMetadata,
     bool IsAvailable,
     DateTimeOffset DiscoveredAt);
-

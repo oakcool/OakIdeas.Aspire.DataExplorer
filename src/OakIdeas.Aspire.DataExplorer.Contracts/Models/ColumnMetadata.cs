@@ -15,4 +15,3 @@ public sealed record ColumnMetadata(
     string? DefaultValue,
     string? Description,
     IReadOnlyDictionary<string, object?> ProviderMetadata);
-

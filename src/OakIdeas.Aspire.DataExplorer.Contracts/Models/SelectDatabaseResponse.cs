@@ -5,4 +5,3 @@ public sealed record SelectDatabaseResponse(
     ExplorerDatabaseSelection? Selection,
     IReadOnlyList<string> ValidationErrors,
     DataExplorerError? Error = null);
-

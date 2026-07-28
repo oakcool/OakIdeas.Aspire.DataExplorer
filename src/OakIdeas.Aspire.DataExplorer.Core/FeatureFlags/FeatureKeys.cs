@@ -38,4 +38,3 @@ public static class FeatureKeys
     /// <summary>Multiple Databases: connect to and explore more than one database resource simultaneously.</summary>
     public const string ProvidersMultipleDatabases = "Providers.MultipleDatabases";
 }
-

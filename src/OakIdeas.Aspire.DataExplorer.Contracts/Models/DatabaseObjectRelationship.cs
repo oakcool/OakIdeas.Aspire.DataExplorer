@@ -22,4 +22,3 @@ public sealed record DatabaseObjectRelationship(
         return value.Trim();
     }
 }
-

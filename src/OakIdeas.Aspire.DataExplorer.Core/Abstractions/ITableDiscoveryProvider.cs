@@ -10,4 +10,3 @@ public interface ITableDiscoveryProvider
         DiscoverTablesRequest request,
         CancellationToken cancellationToken);
 }
-

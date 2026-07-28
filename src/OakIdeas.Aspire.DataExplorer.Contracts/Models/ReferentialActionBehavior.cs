@@ -9,4 +9,3 @@ public enum ReferentialActionBehavior
     SetNull = 2,
     SetDefault = 3,
 }
-

@@ -12,4 +12,3 @@ public enum FeatureLifecycle
     Deprecated = 4,
     Retired = 5,
 }
-

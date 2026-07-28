@@ -8,4 +8,3 @@ public enum DatabaseProviderType
     SQLite = 3,
     MySql = 4,
 }
-

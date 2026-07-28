@@ -10,4 +10,3 @@ public enum ErrorCategory
     UnknownError = 6,
     FeatureDisabled = 7,
 }
-

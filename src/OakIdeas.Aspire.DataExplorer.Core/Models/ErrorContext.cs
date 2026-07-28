@@ -6,4 +6,3 @@ public sealed record ErrorContext(
     string Operation,
     string? Target = null,
     DatabaseProviderType ProviderType = DatabaseProviderType.Unknown);
-

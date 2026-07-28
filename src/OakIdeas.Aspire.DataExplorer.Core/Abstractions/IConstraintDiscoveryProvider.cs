@@ -10,4 +10,3 @@ public interface IConstraintDiscoveryProvider
         DiscoverConstraintsRequest request,
         CancellationToken cancellationToken);
 }
-

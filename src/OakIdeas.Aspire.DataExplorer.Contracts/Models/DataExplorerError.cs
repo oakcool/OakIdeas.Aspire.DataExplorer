@@ -8,4 +8,3 @@ public sealed record DataExplorerError(
     string? Target,
     DateTimeOffset Timestamp,
     string? DiagnosticCode = null);
-

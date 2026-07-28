@@ -8,4 +8,3 @@ public enum RoutineParameterDirection
     Output = 2,
     InputOutput = 3,
 }
-

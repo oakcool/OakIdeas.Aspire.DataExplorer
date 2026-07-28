@@ -8,4 +8,3 @@ public sealed record DiscoverDatabaseMetadataResponse(
     MetadataCollectionStatus CollectionStatus = MetadataCollectionStatus.Success,
     IReadOnlyList<MetadataCollectionFailure>? FailureDetails = null,
     DataExplorerError? Error = null);
-

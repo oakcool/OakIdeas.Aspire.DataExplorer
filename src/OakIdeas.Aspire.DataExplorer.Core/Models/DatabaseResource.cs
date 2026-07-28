@@ -6,4 +6,3 @@ public sealed record DatabaseResource(
     string ConnectionString,
     bool IsLocal,
     bool IsWritable);
-

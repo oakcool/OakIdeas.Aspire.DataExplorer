@@ -9,4 +9,3 @@ public interface IDatabaseProvider : IMetadataProvider
 
     bool CanHandle(DatabaseResource resource);
 }
-

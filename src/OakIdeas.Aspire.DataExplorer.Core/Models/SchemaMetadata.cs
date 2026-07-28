@@ -4,4 +4,3 @@ public sealed record SchemaMetadata(
     string Name,
     IReadOnlyList<TableMetadata> Tables,
     IReadOnlyList<ViewMetadata> Views);
-

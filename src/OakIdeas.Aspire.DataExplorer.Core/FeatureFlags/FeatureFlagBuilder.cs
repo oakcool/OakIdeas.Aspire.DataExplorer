@@ -15,4 +15,3 @@ public sealed class FeatureFlagBuilder(IServiceCollection services)
     /// <summary>The underlying service collection.</summary>
     public IServiceCollection Services { get; } = services;
 }
-

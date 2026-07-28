@@ -22,4 +22,3 @@ public sealed record TableObject : SchemaBoundDatabaseObject
     {
     }
 }
-

@@ -9,4 +9,3 @@ public sealed record FeatureDisabledResult(
     string Key,
     string Message,
     string? ReasonCode = null);
-

@@ -8,4 +8,3 @@ public sealed record RefreshMetadataResponse(
     bool IsPartialSuccess,
     DatabaseMetadataRoot? Metadata,
     DataExplorerError? Error = null);
-

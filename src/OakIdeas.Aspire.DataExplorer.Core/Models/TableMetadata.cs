@@ -6,4 +6,3 @@ public sealed record TableMetadata(
     IReadOnlyList<ColumnMetadata> Columns,
     IReadOnlyList<KeyMetadata> Keys,
     IReadOnlyList<RelationshipMetadata> Relationships);
-

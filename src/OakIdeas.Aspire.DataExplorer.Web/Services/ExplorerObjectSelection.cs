@@ -10,4 +10,3 @@ public sealed record ExplorerObjectSelection(
     string SchemaName,
     string ConnectionName,
     string DatabaseName);
-

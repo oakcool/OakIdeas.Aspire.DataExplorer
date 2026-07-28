@@ -10,4 +10,3 @@ public interface IViewDiscoveryProvider
         DiscoverViewsRequest request,
         CancellationToken cancellationToken);
 }
-

@@ -5,4 +5,3 @@ public sealed record TablePageResult(
     int Page,
     int PageSize,
     int Count);
-

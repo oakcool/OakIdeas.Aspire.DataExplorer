@@ -10,4 +10,3 @@ public interface IObjectDefinitionProvider
         ObjectDefinitionRequest request,
         CancellationToken cancellationToken);
 }
-

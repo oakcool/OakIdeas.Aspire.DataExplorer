@@ -16,4 +16,3 @@ public interface IErrorHandler
 
     DataExplorerOperationException CreateException(Exception exception, ErrorContext context);
 }
-

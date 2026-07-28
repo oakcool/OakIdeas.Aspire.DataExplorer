@@ -35,4 +35,3 @@ public sealed record FeatureFlagSourceResult
     public static FeatureFlagSourceResult FromError(string sourceName, string? reason = null) =>
         new() { SourceName = sourceName, Outcome = FeatureFlagSourceOutcome.Error, Reason = reason };
 }
-

@@ -16,4 +16,3 @@ public interface IFeatureFlagCatalog
     /// <summary>Returns <see langword="true"/> and the feature when it is registered.</summary>
     bool TryGet(string key, out FeatureFlag? feature);
 }
-

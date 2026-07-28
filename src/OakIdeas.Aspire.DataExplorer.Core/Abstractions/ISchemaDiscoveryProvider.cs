@@ -10,4 +10,3 @@ public interface ISchemaDiscoveryProvider
         DiscoverSchemasRequest request,
         CancellationToken cancellationToken);
 }
-

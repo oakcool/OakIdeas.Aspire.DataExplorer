@@ -131,4 +131,3 @@ public sealed class FeatureFlagService(
         return result.IsEnabled;
     }
 }
-

@@ -10,4 +10,3 @@ public sealed record ExecuteDatabaseQueryResponse(
     bool IsTruncated,
     ExecutionPlanResponse? ExecutionPlan = null,
     DataExplorerError? Error = null);
-

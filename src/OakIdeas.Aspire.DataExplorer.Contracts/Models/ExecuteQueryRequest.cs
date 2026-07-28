@@ -7,4 +7,3 @@ public sealed record ExecuteQueryRequest(
     int? TimeoutSeconds = null,
     bool IncludeExecutionPlan = false,
     bool ReadOnly = false);
-

@@ -9,4 +9,3 @@ namespace OakIdeas.Aspire.DataExplorer.Core.FeatureFlags;
 public sealed record SourceProviderRegistration(
     int Priority,
     Type ProviderImplementationType);
-

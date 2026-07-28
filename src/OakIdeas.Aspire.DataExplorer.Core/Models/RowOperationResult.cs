@@ -4,4 +4,3 @@ public sealed record RowOperationResult(
     bool Succeeded,
     int AffectedRows,
     string? Error = null);
-

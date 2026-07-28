@@ -10,4 +10,3 @@ public interface IStoredProcedureDiscoveryProvider
         DiscoverStoredProceduresRequest request,
         CancellationToken cancellationToken);
 }
-

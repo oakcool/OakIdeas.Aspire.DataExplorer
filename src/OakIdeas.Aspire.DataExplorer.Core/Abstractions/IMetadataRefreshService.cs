@@ -12,4 +12,3 @@ public interface IMetadataRefreshService
     Task<RefreshMetadataResponse?> GetRefreshStatusAsync(
         CancellationToken cancellationToken);
 }
-

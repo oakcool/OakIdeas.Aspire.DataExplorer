@@ -6,4 +6,3 @@ namespace OakIdeas.Aspire.DataExplorer.Web.Components.Components.Molecules;
 public sealed record DiagramColumnMapping(
     string ParentColumn,
     string ReferencedColumn);
-

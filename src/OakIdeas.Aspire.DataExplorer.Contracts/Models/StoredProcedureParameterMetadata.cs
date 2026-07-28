@@ -7,4 +7,3 @@ public sealed record StoredProcedureParameterMetadata(
     string DataType,
     RoutineParameterDirection Direction = RoutineParameterDirection.Input,
     bool HasDefault = false);
-

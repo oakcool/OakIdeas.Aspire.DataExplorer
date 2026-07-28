@@ -23,4 +23,3 @@ public enum FeatureFlagSourceOutcome
     /// <summary>The source encountered an unhandled error. Evaluation continues to the next source.</summary>
     Error = 6,
 }
-

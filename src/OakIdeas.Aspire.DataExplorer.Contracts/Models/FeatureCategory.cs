@@ -13,4 +13,3 @@ public enum FeatureCategory
     Providers = 5,
     Infrastructure = 6,
 }
-

@@ -9,4 +9,3 @@ public sealed record DiagramRelationshipEdge(
     string ParentEntityId,
     string ReferencedEntityId,
     IReadOnlyList<DiagramColumnMapping> ColumnMappings);
-

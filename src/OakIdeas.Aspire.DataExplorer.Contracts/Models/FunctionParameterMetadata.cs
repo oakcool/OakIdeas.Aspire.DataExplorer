@@ -5,4 +5,3 @@ namespace OakIdeas.Aspire.DataExplorer.Contracts.Models;
 public sealed record FunctionParameterMetadata(
     string Name,
     string DataType);
-

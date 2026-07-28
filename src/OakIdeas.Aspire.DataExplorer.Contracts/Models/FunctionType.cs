@@ -8,4 +8,3 @@ public enum FunctionType
     TableValued = 2,
     InlineTableValued = 3,
 }
-

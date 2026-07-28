@@ -7,4 +7,3 @@ public sealed record GetDatabaseMetadataResponse(
     IReadOnlyList<MetadataCollectionFailure> FailureDetails,
     IReadOnlyList<string> Errors,
     DataExplorerError? Error = null);
-

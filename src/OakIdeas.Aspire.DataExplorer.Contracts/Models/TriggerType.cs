@@ -12,4 +12,3 @@ public enum TriggerType
     InsteadOf = 8,
     After = 16,
 }
-

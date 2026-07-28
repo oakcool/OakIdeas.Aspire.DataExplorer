@@ -8,4 +8,3 @@ public enum MetadataCollectionStatus
     PartialSuccess = 2,
     Failed = 3,
 }
-

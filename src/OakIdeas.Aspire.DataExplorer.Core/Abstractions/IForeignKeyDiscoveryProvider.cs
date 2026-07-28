@@ -10,4 +10,3 @@ public interface IForeignKeyDiscoveryProvider
         DiscoverForeignKeysRequest request,
         CancellationToken cancellationToken);
 }
-

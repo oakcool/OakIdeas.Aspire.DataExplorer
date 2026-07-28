@@ -9,4 +9,3 @@ public interface IProviderErrorMapper
 
     bool TryMap(Exception exception, ErrorContext context, out DataExplorerError error);
 }
-

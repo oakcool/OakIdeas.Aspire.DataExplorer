@@ -9,4 +9,3 @@ public sealed record ColumnMetadataResponse(
     int? MaxLength,
     int? Precision,
     int? Scale);
-

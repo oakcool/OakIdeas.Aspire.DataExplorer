@@ -7,4 +7,3 @@ public sealed class DataExplorerOperationException(DataExplorerError error, Exce
 {
     public DataExplorerError Error { get; } = error;
 }
-

@@ -9,4 +9,3 @@ public sealed record DiagramEntityNode(
     string Schema,
     string EntityType,
     IReadOnlyList<DiagramColumnItem> Columns);
-

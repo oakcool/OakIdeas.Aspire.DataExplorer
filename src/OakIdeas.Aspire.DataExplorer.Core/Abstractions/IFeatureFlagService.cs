@@ -24,4 +24,3 @@ public interface IFeatureFlagService
         FeatureEvaluationContext? context = null,
         CancellationToken cancellationToken = default);
 }
-

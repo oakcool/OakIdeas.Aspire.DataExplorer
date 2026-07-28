@@ -9,4 +9,3 @@ public sealed record ColumnMetadata(
     int? MaxLength,
     int? Precision,
     int? Scale);
-

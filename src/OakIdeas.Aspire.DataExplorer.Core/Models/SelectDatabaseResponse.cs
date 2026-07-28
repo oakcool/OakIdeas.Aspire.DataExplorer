@@ -7,4 +7,3 @@ public sealed record SelectDatabaseResponse(
     SelectedDatabaseContext? Context,
     string? ErrorMessage,
     DataExplorerError? Error = null);
-

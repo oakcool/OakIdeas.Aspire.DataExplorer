@@ -13,4 +13,3 @@ public sealed record IndexMetadata(
     IReadOnlyList<string> IncludedColumns,
     string? FilterDefinition,
     string ObjectId);
-

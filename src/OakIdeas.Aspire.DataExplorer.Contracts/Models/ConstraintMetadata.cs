@@ -11,4 +11,3 @@ public sealed record ConstraintMetadata(
     string? Definition,
     bool IsDisabled,
     string ObjectId);
-

@@ -9,4 +9,3 @@ public interface IAspireResourceDiscovery
         DiscoverResourcesRequest request,
         CancellationToken cancellationToken);
 }
-

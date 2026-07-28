@@ -13,4 +13,3 @@ public sealed record TriggerMetadata(
     string ObjectId,
     DateTimeOffset? CreatedAt,
     string? ParentSchemaName = null);
-
