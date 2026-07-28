@@ -132,6 +132,7 @@ Feature defaults are explicitly declared in the catalog:
 | `DataEditing.Update` | Data Update | DataEditing | `true` |
 | `DataEditing.Delete` | Data Delete | DataEditing | `true` |
 | `Providers.MultipleDatabases` | Multiple Databases | Providers | `true` |
+| `Telemetry.RequestTrace` | Request-to-Database Trace | Telemetry | `false` |
 
 ## Distinction from Provider Capabilities and Authorization
 

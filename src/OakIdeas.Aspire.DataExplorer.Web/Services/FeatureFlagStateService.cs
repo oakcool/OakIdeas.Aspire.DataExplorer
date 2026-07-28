@@ -173,6 +173,11 @@ public sealed class FeatureFlagStateService(
     /// <summary>Returns whether the Data Delete feature is enabled.</summary>
     public bool DataDeleteEnabled => IsEnabled(FeatureKeys.DataEditingDelete);
 
+    // ── Telemetry ─────────────────────────────────────────────────────────────
+
+    /// <summary>Returns whether the Request-to-Database Trace feature is enabled.</summary>
+    public bool RequestTraceEnabled => IsEnabled(FeatureKeys.TelemetryRequestTrace);
+
     // ── SQL Server ────────────────────────────────────────────────────────────
 
     /// <summary>

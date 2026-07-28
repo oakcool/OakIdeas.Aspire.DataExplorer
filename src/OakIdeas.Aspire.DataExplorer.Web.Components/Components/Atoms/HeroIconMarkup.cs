@@ -88,6 +88,9 @@ public static class HeroIconMarkup
         HeroIconKind.XMark => """
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
             """,
+        HeroIconKind.Bolt => """
+            <path stroke-linecap="round" stroke-linejoin="round" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z"/>
+            """,
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
     };
 }

@@ -40,9 +40,15 @@ public sealed class ApplicationFeaturesCatalogTests
     [Fact]
     public void All_EveryGenerallyAvailableFeatureDefaultsToEnabled()
     {
+        var previewOrDevelopmentKeys = new HashSet<string>(StringComparer.Ordinal)
+        {
+            FeatureKeys.ExplorerSchemaMigrations,
+            FeatureKeys.TelemetryRequestTrace,
+        };
+
         foreach (var feature in ApplicationFeatures.All)
         {
-            if (string.Equals(feature.Key, FeatureKeys.ExplorerSchemaMigrations, StringComparison.Ordinal))
+            if (previewOrDevelopmentKeys.Contains(feature.Key))
             {
                 continue;
             }
@@ -56,6 +62,12 @@ public sealed class ApplicationFeaturesCatalogTests
     public void SchemaMigrations_DefaultsToDisabledForSafeRollout()
     {
         ApplicationFeatures.SchemaMigrations.DefaultEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void RequestTrace_DefaultsToDisabledForSafeRollout()
+    {
+        ApplicationFeatures.RequestTrace.DefaultEnabled.Should().BeFalse();
     }
 
     [Fact]
@@ -133,5 +145,6 @@ public sealed class ApplicationFeaturesCatalogTests
         keys.Should().Contain(FeatureKeys.DataEditingUpdate);
         keys.Should().Contain(FeatureKeys.DataEditingDelete);
         keys.Should().Contain(FeatureKeys.ProvidersMultipleDatabases);
+        keys.Should().Contain(FeatureKeys.TelemetryRequestTrace);
     }
 }
