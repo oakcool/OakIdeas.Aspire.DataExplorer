@@ -91,7 +91,8 @@ public sealed class MetadataAggregationServiceTests
 
     private static MetadataAggregationService CreateService(
         FakeMetadataProvider provider,
-        IOptions<MetadataAggregationOptions>? options = null)
+        IOptions<MetadataAggregationOptions>? options = null,
+        IFeatureFlagService? featureFlagService = null)
     {
         var cache = new InMemoryMetadataCache(Options.Create(new MetadataAggregationOptions
         {
@@ -102,7 +103,8 @@ public sealed class MetadataAggregationServiceTests
             new StubProviderFactory(provider),
             cache,
             options ?? Options.Create(new MetadataAggregationOptions()),
-            CreateErrorHandler());
+            CreateErrorHandler(),
+            featureFlagService ?? new AllEnabledFeatureFlagService());
     }
 
     private static IErrorHandler CreateErrorHandler()
@@ -349,5 +351,32 @@ public sealed class MetadataAggregationServiceTests
             ObjectDefinitionRequest request,
             CancellationToken cancellationToken)
             => Task.FromResult(new ObjectDefinitionResponse("SELECT 1", true));
+    }
+
+    /// <summary>
+    /// Feature flag service stub that reports every feature as enabled,
+    /// preserving existing test behavior for tests that do not exercise feature gating.
+    /// </summary>
+    private sealed class AllEnabledFeatureFlagService : IFeatureFlagService
+    {
+        public ValueTask<FeatureFlagResult> EvaluateAsync(
+            FeatureFlag feature,
+            FeatureEvaluationContext context,
+            CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(new FeatureFlagResult
+            {
+                Key = feature.Key,
+                IsEnabled = true,
+                WinningSource = "TestDefault",
+                UsedCatalogDefault = true,
+                EvaluationTrace = [],
+                Warnings = [],
+            });
+
+        public ValueTask<bool> IsEnabledAsync(
+            FeatureFlag feature,
+            FeatureEvaluationContext? context = null,
+            CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(true);
     }
 }

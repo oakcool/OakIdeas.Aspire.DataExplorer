@@ -104,6 +104,15 @@ public sealed class ApplicationFeaturesCatalogTests
 
         keys.Should().Contain(FeatureKeys.ExplorerObjectExplorer);
         keys.Should().Contain(FeatureKeys.ExplorerObjectDetails);
+        keys.Should().Contain(FeatureKeys.ExplorerViews);
+        keys.Should().Contain(FeatureKeys.ExplorerStoredProcedures);
+        keys.Should().Contain(FeatureKeys.ExplorerFunctions);
+        keys.Should().Contain(FeatureKeys.ExplorerTriggers);
+        keys.Should().Contain(FeatureKeys.ExplorerIndexes);
+        keys.Should().Contain(FeatureKeys.ExplorerConstraints);
+        keys.Should().Contain(FeatureKeys.ExplorerForeignKeys);
+        keys.Should().Contain(FeatureKeys.ExplorerPrimaryKeys);
+        keys.Should().Contain(FeatureKeys.ExplorerObjectDefinition);
         keys.Should().Contain(FeatureKeys.QueryEditor);
         keys.Should().Contain(FeatureKeys.QueryAutoExecute);
         keys.Should().Contain(FeatureKeys.QueryExecutionPlan);

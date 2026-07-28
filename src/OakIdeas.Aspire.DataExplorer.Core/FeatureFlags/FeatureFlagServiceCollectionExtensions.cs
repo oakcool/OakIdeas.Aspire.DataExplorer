@@ -49,11 +49,26 @@ public static class FeatureFlagServiceCollectionExtensions
             }
         });
 
-        // Register the catalog using the configured features.
+        // Register the catalog using the configured features plus any contributor features.
         services.TryAddSingleton<IFeatureFlagCatalog>(sp =>
         {
             var options = sp.GetRequiredService<IOptions<FeatureFlagOptions>>().Value;
-            return new FeatureFlagCatalog(options.CatalogFeatures);
+            var contributors = sp.GetServices<IFeatureFlagContributor>();
+            var features = new List<FeatureFlag>(options.CatalogFeatures);
+
+            foreach (var contributor in contributors)
+            {
+                foreach (var feature in contributor.GetFeatures())
+                {
+                    if (!features.Any(f =>
+                        string.Equals(f.Key, feature.Key, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        features.Add(feature);
+                    }
+                }
+            }
+
+            return new FeatureFlagCatalog(features);
         });
 
         services.TryAddSingleton<IFeatureFlagService, FeatureFlagService>();
@@ -82,6 +97,21 @@ public static class FeatureFlagServiceCollectionExtensions
             return new OrderedSourceProvider(priority, provider);
         });
 
+        return builder;
+    }
+
+    /// <summary>
+    /// Registers an <see cref="IFeatureFlagContributor"/> that will contribute additional
+    /// <see cref="FeatureFlag"/> definitions to the catalog at startup.
+    /// Use this in provider or feature-area projects to register provider-specific flags
+    /// without coupling to the core catalog.
+    /// </summary>
+    /// <typeparam name="T">The contributor type to register as a singleton.</typeparam>
+    public static FeatureFlagBuilder AddFeatureContributor<T>(this FeatureFlagBuilder builder)
+        where T : class, IFeatureFlagContributor
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        builder.Services.AddSingleton<IFeatureFlagContributor, T>();
         return builder;
     }
 

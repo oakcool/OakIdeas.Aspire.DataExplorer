@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
+using OakIdeas.Aspire.DataExplorer.Core.FeatureFlags;
 using OakIdeas.Aspire.DataExplorer.Web.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Web.Components.Layout;
 using OakIdeas.Aspire.DataExplorer.Web.Services;
@@ -19,6 +20,7 @@ public sealed class MainLayoutDatabasePickerTests : BunitContext
         Services.AddScoped<QueryNavigationState>();
         Services.AddScoped<ExplorerNavigationState>();
         Services.AddSingleton<IFeatureFlagService, AllEnabledFeatureFlagService>();
+        Services.AddSingleton<IFeatureFlagCatalog>(new FeatureFlagCatalog(ApplicationFeatures.All.ToList()));
         Services.AddScoped<FeatureFlagStateService>();
     }
     [Fact]

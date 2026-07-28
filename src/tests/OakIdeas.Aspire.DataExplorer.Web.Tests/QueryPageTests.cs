@@ -7,6 +7,7 @@ using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models.Explorer;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Configuration;
+using OakIdeas.Aspire.DataExplorer.Core.FeatureFlags;
 using OakIdeas.Aspire.DataExplorer.Web.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Web.Components.Pages;
 using OakIdeas.Aspire.DataExplorer.Web.Services;
@@ -23,6 +24,7 @@ public sealed class QueryPageTests : BunitContext
         Services.AddScoped<QueryNavigationState>();
         Services.AddScoped<QuerySessionState>();
         Services.AddSingleton<IFeatureFlagService, AllEnabledFeatureFlagService>();
+        Services.AddSingleton<IFeatureFlagCatalog>(new FeatureFlagCatalog(ApplicationFeatures.All.ToList()));
         Services.AddScoped<FeatureFlagStateService>();
     }
 

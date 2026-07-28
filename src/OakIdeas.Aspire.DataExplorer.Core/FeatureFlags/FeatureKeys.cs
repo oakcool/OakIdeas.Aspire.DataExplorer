@@ -37,4 +37,31 @@ public static class FeatureKeys
 
     /// <summary>Multiple Databases: connect to and explore more than one database resource simultaneously.</summary>
     public const string ProvidersMultipleDatabases = "Providers.MultipleDatabases";
+
+    /// <summary>Views: browse and inspect database views in the Object Explorer tree.</summary>
+    public const string ExplorerViews = "Explorer.Views";
+
+    /// <summary>Stored Procedures: browse and inspect stored procedures in the Object Explorer tree.</summary>
+    public const string ExplorerStoredProcedures = "Explorer.StoredProcedures";
+
+    /// <summary>Functions: browse and inspect user-defined functions in the Object Explorer tree.</summary>
+    public const string ExplorerFunctions = "Explorer.Functions";
+
+    /// <summary>Triggers: browse and inspect triggers in the Object Explorer tree.</summary>
+    public const string ExplorerTriggers = "Explorer.Triggers";
+
+    /// <summary>Indexes: view index details for tables in the Object Explorer.</summary>
+    public const string ExplorerIndexes = "Explorer.Indexes";
+
+    /// <summary>Constraints: view constraint details for tables in the Object Explorer.</summary>
+    public const string ExplorerConstraints = "Explorer.Constraints";
+
+    /// <summary>Foreign Keys: view foreign key relationships for tables in the Object Explorer.</summary>
+    public const string ExplorerForeignKeys = "Explorer.ForeignKeys";
+
+    /// <summary>Primary Keys: view primary key details for tables in the Object Explorer.</summary>
+    public const string ExplorerPrimaryKeys = "Explorer.PrimaryKeys";
+
+    /// <summary>Object Definition: retrieve and display the source definition of views, procedures, functions, and triggers.</summary>
+    public const string ExplorerObjectDefinition = "Explorer.ObjectDefinition";
 }

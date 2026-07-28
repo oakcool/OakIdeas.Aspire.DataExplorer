@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Configuration;
+using OakIdeas.Aspire.DataExplorer.Core.FeatureFlags;
 using OakIdeas.Aspire.DataExplorer.Core.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Services;
 using ContractColumnMetadata = OakIdeas.Aspire.DataExplorer.Contracts.Models.ColumnMetadata;
@@ -56,6 +57,7 @@ public sealed class MetadataAggregationIntegrationTests
         services.AddSingleton<IProviderFactory>(new StubProviderFactory(provider));
         services.AddSingleton<IProviderErrorMapper, NoOpProviderErrorMapper>();
         services.AddSingleton<IErrorHandler>(_ => new ErrorHandler(NullLogger<ErrorHandler>.Instance, []));
+        services.AddFeatureFlags();
         services.AddOptions<MetadataAggregationOptions>()
             .Configure(options =>
             {

@@ -12,4 +12,7 @@ public enum FeatureCategory
     DataEditing = 4,
     Providers = 5,
     Infrastructure = 6,
+
+    /// <summary>Provider-specific feature capabilities contributed by a database provider.</summary>
+    Provider = 7,
 }

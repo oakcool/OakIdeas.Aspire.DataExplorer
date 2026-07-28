@@ -132,6 +132,123 @@ public static class ApplicationFeatures
         Owner = "Providers",
     };
 
+    /// <summary>Views feature.</summary>
+    public static readonly FeatureFlag Views = new()
+    {
+        Key = FeatureKeys.ExplorerViews,
+        DisplayName = "Views",
+        Description = "Browse and inspect database views in the Object Explorer tree.",
+        Category = FeatureCategory.Explorer,
+        DefaultEnabled = true,
+        Lifecycle = FeatureLifecycle.GenerallyAvailable,
+        DependsOn = [FeatureKeys.ExplorerObjectExplorer],
+        Owner = "Explorer",
+    };
+
+    /// <summary>Stored Procedures feature.</summary>
+    public static readonly FeatureFlag StoredProcedures = new()
+    {
+        Key = FeatureKeys.ExplorerStoredProcedures,
+        DisplayName = "Stored Procedures",
+        Description = "Browse and inspect stored procedures in the Object Explorer tree.",
+        Category = FeatureCategory.Explorer,
+        DefaultEnabled = true,
+        Lifecycle = FeatureLifecycle.GenerallyAvailable,
+        DependsOn = [FeatureKeys.ExplorerObjectExplorer],
+        Owner = "Explorer",
+    };
+
+    /// <summary>Functions feature.</summary>
+    public static readonly FeatureFlag Functions = new()
+    {
+        Key = FeatureKeys.ExplorerFunctions,
+        DisplayName = "Functions",
+        Description = "Browse and inspect user-defined functions in the Object Explorer tree.",
+        Category = FeatureCategory.Explorer,
+        DefaultEnabled = true,
+        Lifecycle = FeatureLifecycle.GenerallyAvailable,
+        DependsOn = [FeatureKeys.ExplorerObjectExplorer],
+        Owner = "Explorer",
+    };
+
+    /// <summary>Triggers feature.</summary>
+    public static readonly FeatureFlag Triggers = new()
+    {
+        Key = FeatureKeys.ExplorerTriggers,
+        DisplayName = "Triggers",
+        Description = "Browse and inspect triggers in the Object Explorer tree.",
+        Category = FeatureCategory.Explorer,
+        DefaultEnabled = true,
+        Lifecycle = FeatureLifecycle.GenerallyAvailable,
+        DependsOn = [FeatureKeys.ExplorerObjectExplorer],
+        Owner = "Explorer",
+    };
+
+    /// <summary>Indexes feature.</summary>
+    public static readonly FeatureFlag Indexes = new()
+    {
+        Key = FeatureKeys.ExplorerIndexes,
+        DisplayName = "Indexes",
+        Description = "View index details for tables in the Object Explorer.",
+        Category = FeatureCategory.Explorer,
+        DefaultEnabled = true,
+        Lifecycle = FeatureLifecycle.GenerallyAvailable,
+        DependsOn = [FeatureKeys.ExplorerObjectDetails],
+        Owner = "Explorer",
+    };
+
+    /// <summary>Constraints feature.</summary>
+    public static readonly FeatureFlag Constraints = new()
+    {
+        Key = FeatureKeys.ExplorerConstraints,
+        DisplayName = "Constraints",
+        Description = "View constraint details for tables in the Object Explorer.",
+        Category = FeatureCategory.Explorer,
+        DefaultEnabled = true,
+        Lifecycle = FeatureLifecycle.GenerallyAvailable,
+        DependsOn = [FeatureKeys.ExplorerObjectDetails],
+        Owner = "Explorer",
+    };
+
+    /// <summary>Foreign Keys feature.</summary>
+    public static readonly FeatureFlag ForeignKeys = new()
+    {
+        Key = FeatureKeys.ExplorerForeignKeys,
+        DisplayName = "Foreign Keys",
+        Description = "View foreign key relationships for tables in the Object Explorer.",
+        Category = FeatureCategory.Explorer,
+        DefaultEnabled = true,
+        Lifecycle = FeatureLifecycle.GenerallyAvailable,
+        DependsOn = [FeatureKeys.ExplorerObjectDetails],
+        Owner = "Explorer",
+    };
+
+    /// <summary>Primary Keys feature.</summary>
+    public static readonly FeatureFlag PrimaryKeys = new()
+    {
+        Key = FeatureKeys.ExplorerPrimaryKeys,
+        DisplayName = "Primary Keys",
+        Description = "View primary key details for tables in the Object Explorer.",
+        Category = FeatureCategory.Explorer,
+        DefaultEnabled = true,
+        Lifecycle = FeatureLifecycle.GenerallyAvailable,
+        DependsOn = [FeatureKeys.ExplorerObjectDetails],
+        Owner = "Explorer",
+    };
+
+    /// <summary>Object Definition feature.</summary>
+    public static readonly FeatureFlag ObjectDefinition = new()
+    {
+        Key = FeatureKeys.ExplorerObjectDefinition,
+        DisplayName = "Object Definition",
+        Description = "Retrieve and display the source definition of views, stored procedures, functions, and triggers.",
+        Category = FeatureCategory.Explorer,
+        DefaultEnabled = true,
+        Lifecycle = FeatureLifecycle.GenerallyAvailable,
+        DependsOn = [FeatureKeys.ExplorerObjectExplorer],
+        Owner = "Explorer",
+    };
+
     /// <summary>
     /// Returns all features defined in the application catalog, in their canonical order.
     /// </summary>
@@ -139,6 +256,15 @@ public static class ApplicationFeatures
     [
         ObjectExplorer,
         ObjectDetails,
+        Views,
+        StoredProcedures,
+        Functions,
+        Triggers,
+        Indexes,
+        Constraints,
+        ForeignKeys,
+        PrimaryKeys,
+        ObjectDefinition,
         QueryEditor,
         QueryAutoExecute,
         QueryExecutionPlan,

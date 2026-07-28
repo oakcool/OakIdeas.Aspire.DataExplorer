@@ -2,6 +2,7 @@ using Microsoft.Extensions.Options;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
 using OakIdeas.Aspire.DataExplorer.Core.Configuration;
+using OakIdeas.Aspire.DataExplorer.Core.FeatureFlags;
 using OakIdeas.Aspire.DataExplorer.Core.Models;
 using ContractColumnMetadata = OakIdeas.Aspire.DataExplorer.Contracts.Models.ColumnMetadata;
 
@@ -11,12 +12,14 @@ public sealed class MetadataAggregationService(
     IProviderFactory providerFactory,
     IMetadataCache metadataCache,
     IOptions<MetadataAggregationOptions> options,
-    IErrorHandler errorHandler) : IMetadataAggregationService
+    IErrorHandler errorHandler,
+    IFeatureFlagService featureFlagService) : IMetadataAggregationService
 {
     private readonly IProviderFactory _providerFactory = providerFactory;
     private readonly IMetadataCache _metadataCache = metadataCache;
     private readonly MetadataAggregationOptions _options = options.Value;
     private readonly IErrorHandler _errorHandler = errorHandler;
+    private readonly IFeatureFlagService _featureFlagService = featureFlagService;
 
     public async Task<DiscoverDatabaseMetadataResponse> GetDatabaseMetadataAsync(
         SelectedDatabaseContext selectedDbContext,
@@ -51,18 +54,30 @@ public sealed class MetadataAggregationService(
                 ?? throw new InvalidOperationException($"Provider '{provider.GetType().Name}' does not support schema discovery.");
             var tableProvider = provider as ITableDiscoveryProvider
                 ?? throw new InvalidOperationException($"Provider '{provider.GetType().Name}' does not support table discovery.");
-            var viewProvider = provider as IViewDiscoveryProvider
-                ?? throw new InvalidOperationException($"Provider '{provider.GetType().Name}' does not support view discovery.");
             var columnProvider = provider as IColumnDiscoveryProvider
                 ?? throw new InvalidOperationException($"Provider '{provider.GetType().Name}' does not support column discovery.");
-            var primaryKeyProvider = provider as IPrimaryKeyDiscoveryProvider;
-            var foreignKeyProvider = provider as IForeignKeyDiscoveryProvider;
-            var indexProvider = provider as IIndexDiscoveryProvider;
-            var constraintProvider = provider as IConstraintDiscoveryProvider;
-            var procedureProvider = provider as IStoredProcedureDiscoveryProvider;
-            var functionProvider = provider as IFunctionDiscoveryProvider;
-            var triggerProvider = provider as ITriggerDiscoveryProvider;
-            var definitionProvider = provider as IObjectDefinitionProvider;
+
+            // Evaluate feature flags once before starting optional discovery tasks.
+            // Disabled flags suppress the corresponding discoverer even when the provider supports it.
+            var viewsEnabled = await _featureFlagService.IsEnabledAsync(ApplicationFeatures.Views, null, operationToken).ConfigureAwait(false);
+            var storedProceduresEnabled = await _featureFlagService.IsEnabledAsync(ApplicationFeatures.StoredProcedures, null, operationToken).ConfigureAwait(false);
+            var functionsEnabled = await _featureFlagService.IsEnabledAsync(ApplicationFeatures.Functions, null, operationToken).ConfigureAwait(false);
+            var triggersEnabled = await _featureFlagService.IsEnabledAsync(ApplicationFeatures.Triggers, null, operationToken).ConfigureAwait(false);
+            var indexesEnabled = await _featureFlagService.IsEnabledAsync(ApplicationFeatures.Indexes, null, operationToken).ConfigureAwait(false);
+            var constraintsEnabled = await _featureFlagService.IsEnabledAsync(ApplicationFeatures.Constraints, null, operationToken).ConfigureAwait(false);
+            var foreignKeysEnabled = await _featureFlagService.IsEnabledAsync(ApplicationFeatures.ForeignKeys, null, operationToken).ConfigureAwait(false);
+            var primaryKeysEnabled = await _featureFlagService.IsEnabledAsync(ApplicationFeatures.PrimaryKeys, null, operationToken).ConfigureAwait(false);
+            var objectDefinitionEnabled = await _featureFlagService.IsEnabledAsync(ApplicationFeatures.ObjectDefinition, null, operationToken).ConfigureAwait(false);
+
+            var viewProvider = viewsEnabled ? provider as IViewDiscoveryProvider : null;
+            var primaryKeyProvider = primaryKeysEnabled ? provider as IPrimaryKeyDiscoveryProvider : null;
+            var foreignKeyProvider = foreignKeysEnabled ? provider as IForeignKeyDiscoveryProvider : null;
+            var indexProvider = indexesEnabled ? provider as IIndexDiscoveryProvider : null;
+            var constraintProvider = constraintsEnabled ? provider as IConstraintDiscoveryProvider : null;
+            var procedureProvider = storedProceduresEnabled ? provider as IStoredProcedureDiscoveryProvider : null;
+            var functionProvider = functionsEnabled ? provider as IFunctionDiscoveryProvider : null;
+            var triggerProvider = triggersEnabled ? provider as ITriggerDiscoveryProvider : null;
+            var definitionProvider = objectDefinitionEnabled ? provider as IObjectDefinitionProvider : null;
 
             var schemasResponse = await DiscoverRequiredAsync(
                 "schemas",
@@ -83,7 +98,9 @@ public sealed class MetadataAggregationService(
             var viewsTask = DiscoverOptionalAsync(
                 "views",
                 null,
-                token => viewProvider.DiscoverViewsAsync(resource, new DiscoverViewsRequest(), token),
+                token => viewProvider is null
+                    ? Task.FromResult(new DiscoverViewsResponse([]))
+                    : viewProvider.DiscoverViewsAsync(resource, new DiscoverViewsRequest(), token),
                 () => new DiscoverViewsResponse([]),
                 failures,
                 operationToken,
