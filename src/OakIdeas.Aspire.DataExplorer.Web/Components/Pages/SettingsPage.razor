@@ -1,0 +1,126 @@
+@page "/settings"
+@page "/settings/{SectionId}"
+@using OakIdeas.Aspire.DataExplorer.Core.Abstractions
+@inject IFeatureFlagCatalog Catalog
+
+<PageTitle>Settings — Data Explorer</PageTitle>
+
+<div class="de-settings-page">
+    <aside class="de-settings-nav">
+        <div class="de-settings-nav__header">Settings</div>
+        <div class="de-settings-search">
+            <span class="de-settings-search__icon" aria-hidden="true">
+                <HeroIcon Kind="HeroIconKind.MagnifyingGlass" Size="14" />
+            </span>
+            <input class="de-settings-search__input"
+                   type="search"
+                   placeholder="Search settings&hellip;"
+                   aria-label="Search settings"
+                   @bind="_searchText"
+                   @bind:event="oninput" />
+            @if (ShowSearchResults)
+            {
+                <div class="de-settings-search-results">
+                    @foreach (var result in SearchResults)
+                    {
+                        <a class="de-settings-search-results__item"
+                           href="@result.Href"
+                           title="@result.Description">
+                            <span class="de-settings-search-results__name">@result.Label</span>
+                            <span class="de-settings-search-results__section">@result.SectionTitle</span>
+                        </a>
+                    }
+                </div>
+            }
+        </div>
+        <nav class="de-settings-nav__sections" aria-label="Settings sections">
+            @foreach (var section in Sections)
+            {
+                <NavLink class="de-settings-nav__section"
+                         href="@section.Href"
+                         Match="NavLinkMatch.Prefix">
+                    <HeroIcon Kind="@section.Icon" Size="16" />
+                    <span>@section.Title</span>
+                </NavLink>
+            }
+        </nav>
+    </aside>
+
+    <section class="de-settings-content" aria-live="polite">
+        @switch (ActiveSectionId)
+        {
+            case FeatureFlagsSectionId:
+                <FeatureFlagsSettingsSection />
+                break;
+            default:
+                <div class="de-settings-content__empty">Select a settings section.</div>
+                break;
+        }
+    </section>
+</div>
+
+@code {
+    private const string FeatureFlagsSectionId = "feature-flags";
+    private string _searchText = string.Empty;
+
+    [Parameter]
+    public string? SectionId { get; set; }
+
+    private IReadOnlyList<SettingsSection> Sections { get; } =
+    [
+        new SettingsSection(FeatureFlagsSectionId, "Feature Flags", HeroIconKind.Cog6Tooth),
+    ];
+
+    private string ActiveSectionId => ResolveSectionId(SectionId);
+
+    private bool ShowSearchResults => !string.IsNullOrWhiteSpace(_searchText);
+
+    private IReadOnlyList<SettingsSearchResult> SearchResults => BuildSearchResults();
+
+    private string ResolveSectionId(string? sectionId)
+    {
+        if (string.IsNullOrWhiteSpace(sectionId))
+        {
+            return FeatureFlagsSectionId;
+        }
+
+        return Sections.Any(section =>
+            string.Equals(section.Id, sectionId, StringComparison.OrdinalIgnoreCase))
+            ? sectionId.ToLowerInvariant()
+            : FeatureFlagsSectionId;
+    }
+
+    private IReadOnlyList<SettingsSearchResult> BuildSearchResults()
+    {
+        if (string.IsNullOrWhiteSpace(_searchText))
+        {
+            return [];
+        }
+
+        var term = _searchText.Trim();
+
+        return Catalog.Features
+            .Where(feature =>
+                feature.DisplayName.Contains(term, StringComparison.OrdinalIgnoreCase)
+                || feature.Description.Contains(term, StringComparison.OrdinalIgnoreCase)
+                || feature.Key.Contains(term, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(feature => feature.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .Select(feature => new SettingsSearchResult(
+                feature.DisplayName,
+                feature.Description,
+                $"/settings/{FeatureFlagsSectionId}#{FeatureFlagAnchorBuilder.Build(feature.Key)}",
+                "Feature Flags"))
+            .ToList();
+    }
+
+    private sealed record SettingsSection(string Id, string Title, HeroIconKind Icon)
+    {
+        public string Href => $"/settings/{Id}";
+    }
+
+    private sealed record SettingsSearchResult(
+        string Label,
+        string Description,
+        string Href,
+        string SectionTitle);
+}

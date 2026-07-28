@@ -109,6 +109,12 @@ This registers:
 - `IFeatureFlagCatalog` → `FeatureFlagCatalog` (seeded with `ApplicationFeatures.All`)
 - `ConfigurationFeatureFlagSourceProvider` at priority 200
 
+## Settings Center Integration
+
+Feature flag overrides are exposed through **Settings → Feature Flags** at `/settings/feature-flags`.
+
+The legacy `/feature-flags` route remains available as a compatibility redirect to the Settings section.
+
 ## Feature Inventory
 
 All existing features are registered with `DefaultEnabled = true`:
