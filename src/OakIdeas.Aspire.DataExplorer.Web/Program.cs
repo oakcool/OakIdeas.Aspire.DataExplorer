@@ -55,6 +55,7 @@ builder.Services.AddScoped<QuerySessionState>();
 builder.Services.AddScoped<ExplorerNavigationState>();
 builder.Services.AddScoped<FeatureFlagStateService>();
 builder.Services.AddScoped<ISettingsSectionProvider, FeatureFlagsSettingsSectionProvider>();
+builder.Services.AddTraceCorrelationServices();
 
 var app = builder.Build();
 

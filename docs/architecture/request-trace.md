@@ -4,7 +4,7 @@ The Request-to-Database Trace feature correlates Aspire application traces with 
 
 ## Status
 
-Phase 1 complete (telemetry analysis and feature flag infrastructure). Subsequent phases are planned.
+All four implementation phases complete.
 
 ## Feature Flag
 
@@ -68,26 +68,35 @@ When only partial telemetry is available:
 - Missing service name: group under "Unknown Service".
 - Missing database name: group under "Unknown Database".
 
-### Phase 2: Trace Ingestion and Correlation (Planned)
+### Phase 2: Trace Ingestion and Correlation (Complete)
 
-- Collect or consume database-related OpenTelemetry spans from the Aspire dashboard OTLP endpoint or a local exporter.
-- Correlate spans to requests, services, and configured Aspire data sources by `TraceId` and resource attributes.
-- Define `ITraceCorrelationProvider` for provider-specific enrichment.
-- Add request/response contracts: `TraceQueryRequest`, `TraceQueryResponse`, `CorrelatedSpan`.
-- Add unit and integration tests using representative OTLP trace fixtures.
+- Added `CorrelatedSpan`, `SpanStatusCode`, `TraceQueryRequest`, and `TraceQueryResponse` contracts.
+- Added `ITraceCorrelationService` abstraction with `IngestSpan`, `Query`, and `Clear` operations.
+- Added `ITraceEnrichmentProvider` interface for provider-specific span enrichment.
+- Implemented `InMemoryTraceCorrelationService`: thread-safe, bounded in-memory store; evicts oldest spans at capacity.
+- Registered via `AddTraceCorrelationServices()` extension in Program.cs.
+- Added unit tests: `TraceCorrelationServiceTests`.
 
-### Phase 3: Trace Visualization (Planned)
+### Phase 3: Trace Visualization (Complete)
 
-- Create a timeline/tree view of database operations grouped by request and service.
-- Add filters for service, database, duration, status, and operation type.
-- Add links to query details, execution plans, and affected records where supported by the provider.
-- Sanitize parameter values before display.
+- Updated `RequestTracePage.razor` with full visualization:
+  - Filter controls (service, database, status).
+  - Span list with status dot, service, database, masked SQL, and formatted duration.
+  - Detail panel: masked SQL, span/trace IDs, metadata table, error section.
+  - Refresh and Clear actions.
+- Added `Clock` and `CursorArrowRays` HeroIcon entries.
 
-### Phase 4: Diagnostics (Planned)
+### Phase 4: Diagnostics (Complete)
 
-- Identify repeated queries, long-running calls, and likely N+1 patterns.
-- Add clear warnings without presenting guesses as facts.
-- Document instrumentation requirements and known limitations per provider.
+- Added `TraceInsight` and `TraceInsightKind` contracts.
+- Added `ITraceInsightsAnalyzer` abstraction.
+- Implemented `TraceInsightsAnalyzer` with heuristic detection:
+  - **Repeated queries**: same normalised SQL ≥ 3 times.
+  - **Slow calls**: duration ≥ 500 ms.
+  - **Likely N+1**: ≥ 5 short queries with the same keyword per trace.
+- Implemented `SqlStatementMasker`: masks string and numeric literals before display.
+- Insights bar rendered in `RequestTracePage` when diagnostics are detected.
+- Added unit tests: `TraceInsightsAnalyzerTests`, updated `RequestTracePageTests`.
 
 ## Architecture
 

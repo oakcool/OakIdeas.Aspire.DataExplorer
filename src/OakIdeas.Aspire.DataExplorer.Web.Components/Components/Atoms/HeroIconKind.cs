@@ -30,5 +30,7 @@ public enum HeroIconKind
     ShareNodes,
     Trash,
     XMark,
-    Bolt
+    Bolt,
+    Clock,
+    CursorArrowRays,
 }
