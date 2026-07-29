@@ -15,8 +15,10 @@ public static partial class SqlStatementMasker
     [GeneratedRegex(@"'(?:[^']|'')*'", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
     private static partial Regex StringLiteralPattern();
 
-    // Matches bare numeric literals that follow = < > ( , or appear at the start of a token.
-    // This is intentionally conservative to avoid false positives on schema names or identifiers.
+    // Matches bare numeric literals that follow = < > ( , or whitespace.
+    // (?!\w) prevents matching the start of an identifier like a column alias.
+    // Only matches values in a value context (after an operator or delimiter),
+    // not schema names, table names, or function parameters by position.
     [GeneratedRegex(
         @"(?<=[=<>(,\s])-?\d+(?:\.\d+)?(?!\w)",
         RegexOptions.None,

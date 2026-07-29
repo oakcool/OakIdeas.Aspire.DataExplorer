@@ -120,12 +120,18 @@ public sealed partial class TraceInsightsAnalyzer : ITraceInsightsAnalyzer
                 insights.Add(new TraceInsight(
                     Kind: TraceInsightKind.LikelyNPlusOne,
                     Message: $"Possible N+1 pattern detected: {count} short similar queries " +
-                             $"in trace {traceGroup.Key[..Math.Min(8, traceGroup.Key.Length)]}…. " +
+                             $"in trace {TruncateTraceId(traceGroup.Key)}…. " +
                              "This is a heuristic warning. Verify with query plan analysis.",
                     AffectedSpanIds: spanIds));
             }
         }
     }
+
+    /// <summary>
+    /// Returns the first 8 characters of <paramref name="traceId"/> for display in diagnostic messages.
+    /// </summary>
+    private static string TruncateTraceId(string traceId, int maxLength = 8)
+        => traceId.Length <= maxLength ? traceId : traceId[..maxLength];
 
     /// <summary>
     /// Normalises a SQL statement by masking literals and collapsing whitespace,

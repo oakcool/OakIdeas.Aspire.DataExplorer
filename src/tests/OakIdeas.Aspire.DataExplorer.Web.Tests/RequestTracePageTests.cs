@@ -83,7 +83,7 @@ public sealed class RequestTracePageTests : BunitContext
     }
 
     [Fact]
-    public void EnabledFlag_WithSpans_MaskesSqlStatement()
+    public void EnabledFlag_WithSpans_MasksSqlStatement()
     {
         var store = new InMemoryTraceCorrelationService([]);
         store.IngestSpan(MakeSpan(statement: "SELECT * FROM Products WHERE Name = 'Widget'"));
