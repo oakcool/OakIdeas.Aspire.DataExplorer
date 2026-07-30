@@ -81,6 +81,12 @@ internal sealed class AspireResourceDiscovery : IAspireResourceDiscovery
             ["connectionStringEnvironmentVariable"] = connectionResource.ConnectionStringEnvironmentVariable,
         };
 
+        if (resource.Annotations.OfType<SchemaMigrationsDbContextHint>().LastOrDefault() is { } dbContextHint)
+        {
+            metadata["schemaMigrationsProjectPath"] = dbContextHint.ProjectPath;
+            metadata["schemaMigrationsDbContextType"] = dbContextHint.DbContextTypeName;
+        }
+
         return new DiscoveredDatabaseResourceDescriptor(
             resource.Name,
             resource.Name,

@@ -8,6 +8,9 @@
 @inject FeatureFlagStateService FeatureFlags
 @inject IChangeTimelineService TimelineService
 @inject IExplorerService ExplorerService
+@inject IJSRuntime JS
+
+<script src="@Assets["Components/Pages/DataChangeTimelinePage.razor.js"]"></script>
 
 <PageTitle>Data Change Timeline — Data Explorer</PageTitle>
 
@@ -534,12 +537,35 @@
             _viewingSession.SessionId,
             new DataChangeQueryRequest(MaxEvents: int.MaxValue));
 
-        // Serialise to a simple JSON-like text representation for display.
-        // Full JSON serialisation would use System.Text.Json but that would require
-        // JS interop to trigger a download; for now events are simply logged to the
-        // developer console via a diagnostic message banner.
-        // Phase 4 refinement: add JS interop download.
-        _ = allEvents; // Reserved for JS interop download in phase 4.
+        var payload = new
+        {
+            session = new
+            {
+                _viewingSession.SessionId,
+                _viewingSession.Label,
+                _viewingSession.DatabaseName,
+                _viewingSession.State,
+                _viewingSession.StartedAt,
+                _viewingSession.StoppedAt,
+                _viewingSession.EventCount,
+            },
+            exportedAt = DateTimeOffset.UtcNow,
+            totalCount = allEvents.TotalCount,
+            events = allEvents.Events,
+        };
+
+        var json = System.Text.Json.JsonSerializer.Serialize(
+            payload,
+            new System.Text.Json.JsonSerializerOptions
+            {
+                WriteIndented = true,
+            });
+
+        await JS.InvokeVoidAsync(
+            "downloadDataChangeTimelineExport",
+            BuildExportFileName(_viewingSession),
+            json);
+
         await InvokeAsync(StateHasChanged);
     }
 
@@ -592,6 +618,20 @@
         }
 
         return string.Join(", ", evt.PrimaryKeyValues.Select(kv => $"{kv.Key}={kv.Value ?? "null"}"));
+    }
+
+    private static string BuildExportFileName(CaptureSession session)
+    {
+        var label = string.Concat(
+            session.Label.Select(character => char.IsLetterOrDigit(character) ? character : '-'))
+            .Trim('-');
+
+        if (string.IsNullOrWhiteSpace(label))
+        {
+            label = "timeline-session";
+        }
+
+        return $"{label}-{session.StartedAt.UtcDateTime:yyyyMMdd-HHmmss}.json";
     }
 
     private static string SessionStateDotColor(CaptureSessionState state) => state switch

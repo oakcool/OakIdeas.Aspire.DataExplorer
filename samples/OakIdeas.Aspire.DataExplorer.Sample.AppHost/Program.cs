@@ -8,8 +8,14 @@ var password = builder.AddParameter("sql-password", secret: true);
 var sqlServer = builder.AddSqlServer("sample-sql", password)
     .WithLifetime(ContainerLifetime.Persistent)
     .WithDataVolume();
-var todoDatabase = sqlServer.AddDatabase("sampledb");
-var warehouseDatabase = sqlServer.AddDatabase("warehousedb");
+var todoDatabase = sqlServer.AddDatabase("sampledb")
+    .WithSchemaMigrationsDbContext(
+        "../OakIdeas.Aspire.DataExplorer.Sample.Api/OakIdeas.Aspire.DataExplorer.Sample.Api.csproj",
+        "OakIdeas.Aspire.DataExplorer.Sample.Api.Data.SampleDbContext");
+var warehouseDatabase = sqlServer.AddDatabase("warehousedb")
+    .WithSchemaMigrationsDbContext(
+        "../OakIdeas.Aspire.DataExplorer.Sample.Api/OakIdeas.Aspire.DataExplorer.Sample.Api.csproj",
+        "OakIdeas.Aspire.DataExplorer.Sample.Api.Data.WarehouseDbContext");
 
 if (builder.Environment.IsDevelopment())
 {
@@ -29,4 +35,3 @@ builder.AddProject<Projects.OakIdeas_Aspire_DataExplorer_Sample_Web>("sample-web
     .WithReference(api);
 
 builder.Build().Run();
-
