@@ -27,6 +27,7 @@ if (sqlServerProviderEnabled)
     builder.Services.AddSingleton<SqlServerDatabaseProvider>();
     builder.Services.AddSingleton<IProviderErrorMapper, SqlServerErrorMapper>();
     builder.Services.AddSingleton<ISchemaMigrationsProvider, SqlServerSchemaMigrationsProvider>();
+    builder.Services.AddSingleton<IRelationshipNavigationProvider, SqlServerRelationshipNavigationProvider>();
 }
 
 builder.Services.AddSingleton<IProviderFactory, MetadataProviderFactory>();
@@ -52,6 +53,7 @@ if (sqlServerProviderEnabled)
 }
 builder.Services.AddScoped<IExplorerService, ExplorerService>();
 builder.Services.AddScoped<ISchemaMigrationsService, SchemaMigrationsService>();
+builder.Services.AddScoped<IRelationshipNavigatorService, RelationshipNavigatorService>();
 builder.Services.AddScoped<QueryNavigationState>();
 builder.Services.AddScoped<QuerySessionState>();
 builder.Services.AddScoped<ExplorerNavigationState>();

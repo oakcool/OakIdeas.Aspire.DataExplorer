@@ -181,6 +181,11 @@ public sealed class FeatureFlagStateService(
     /// <summary>Returns whether the Data Change Timeline feature is enabled.</summary>
     public bool DataChangeTimelineEnabled => IsEnabled(FeatureKeys.TimelineDataChangeTimeline);
 
+    // ── Navigator ─────────────────────────────────────────────────────────────
+
+    /// <summary>Returns whether the Relationship-Aware Data Navigator feature is enabled.</summary>
+    public bool RelationshipAwareNavigatorEnabled => IsEnabled(FeatureKeys.NavigatorRelationshipAwareNavigator);
+
     // ── SQL Server ────────────────────────────────────────────────────────────
 
     /// <summary>

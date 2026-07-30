@@ -34,4 +34,7 @@ public static class SqlServerFeatureKeys
 
     /// <summary>SQL Server execution plan support: capture and display query execution plans.</summary>
     public const string ExecutionPlan = "SqlServer.ExecutionPlan";
+
+    /// <summary>SQL Server relationship navigation support: navigate parent and child records using foreign key relationships.</summary>
+    public const string RelationshipNavigation = "SqlServer.RelationshipNavigation";
 }

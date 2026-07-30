@@ -129,6 +129,19 @@ public static class SqlServerFeatures
         Owner = "SqlServer",
     };
 
+    /// <summary>SQL Server relationship navigation support.</summary>
+    public static readonly FeatureFlag RelationshipNavigation = new()
+    {
+        Key = SqlServerFeatureKeys.RelationshipNavigation,
+        DisplayName = "SQL Server – Relationship Navigation",
+        Description = "Navigate parent and child records using foreign key relationships discovered from SQL Server system catalogs.",
+        Category = FeatureCategory.Provider,
+        DefaultEnabled = true,
+        Lifecycle = FeatureLifecycle.Preview,
+        DependsOn = [FeatureKeys.NavigatorRelationshipAwareNavigator],
+        Owner = "SqlServer",
+    };
+
     /// <summary>
     /// Returns all SQL Server-specific feature flags in their canonical order.
     /// </summary>
@@ -143,5 +156,6 @@ public static class SqlServerFeatures
         PrimaryKeys,
         ObjectDefinition,
         ExecutionPlan,
+        RelationshipNavigation,
     ];
 }

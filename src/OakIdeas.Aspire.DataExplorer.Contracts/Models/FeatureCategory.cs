@@ -18,4 +18,7 @@ public enum FeatureCategory
 
     /// <summary>Telemetry and request tracing features.</summary>
     Telemetry = 8,
+
+    /// <summary>Relationship navigation and record graph features.</summary>
+    Navigator = 9,
 }
