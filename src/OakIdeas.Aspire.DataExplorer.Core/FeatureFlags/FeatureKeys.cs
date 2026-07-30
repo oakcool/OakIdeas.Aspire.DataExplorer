@@ -70,4 +70,7 @@ public static class FeatureKeys
 
     /// <summary>Request-to-Database Trace: correlate Aspire traces with SQL operations produced by each request.</summary>
     public const string TelemetryRequestTrace = "Telemetry.RequestTrace";
+
+    /// <summary>Data Change Timeline: capture and display inserts, updates, and deletes that occur during a development session.</summary>
+    public const string TimelineDataChangeTimeline = "Timeline.DataChangeTimeline";
 }

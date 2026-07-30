@@ -44,6 +44,7 @@ public sealed class ApplicationFeaturesCatalogTests
         {
             FeatureKeys.ExplorerSchemaMigrations,
             FeatureKeys.TelemetryRequestTrace,
+            FeatureKeys.TimelineDataChangeTimeline,
         };
 
         foreach (var feature in ApplicationFeatures.All)
@@ -68,6 +69,12 @@ public sealed class ApplicationFeaturesCatalogTests
     public void RequestTrace_DefaultsToDisabledForSafeRollout()
     {
         ApplicationFeatures.RequestTrace.DefaultEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void DataChangeTimeline_DefaultsToDisabledForSafeRollout()
+    {
+        ApplicationFeatures.DataChangeTimeline.DefaultEnabled.Should().BeFalse();
     }
 
     [Fact]
@@ -146,5 +153,6 @@ public sealed class ApplicationFeaturesCatalogTests
         keys.Should().Contain(FeatureKeys.DataEditingDelete);
         keys.Should().Contain(FeatureKeys.ProvidersMultipleDatabases);
         keys.Should().Contain(FeatureKeys.TelemetryRequestTrace);
+        keys.Should().Contain(FeatureKeys.TimelineDataChangeTimeline);
     }
 }
