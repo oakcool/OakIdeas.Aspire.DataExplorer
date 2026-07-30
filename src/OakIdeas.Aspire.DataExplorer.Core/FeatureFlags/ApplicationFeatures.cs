@@ -274,6 +274,18 @@ public static class ApplicationFeatures
         Owner = "Telemetry",
     };
 
+    /// <summary>Data Change Timeline feature.</summary>
+    public static readonly FeatureFlag DataChangeTimeline = new()
+    {
+        Key = FeatureKeys.TimelineDataChangeTimeline,
+        DisplayName = "Data Change Timeline",
+        Description = "Capture and display inserts, updates, and deletes that occur while exercising a development workflow. Supports pause, resume, filtering, and export.",
+        Category = FeatureCategory.Telemetry,
+        DefaultEnabled = false,
+        Lifecycle = FeatureLifecycle.Preview,
+        Owner = "Timeline",
+    };
+
     /// <summary>
     /// Returns all features defined in the application catalog, in their canonical order.
     /// </summary>
@@ -300,5 +312,6 @@ public static class ApplicationFeatures
         DataDelete,
         MultipleDatabases,
         RequestTrace,
+        DataChangeTimeline,
     ];
 }

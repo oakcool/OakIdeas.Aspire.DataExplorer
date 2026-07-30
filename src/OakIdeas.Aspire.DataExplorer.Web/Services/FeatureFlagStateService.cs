@@ -178,6 +178,9 @@ public sealed class FeatureFlagStateService(
     /// <summary>Returns whether the Request-to-Database Trace feature is enabled.</summary>
     public bool RequestTraceEnabled => IsEnabled(FeatureKeys.TelemetryRequestTrace);
 
+    /// <summary>Returns whether the Data Change Timeline feature is enabled.</summary>
+    public bool DataChangeTimelineEnabled => IsEnabled(FeatureKeys.TimelineDataChangeTimeline);
+
     // ── SQL Server ────────────────────────────────────────────────────────────
 
     /// <summary>

@@ -13,27 +13,28 @@ The initial rollout is protected by the dedicated feature flag:
 
 When disabled, navigation and direct route usage are blocked in the UI by rendering a feature-unavailable surface.
 
+## Status
+
+All four implementation phases are complete behind the `Explorer.SchemaMigrations` preview flag.
+
 ## Phase model
 
-The feature is delivered in phases:
-
-1. **Phase 1 (this baseline)**  
-   - Register the feature flag in the centralized catalog.
-   - Add a dedicated route and navigation entry behind the flag.
-   - Keep the page read-only and non-operational while backend comparison/execution services are not implemented.
-2. **Phase 2**  
-   - Add applied vs pending migration status using provider-capability-aware contracts.
-3. **Phase 3**  
-   - Add schema comparison (live schema, model, snapshot) with severity categorization.
-4. **Phase 4**  
-   - Add script generation and explicitly confirmed execution controls.
+1. **Phase 1: Analysis and routing (complete)**  
+   - Centralized feature flag registration, navigation visibility, and direct-route guard.
+2. **Phase 2: Migration status (complete)**  
+   - Applied, pending, missing-from-project, and out-of-order migrations are projected into shared contracts.
+3. **Phase 3: Schema comparison (complete)**  
+   - Live schema is compared against the EF Core runtime model, the migrations snapshot, and an optional comparison database.
+4. **Phase 4: Script generation and execution (complete)**  
+   - Pending, idempotent, and full scripts can be generated, previewed, and executed after explicit database-name confirmation.
 
 ## Architecture boundaries
 
 - Shared projects define provider-neutral request/response contracts and orchestration.
-- Provider projects own provider SQL, provider-specific migration discovery, idempotent script support, and exception mapping.
+- Provider projects own provider SQL, provider-specific migration discovery, EF Core integration, idempotent script support, and exception mapping.
 - User-visible failures flow through existing error contracts with sanitized diagnostics.
 - Read-only behavior remains default; any state-changing operation requires explicit confirmation.
+- AppHost projects can opt into EF Core migration discovery by attaching schema-migrations DbContext metadata to SQL Server database resources.
 
 ## Feature flag enforcement
 
@@ -49,6 +50,19 @@ The flag uses existing feature flag source providers and precedence rules docume
 1. Higher-priority providers (future emergency override / remote / database)
 2. Configuration source
 3. Catalog default
+
+## AppHost metadata hints
+
+SQL Server migration discovery uses the selected database resource plus optional AppHost metadata that identifies the EF Core project and DbContext:
+
+```csharp
+var database = sqlServer.AddDatabase("sampledb")
+    .WithSchemaMigrationsDbContext(
+        "../OakIdeas.Aspire.DataExplorer.Sample.Api/OakIdeas.Aspire.DataExplorer.Sample.Api.csproj",
+        "OakIdeas.Aspire.DataExplorer.Sample.Api.Data.SampleDbContext");
+```
+
+When the hint is present, the provider loads the compiled application assembly, reads the migrations assembly, compares the runtime model and snapshot to the live schema, and enables script generation and execution controls.
 
 ## Telemetry and retirement guidance
 

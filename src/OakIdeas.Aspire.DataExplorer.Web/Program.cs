@@ -26,6 +26,7 @@ if (sqlServerProviderEnabled)
 {
     builder.Services.AddSingleton<SqlServerDatabaseProvider>();
     builder.Services.AddSingleton<IProviderErrorMapper, SqlServerErrorMapper>();
+    builder.Services.AddSingleton<ISchemaMigrationsProvider, SqlServerSchemaMigrationsProvider>();
 }
 
 builder.Services.AddSingleton<IProviderFactory, MetadataProviderFactory>();
@@ -50,12 +51,14 @@ if (sqlServerProviderEnabled)
     featureFlagBuilder.AddFeatureContributor<SqlServerFeatureContributor>();
 }
 builder.Services.AddScoped<IExplorerService, ExplorerService>();
+builder.Services.AddScoped<ISchemaMigrationsService, SchemaMigrationsService>();
 builder.Services.AddScoped<QueryNavigationState>();
 builder.Services.AddScoped<QuerySessionState>();
 builder.Services.AddScoped<ExplorerNavigationState>();
 builder.Services.AddScoped<FeatureFlagStateService>();
 builder.Services.AddScoped<ISettingsSectionProvider, FeatureFlagsSettingsSectionProvider>();
 builder.Services.AddTraceCorrelationServices();
+builder.Services.AddChangeTimelineServices();
 
 var app = builder.Build();
 

@@ -1,9 +1,11 @@
 @page "/schema-migrations"
+@using OakIdeas.Aspire.DataExplorer.Contracts.Models
 @using OakIdeas.Aspire.DataExplorer.Web.Abstractions
 @using OakIdeas.Aspire.DataExplorer.Web.Services
 @implements IDisposable
-@inject IExplorerService ExplorerService
 @inject FeatureFlagStateService FeatureFlags
+@inject IExplorerService ExplorerService
+@inject ISchemaMigrationsService SchemaMigrationsService
 
 <PageTitle>Schema and Migrations — Data Explorer</PageTitle>
 
@@ -18,47 +20,227 @@
 }
 
 <div class="de-main-page flex h-full min-h-0 flex-col bg-slate-950">
-    <div class="de-main__header flex shrink-0 items-center gap-3 border-b border-slate-800 bg-slate-900/80 px-5 py-3">
+    <div class="de-main__header flex shrink-0 flex-wrap items-center gap-3 border-b border-slate-800 bg-slate-900/80 px-5 py-3">
         <h2 class="de-main__title flex min-w-0 items-center gap-2 text-sm font-semibold text-slate-100">
             <HeroIcon Kind="HeroIconKind.CircleStack" Size="18" Class="de-main__title-icon" />
             <span>Schema and Migrations</span>
         </h2>
+        <div class="flex flex-1 flex-wrap items-center gap-2 text-xs">
+            <select class="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-slate-200 outline-none focus:border-sky-500"
+                    value="@_comparisonResourceId"
+                    @onchange="OnComparisonChangedAsync">
+                <option value="">Compare to another database</option>
+                @foreach (var database in _availableDatabases.Where(db => db.ResourceId != _selectedResourceId))
+                {
+                    <option value="@database.ResourceId">@database.ResourceName (@database.DatabaseName)</option>
+                }
+            </select>
+            <button type="button"
+                    class="flex items-center gap-1 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-300 transition hover:border-sky-400 hover:text-slate-100"
+                    @onclick="RefreshAsync">
+                <HeroIcon Kind="HeroIconKind.ArrowPath" Size="13" />
+                Refresh
+            </button>
+        </div>
     </div>
 
-    <div class="p-5 text-sm text-slate-300">
-        <p class="mb-2">
-            Feature rollout is in progress. This area is enabled, but full schema drift comparison and migration execution controls are not yet available.
-        </p>
-        @if (!string.IsNullOrWhiteSpace(_databaseName))
-        {
-            <p class="mb-4">Selected database: <span class="font-semibold text-slate-100">@_databaseName</span></p>
-        }
-        <p class="mb-2 font-semibold text-slate-100">EF Core CLI command templates</p>
-        <pre class="rounded-lg border border-slate-700 bg-slate-900 p-3 text-xs text-slate-200">dotnet ef migrations list
-dotnet ef migrations script --idempotent
-dotnet ef database update</pre>
+    <div class="grid min-h-0 flex-1 grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-0 overflow-hidden">
+        <div class="min-h-0 overflow-y-auto border-r border-slate-800 p-5">
+            <div class="mb-5 flex flex-col gap-2 text-xs text-slate-300">
+                <p class="text-sm font-semibold text-slate-100">@_overview.DatabaseName</p>
+                @if (!string.IsNullOrWhiteSpace(_overview.DbContextTypeName))
+                {
+                    <p class="font-mono text-slate-400">@_overview.DbContextTypeName</p>
+                }
+                @if (!string.IsNullOrWhiteSpace(_overview.ComparisonDatabaseName))
+                {
+                    <p class="text-slate-400">Comparing against <span class="font-semibold text-slate-200">@_overview.ComparisonDatabaseName</span></p>
+                }
+            </div>
+
+            @if (_overview.Warnings.Count > 0)
+            {
+                <div class="mb-5 rounded border border-amber-700/50 bg-amber-950/30 p-3 text-xs text-amber-200">
+                    @foreach (var warning in _overview.Warnings)
+                    {
+                        <p>@warning</p>
+                    }
+                </div>
+            }
+
+            <div class="mb-6">
+                <div class="mb-2 flex items-center justify-between">
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Migrations</p>
+                    <span class="text-xs text-slate-500">@_overview.Migrations.Count item(s)</span>
+                </div>
+                @if (_overview.Migrations.Count == 0)
+                {
+                    <p class="text-xs text-slate-500">No migration metadata is available yet.</p>
+                }
+                else
+                {
+                    <div class="overflow-hidden rounded border border-slate-800">
+                        @foreach (var migration in _overview.Migrations)
+                        {
+                            <div class="border-b border-slate-800 px-3 py-2 text-xs last:border-b-0">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="rounded border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider @MigrationBadgeClass(migration.State)">@migration.State</span>
+                                    <span class="font-mono text-slate-200">@migration.MigrationId</span>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(migration.Notes))
+                                {
+                                    <p class="mt-1 text-slate-400">@migration.Notes</p>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <div>
+                <div class="mb-2 flex items-center justify-between">
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Schema Drift</p>
+                    <span class="text-xs text-slate-500">@_overview.DriftItems.Count item(s)</span>
+                </div>
+                @if (_overview.DriftItems.Count == 0)
+                {
+                    <p class="text-xs text-slate-500">No drift detected.</p>
+                }
+                else
+                {
+                    <div class="overflow-hidden rounded border border-slate-800">
+                        @foreach (var drift in _overview.DriftItems)
+                        {
+                            <div class="border-b border-slate-800 px-3 py-2 text-xs last:border-b-0">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="rounded border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider @DriftBadgeClass(drift.Severity)">@drift.Severity</span>
+                                    <span class="rounded bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-slate-300">@drift.Source</span>
+                                    <span class="font-semibold text-slate-200">@drift.ObjectType</span>
+                                    <span class="font-mono text-slate-400">@drift.ObjectName</span>
+                                </div>
+                                <p class="mt-1 text-slate-400">@drift.Summary</p>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="min-h-0 overflow-y-auto p-5">
+            <div class="mb-4 flex flex-wrap items-center gap-2 text-xs">
+                <button type="button" class="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-slate-300 transition hover:border-sky-400 hover:text-slate-100" @onclick="() => GenerateScriptAsync(SchemaScriptKind.Pending)">Pending script</button>
+                <button type="button" class="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-slate-300 transition hover:border-sky-400 hover:text-slate-100" @onclick="() => GenerateScriptAsync(SchemaScriptKind.Idempotent)">Idempotent script</button>
+                <button type="button" class="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-slate-300 transition hover:border-sky-400 hover:text-slate-100" @onclick="() => GenerateScriptAsync(SchemaScriptKind.Full)">Full script</button>
+            </div>
+
+            @if (_scriptWarnings.Count > 0)
+            {
+                <div class="mb-4 rounded border border-amber-700/50 bg-amber-950/30 p-3 text-xs text-amber-200">
+                    @foreach (var warning in _scriptWarnings)
+                    {
+                        <p>@warning</p>
+                    }
+                </div>
+            }
+
+            <div class="mb-4">
+                <p class="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">Generated SQL</p>
+                <textarea class="min-h-72 w-full rounded border border-slate-800 bg-slate-950 p-3 font-mono text-xs text-slate-200 outline-none focus:border-sky-500"
+                          value="@_generatedScript"
+                          @oninput="eventArgs => _generatedScript = eventArgs.Value?.ToString() ?? string.Empty"></textarea>
+            </div>
+
+            <div class="rounded border border-rose-900/50 bg-rose-950/20 p-4">
+                <p class="mb-2 text-[10px] font-bold uppercase tracking-wider text-rose-300">Apply Script</p>
+                <p class="mb-3 text-xs text-rose-200">Type the selected database resource name to confirm execution.</p>
+                <input class="mb-3 w-full rounded border border-rose-800 bg-slate-950 px-3 py-2 text-xs text-slate-200 outline-none focus:border-rose-500"
+                       type="text"
+                       value="@_confirmationText"
+                       @oninput="eventArgs => _confirmationText = eventArgs.Value?.ToString() ?? string.Empty" />
+                <button type="button"
+                        class="rounded border border-rose-700 bg-rose-700/20 px-3 py-1 text-xs font-semibold text-rose-200 transition hover:border-rose-500 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled="@string.IsNullOrWhiteSpace(_generatedScript)"
+                        @onclick="ApplyScriptAsync">
+                    Execute schema script
+                </button>
+                @if (_executionMessages.Count > 0)
+                {
+                    <div class="mt-3 text-xs text-slate-300">
+                        @foreach (var message in _executionMessages)
+                        {
+                            <p>@message</p>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
     </div>
 </div>
 
 @code {
-    private string? _databaseName;
-    private CancellationTokenSource? _loadCts;
+    private SchemaMigrationsOverviewResponse _overview = new(string.Empty, null, [], [], [], null, false, false, false);
+    private IReadOnlyList<DiscoveredDatabaseResource> _availableDatabases = [];
+    private string? _selectedResourceId;
+    private string _comparisonResourceId = string.Empty;
+    private string _generatedScript = string.Empty;
+    private string _confirmationText = string.Empty;
+    private IReadOnlyList<string> _scriptWarnings = [];
+    private IReadOnlyList<string> _executionMessages = [];
 
     protected override async Task OnInitializedAsync()
     {
         FeatureFlags.FlagsChanged += HandleFlagsChanged;
-        _loadCts = new CancellationTokenSource();
-        var cancellationToken = _loadCts.Token;
-
-        await FeatureFlags.EnsureLoadedAsync(cancellationToken);
+        await FeatureFlags.EnsureLoadedAsync(CancellationToken.None);
 
         if (!FeatureFlags.SchemaMigrationsEnabled)
         {
             return;
         }
 
-        var selected = await ExplorerService.GetSelectedDatabaseAsync(cancellationToken);
-        _databaseName = selected.Selection?.DatabaseName;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        var databases = await ExplorerService.GetAvailableDatabasesAsync(CancellationToken.None);
+        _availableDatabases = databases.Resources;
+        var selected = await ExplorerService.GetSelectedDatabaseAsync(CancellationToken.None);
+        _selectedResourceId = selected.Selection?.ResourceId;
+        _overview = await SchemaMigrationsService.GetOverviewAsync(
+            new SchemaMigrationsOverviewRequest(string.IsNullOrWhiteSpace(_comparisonResourceId) ? null : _comparisonResourceId),
+            CancellationToken.None);
+    }
+
+    private async Task RefreshAsync()
+    {
+        await LoadAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OnComparisonChangedAsync(ChangeEventArgs eventArgs)
+    {
+        _comparisonResourceId = eventArgs.Value?.ToString() ?? string.Empty;
+        await RefreshAsync();
+    }
+
+    private async Task GenerateScriptAsync(SchemaScriptKind kind)
+    {
+        var response = await SchemaMigrationsService.GenerateScriptAsync(
+            new GenerateSchemaMigrationsScriptRequest(kind),
+            CancellationToken.None);
+        _generatedScript = response.Script;
+        _scriptWarnings = response.Warnings;
+        _executionMessages = [];
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ApplyScriptAsync()
+    {
+        var response = await SchemaMigrationsService.ExecuteScriptAsync(
+            new ExecuteSchemaMigrationsScriptRequest(_generatedScript, _confirmationText),
+            CancellationToken.None);
+        _executionMessages = response.Messages;
+        await RefreshAsync();
     }
 
     private void HandleFlagsChanged()
@@ -69,7 +251,21 @@ dotnet ef database update</pre>
     public void Dispose()
     {
         FeatureFlags.FlagsChanged -= HandleFlagsChanged;
-        _loadCts?.Cancel();
-        _loadCts?.Dispose();
     }
+
+    private static string MigrationBadgeClass(SchemaMigrationState state) => state switch
+    {
+        SchemaMigrationState.Applied => "border-emerald-500/40 bg-emerald-500/10 text-emerald-300",
+        SchemaMigrationState.Pending => "border-sky-500/40 bg-sky-500/10 text-sky-300",
+        SchemaMigrationState.OutOfOrder => "border-amber-500/40 bg-amber-500/10 text-amber-300",
+        _ => "border-rose-500/40 bg-rose-500/10 text-rose-300",
+    };
+
+    private static string DriftBadgeClass(SchemaDriftSeverity severity) => severity switch
+    {
+        SchemaDriftSeverity.Destructive => "border-rose-500/40 bg-rose-500/10 text-rose-300",
+        SchemaDriftSeverity.Breaking => "border-amber-500/40 bg-amber-500/10 text-amber-300",
+        SchemaDriftSeverity.Additive => "border-sky-500/40 bg-sky-500/10 text-sky-300",
+        _ => "border-slate-600 bg-slate-800 text-slate-300",
+    };
 }

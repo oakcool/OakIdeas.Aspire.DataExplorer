@@ -1,0 +1,659 @@
+@page "/data-change-timeline"
+@using OakIdeas.Aspire.DataExplorer.Contracts.Models
+@using OakIdeas.Aspire.DataExplorer.Core.Abstractions
+@using OakIdeas.Aspire.DataExplorer.Web.Abstractions
+@using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Atoms
+@using OakIdeas.Aspire.DataExplorer.Web.Services
+@implements IDisposable
+@inject FeatureFlagStateService FeatureFlags
+@inject IChangeTimelineService TimelineService
+@inject IExplorerService ExplorerService
+@inject IJSRuntime JS
+
+<script src="@Assets["Components/Pages/DataChangeTimelinePage.razor.js"]"></script>
+
+<PageTitle>Data Change Timeline — Data Explorer</PageTitle>
+
+@if (!FeatureFlags.DataChangeTimelineEnabled)
+{
+    <div class="de-feature-unavailable">
+        <HeroIcon Kind="HeroIconKind.ExclamationTriangle" Size="32" Class="de-feature-unavailable__icon" />
+        <h2 class="de-feature-unavailable__title">Data Change Timeline Unavailable</h2>
+        <p class="de-feature-unavailable__message">The Data Change Timeline feature is disabled by configuration.</p>
+    </div>
+    return;
+}
+
+<div class="de-main-page flex h-full min-h-0 flex-col bg-slate-950">
+
+    @* ── Header ────────────────────────────────────────────────────── *@
+    <div class="de-main__header flex shrink-0 flex-wrap items-center gap-3 border-b border-slate-800 bg-slate-900/80 px-5 py-3">
+        <h2 class="de-main__title flex min-w-0 items-center gap-2 text-sm font-semibold text-slate-100">
+            <HeroIcon Kind="HeroIconKind.Clock" Size="18" Class="de-main__title-icon" />
+            <span>Data Change Timeline</span>
+            <span class="rounded border border-violet-500/40 bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-300">preview</span>
+        </h2>
+
+        @* ── Session controls ────────────────────────────────────── *@
+        <div class="flex flex-1 flex-wrap items-center gap-2">
+            @if (_activeSession is null)
+            {
+                <input class="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-sky-500"
+                       type="text"
+                       placeholder="Session label (optional)"
+                       maxlength="80"
+                       @bind="_newSessionLabel"
+                       @bind:event="oninput" />
+                <button type="button"
+                        class="flex items-center gap-1 rounded border border-emerald-600 bg-emerald-600/20 px-3 py-1 text-xs font-semibold text-emerald-300 transition hover:border-emerald-400 hover:bg-emerald-500/20"
+                        @onclick="StartSessionAsync"
+                        title="Start a new capture session">
+                    <HeroIcon Kind="HeroIconKind.Play" Size="13" />
+                    Start
+                </button>
+            }
+            else if (_activeSession.State == CaptureSessionState.Active)
+            {
+                <span class="flex items-center gap-1.5 text-xs text-slate-400">
+                    <span class="inline-block h-2 w-2 animate-pulse rounded-full bg-emerald-500"></span>
+                    Recording — <span class="font-semibold text-slate-200">@_activeSession.Label</span>
+                </span>
+                <button type="button"
+                        class="flex items-center gap-1 rounded border border-amber-600 bg-amber-600/20 px-2 py-1 text-xs text-amber-300 transition hover:border-amber-400"
+                        @onclick="PauseAsync"
+                        title="Pause capture">
+                    <HeroIcon Kind="HeroIconKind.Pause" Size="13" />
+                    Pause
+                </button>
+                <button type="button"
+                        class="flex items-center gap-1 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-xs text-slate-300 transition hover:border-rose-400 hover:text-rose-300"
+                        @onclick="StopAsync"
+                        title="Stop capture">
+                    <HeroIcon Kind="HeroIconKind.Stop" Size="13" />
+                    Stop
+                </button>
+            }
+            else if (_activeSession.State == CaptureSessionState.Paused)
+            {
+                <span class="flex items-center gap-1.5 text-xs text-slate-400">
+                    <span class="inline-block h-2 w-2 rounded-full bg-amber-500"></span>
+                    Paused — <span class="font-semibold text-slate-200">@_activeSession.Label</span>
+                </span>
+                <button type="button"
+                        class="flex items-center gap-1 rounded border border-emerald-600 bg-emerald-600/20 px-2 py-1 text-xs text-emerald-300 transition hover:border-emerald-400"
+                        @onclick="ResumeAsync"
+                        title="Resume capture">
+                    <HeroIcon Kind="HeroIconKind.Play" Size="13" />
+                    Resume
+                </button>
+                <button type="button"
+                        class="flex items-center gap-1 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-xs text-slate-300 transition hover:border-rose-400 hover:text-rose-300"
+                        @onclick="StopAsync"
+                        title="Stop capture">
+                    <HeroIcon Kind="HeroIconKind.Stop" Size="13" />
+                    Stop
+                </button>
+            }
+        </div>
+
+        @* ── Filters ─────────────────────────────────────────────── *@
+        @if (_viewingSession is not null)
+        {
+            <div class="flex flex-wrap items-center gap-2 text-xs">
+                <select class="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-slate-200 outline-none focus:border-sky-500"
+                        value="@_filterTable"
+                        @onchange="e => OnTableFilterChanged(e.Value?.ToString())">
+                    <option value="">All tables</option>
+                    @foreach (var t in _tableNames)
+                    {
+                        <option value="@t">@t</option>
+                    }
+                </select>
+                <select class="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-slate-200 outline-none focus:border-sky-500"
+                        value="@_filterOperation"
+                        @onchange="e => OnOperationFilterChanged(e.Value?.ToString())">
+                    <option value="">All operations</option>
+                    <option value="Insert">Insert</option>
+                    <option value="Update">Update</option>
+                    <option value="Delete">Delete</option>
+                </select>
+                <span class="text-slate-400">@_response.TotalCount event(s)</span>
+                @if (_response.IsTruncated)
+                {
+                    <span class="rounded border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-300">truncated</span>
+                }
+                <button type="button"
+                        class="flex items-center gap-1 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-300 transition hover:border-sky-400 hover:text-slate-100"
+                        @onclick="RefreshAsync"
+                        title="Refresh event list">
+                    <HeroIcon Kind="HeroIconKind.ArrowPath" Size="13" />
+                    Refresh
+                </button>
+                <button type="button"
+                        class="flex items-center gap-1 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-300 transition hover:border-amber-400 hover:text-amber-300"
+                        @onclick="ExportSessionAsync"
+                        title="Export session events as JSON">
+                    <HeroIcon Kind="HeroIconKind.ArrowDownTray" Size="13" />
+                    Export
+                </button>
+                <button type="button"
+                        class="flex items-center gap-1 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-300 transition hover:border-rose-400 hover:text-rose-300"
+                        @onclick="() => ClearEventsAsync(_viewingSession.SessionId)"
+                        title="Clear all events in this session">
+                    <HeroIcon Kind="HeroIconKind.Trash" Size="13" />
+                    Clear
+                </button>
+            </div>
+        }
+    </div>
+
+    @* ── Body: sessions sidebar + event timeline ────────────────── *@
+    <div class="flex min-h-0 flex-1 overflow-hidden">
+
+        @* Sessions sidebar *@
+        <div class="flex w-56 shrink-0 flex-col overflow-y-auto border-r border-slate-800 bg-slate-900/60">
+            <p class="border-b border-slate-800 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">Sessions</p>
+            @if (_sessions.Count == 0)
+            {
+                <div class="flex flex-col items-center justify-center gap-2 p-6 text-center text-xs text-slate-500">
+                    <HeroIcon Kind="HeroIconKind.Clock" Size="24" Class="text-slate-700" />
+                    <p>No sessions yet.</p>
+                    <p>Start a session above to begin capturing changes.</p>
+                </div>
+            }
+            else
+            {
+                @foreach (var session in _sessions)
+                {
+                    var isViewing = _viewingSession?.SessionId == session.SessionId;
+                    <button type="button"
+                            class="flex w-full flex-col gap-0.5 border-b border-slate-800 px-3 py-2 text-left text-xs transition hover:bg-slate-800/60 @(isViewing ? "bg-sky-500/10 border-l-2 border-l-sky-500" : null)"
+                            @onclick="() => SelectSession(session)">
+                        <div class="flex items-center gap-1.5">
+                            <span class="inline-block h-2 w-2 shrink-0 rounded-full @SessionStateDotColor(session.State)"></span>
+                            <span class="truncate font-semibold text-slate-200">@session.Label</span>
+                        </div>
+                        <span class="text-slate-500">@session.DatabaseName</span>
+                        <div class="flex items-center gap-2 text-slate-500">
+                            <span>@session.EventCount event(s)</span>
+                        </div>
+                        <span class="text-slate-600">@session.StartedAt.ToLocalTime().ToString("HH:mm:ss")</span>
+                    </button>
+                }
+            }
+        </div>
+
+        @* Event timeline *@
+        <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
+            @if (_viewingSession is null)
+            {
+                <div class="flex flex-1 flex-col items-center justify-center gap-2 text-xs text-slate-600">
+                    <HeroIcon Kind="HeroIconKind.Clock" Size="24" Class="text-slate-800" />
+                    <p>Select a session to view captured events.</p>
+                </div>
+            }
+            else if (_response.Events.Count == 0)
+            {
+                <div class="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center text-xs text-slate-500">
+                    <HeroIcon Kind="HeroIconKind.TableCells" Size="28" Class="text-slate-700" />
+                    <p>No events captured yet.</p>
+                    @if (_viewingSession.State == CaptureSessionState.Active)
+                    {
+                        <p>Exercise your application to capture inserts, updates, and deletes.</p>
+                    }
+                    else if (_viewingSession.State == CaptureSessionState.Paused)
+                    {
+                        <p class="text-amber-400">Session is paused. Resume to continue capturing.</p>
+                    }
+                    else
+                    {
+                        <p>This session has stopped. Start a new session to capture more changes.</p>
+                    }
+                </div>
+            }
+            else
+            {
+                @* Event list + detail split *@
+                <div class="flex min-h-0 flex-1 overflow-hidden">
+
+                    @* Event list *@
+                    <div class="flex w-80 shrink-0 flex-col overflow-y-auto border-r border-slate-800 bg-slate-900/40">
+                        @foreach (var evt in _response.Events)
+                        {
+                            var isSelected = _selectedEvent?.EventId == evt.EventId;
+                            <button type="button"
+                                    class="flex w-full flex-col gap-0.5 border-b border-slate-800 px-3 py-2 text-left text-xs transition hover:bg-slate-800/60 @(isSelected ? "bg-sky-500/10 border-l-2 border-l-sky-500" : null)"
+                                    @onclick="() => SelectEvent(evt)">
+                                <div class="flex items-center gap-1.5">
+                                    @OperationBadge(evt.Operation)
+                                    <span class="truncate font-semibold text-slate-200">@($"{evt.SchemaName}.{evt.TableName}")</span>
+                                </div>
+                                @if (evt.PrimaryKeyValues.Count > 0)
+                                {
+                                    <p class="truncate text-slate-400">@BuildPkSummary(evt)</p>
+                                }
+                                <span class="text-slate-500">@evt.Timestamp.ToLocalTime().ToString("HH:mm:ss.fff")</span>
+                                @if (evt.TraceId is not null)
+                                {
+                                    <span class="truncate font-mono text-[10px] text-slate-600" title="Trace ID: @evt.TraceId">trace: @evt.TraceId[..Math.Min(16, evt.TraceId.Length)]…</span>
+                                }
+                            </button>
+                        }
+                    </div>
+
+                    @* Detail panel *@
+                    <div class="flex min-w-0 flex-1 flex-col overflow-y-auto p-5">
+                        @if (_selectedEvent is null)
+                        {
+                            <div class="flex flex-col items-center justify-center gap-2 text-xs text-slate-600">
+                                <HeroIcon Kind="HeroIconKind.CursorArrowRays" Size="24" Class="text-slate-800" />
+                                <p>Select an event to view details.</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="flex flex-col gap-4 text-xs text-slate-300">
+
+                                @* Operation + table header *@
+                                <div class="flex flex-wrap items-center gap-3">
+                                    @OperationBadgeLarge(_selectedEvent.Operation)
+                                    <span class="rounded bg-slate-800 px-2 py-0.5 font-mono font-semibold text-slate-200">@_selectedEvent.SchemaName.@_selectedEvent.TableName</span>
+                                    <span class="text-slate-500">@_selectedEvent.Timestamp.ToLocalTime().ToString("u")</span>
+                                </div>
+
+                                @* Primary key *@
+                                @if (_selectedEvent.PrimaryKeyValues.Count > 0)
+                                {
+                                    <div>
+                                        <p class="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Primary Key</p>
+                                        <div class="flex flex-wrap gap-2">
+                                            @foreach (var kv in _selectedEvent.PrimaryKeyValues)
+                                            {
+                                                <span class="rounded border border-slate-700 bg-slate-900 px-2 py-0.5 font-mono text-slate-200">
+                                                    @kv.Key = @(kv.Value ?? "<null>")
+                                                </span>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+
+                                @* Column changes *@
+                                @if (_selectedEvent.Changes.Count > 0)
+                                {
+                                    <div>
+                                        <p class="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                            Column Changes
+                                            <span class="ml-1 font-normal normal-case text-slate-600">(sensitive values may be masked)</span>
+                                        </p>
+                                        <table class="w-full border-collapse text-xs">
+                                            <thead>
+                                                <tr class="border-b border-slate-800">
+                                                    <th class="py-1.5 pr-3 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-500">Column</th>
+                                                    @if (_selectedEvent.Operation != DataChangeOperation.Insert)
+                                                    {
+                                                        <th class="py-1.5 pr-3 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-500">Before</th>
+                                                    }
+                                                    @if (_selectedEvent.Operation != DataChangeOperation.Delete)
+                                                    {
+                                                        <th class="py-1.5 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-500">After</th>
+                                                    }
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var kv in _selectedEvent.Changes)
+                                                {
+                                                    <tr class="border-b border-slate-800">
+                                                        <td class="py-1.5 pr-3 font-mono font-semibold text-slate-300">@kv.Key</td>
+                                                        @if (_selectedEvent.Operation != DataChangeOperation.Insert)
+                                                        {
+                                                            <td class="py-1.5 pr-3 font-mono text-rose-300">@(kv.Value.Before ?? "<null>")</td>
+                                                        }
+                                                        @if (_selectedEvent.Operation != DataChangeOperation.Delete)
+                                                        {
+                                                            <td class="py-1.5 font-mono text-emerald-300">@(kv.Value.After ?? "<null>")</td>
+                                                        }
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                }
+                                else if (_selectedEvent.Operation == DataChangeOperation.Delete)
+                                {
+                                    <p class="italic text-slate-600">Row data not available for delete events from this provider.</p>
+                                }
+
+                                @* Metadata table *@
+                                <table class="w-full border-collapse text-xs">
+                                    <tbody>
+                                        <tr class="border-b border-slate-800">
+                                            <th class="w-32 py-1.5 pr-3 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-500">Event ID</th>
+                                            <td class="py-1.5 font-mono text-slate-300">@_selectedEvent.EventId</td>
+                                        </tr>
+                                        <tr class="border-b border-slate-800">
+                                            <th class="py-1.5 pr-3 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-500">Database</th>
+                                            <td class="py-1.5 text-slate-300">@_selectedEvent.DatabaseName</td>
+                                        </tr>
+                                        @if (_selectedEvent.TraceId is not null)
+                                        {
+                                            <tr class="border-b border-slate-800">
+                                                <th class="py-1.5 pr-3 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-500">Trace ID</th>
+                                                <td class="py-1.5 font-mono text-slate-300">@_selectedEvent.TraceId</td>
+                                            </tr>
+                                        }
+                                        @if (_selectedEvent.TransactionId is not null)
+                                        {
+                                            <tr class="border-b border-slate-800">
+                                                <th class="py-1.5 pr-3 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-500">Transaction</th>
+                                                <td class="py-1.5 font-mono text-slate-300">@_selectedEvent.TransactionId</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private IReadOnlyList<CaptureSession> _sessions = [];
+    private CaptureSession? _activeSession;
+    private CaptureSession? _viewingSession;
+    private DataChangeQueryResponse _response = new([], 0, false);
+    private DataChangeEvent? _selectedEvent;
+    private IReadOnlyList<string> _tableNames = [];
+    private string? _databaseName;
+
+    private string _newSessionLabel = string.Empty;
+    private string _filterTable = string.Empty;
+    private string _filterOperation = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        FeatureFlags.FlagsChanged += HandleFlagsChanged;
+        await FeatureFlags.EnsureLoadedAsync(CancellationToken.None);
+
+        if (!FeatureFlags.DataChangeTimelineEnabled)
+        {
+            return;
+        }
+
+        var selected = await ExplorerService.GetSelectedDatabaseAsync(CancellationToken.None);
+        _databaseName = selected.Selection?.DatabaseName;
+
+        LoadSessions();
+    }
+
+    private void LoadSessions()
+    {
+        _sessions = TimelineService.Sessions;
+        _activeSession = TimelineService.ActiveSession;
+
+        // If the currently viewed session was deleted, reset.
+        if (_viewingSession is not null
+            && !_sessions.Any(s => s.SessionId == _viewingSession.SessionId))
+        {
+            _viewingSession = null;
+            _response = new([], 0, false);
+            _selectedEvent = null;
+            _tableNames = [];
+        }
+        else if (_viewingSession is not null)
+        {
+            // Refresh the session reference so state changes (event count etc.) are reflected.
+            _viewingSession = _sessions.FirstOrDefault(s => s.SessionId == _viewingSession.SessionId)
+                              ?? _viewingSession;
+            LoadEvents();
+        }
+    }
+
+    private void LoadEvents()
+    {
+        if (_viewingSession is null)
+        {
+            return;
+        }
+
+        _tableNames = TimelineService.GetTableNames(_viewingSession.SessionId);
+        _response = TimelineService.Query(_viewingSession.SessionId, BuildRequest());
+
+        // If the selected event was evicted, clear it.
+        if (_selectedEvent is not null
+            && !_response.Events.Any(e => e.EventId == _selectedEvent.EventId))
+        {
+            _selectedEvent = null;
+        }
+    }
+
+    private DataChangeQueryRequest BuildRequest()
+    {
+        DataChangeOperation? operation = _filterOperation switch
+        {
+            "Insert" => DataChangeOperation.Insert,
+            "Update" => DataChangeOperation.Update,
+            "Delete" => DataChangeOperation.Delete,
+            _ => null,
+        };
+
+        string? tableName = null;
+        string? schemaName = null;
+
+        if (!string.IsNullOrEmpty(_filterTable))
+        {
+            var parts = _filterTable.Split('.', 2);
+            if (parts.Length == 2)
+            {
+                schemaName = parts[0];
+                tableName = parts[1];
+            }
+            else
+            {
+                tableName = _filterTable;
+            }
+        }
+
+        return new DataChangeQueryRequest(
+            TableName: tableName,
+            SchemaName: schemaName,
+            Operation: operation);
+    }
+
+    private async Task StartSessionAsync()
+    {
+        var db = _databaseName ?? "default";
+        var label = string.IsNullOrWhiteSpace(_newSessionLabel) ? null : _newSessionLabel.Trim();
+        var session = TimelineService.StartSession(db, label);
+        _newSessionLabel = string.Empty;
+        _viewingSession = session;
+        _filterTable = string.Empty;
+        _filterOperation = string.Empty;
+        LoadSessions();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task PauseAsync()
+    {
+        if (_activeSession is null)
+        {
+            return;
+        }
+
+        TimelineService.PauseSession(_activeSession.SessionId);
+        LoadSessions();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ResumeAsync()
+    {
+        if (_activeSession is null)
+        {
+            return;
+        }
+
+        TimelineService.ResumeSession(_activeSession.SessionId);
+        LoadSessions();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task StopAsync()
+    {
+        if (_activeSession is null)
+        {
+            return;
+        }
+
+        TimelineService.StopSession(_activeSession.SessionId);
+        LoadSessions();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ClearEventsAsync(string sessionId)
+    {
+        TimelineService.ClearEvents(sessionId);
+        _selectedEvent = null;
+        LoadSessions();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RefreshAsync()
+    {
+        LoadSessions();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ExportSessionAsync()
+    {
+        if (_viewingSession is null)
+        {
+            return;
+        }
+
+        // Query all events without a cap for export.
+        var allEvents = TimelineService.Query(
+            _viewingSession.SessionId,
+            new DataChangeQueryRequest(MaxEvents: int.MaxValue));
+
+        var payload = new
+        {
+            session = new
+            {
+                _viewingSession.SessionId,
+                _viewingSession.Label,
+                _viewingSession.DatabaseName,
+                _viewingSession.State,
+                _viewingSession.StartedAt,
+                _viewingSession.StoppedAt,
+                _viewingSession.EventCount,
+            },
+            exportedAt = DateTimeOffset.UtcNow,
+            totalCount = allEvents.TotalCount,
+            events = allEvents.Events,
+        };
+
+        var json = System.Text.Json.JsonSerializer.Serialize(
+            payload,
+            new System.Text.Json.JsonSerializerOptions
+            {
+                WriteIndented = true,
+            });
+
+        await JS.InvokeVoidAsync(
+            "downloadDataChangeTimelineExport",
+            BuildExportFileName(_viewingSession),
+            json);
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void SelectSession(CaptureSession session)
+    {
+        if (_viewingSession?.SessionId == session.SessionId)
+        {
+            return;
+        }
+
+        _viewingSession = session;
+        _selectedEvent = null;
+        _filterTable = string.Empty;
+        _filterOperation = string.Empty;
+        LoadEvents();
+    }
+
+    private void SelectEvent(DataChangeEvent evt)
+    {
+        _selectedEvent = _selectedEvent?.EventId == evt.EventId ? null : evt;
+    }
+
+    private void OnTableFilterChanged(string? value)
+    {
+        _filterTable = value ?? string.Empty;
+        LoadEvents();
+    }
+
+    private void OnOperationFilterChanged(string? value)
+    {
+        _filterOperation = value ?? string.Empty;
+        LoadEvents();
+    }
+
+    private void HandleFlagsChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        FeatureFlags.FlagsChanged -= HandleFlagsChanged;
+    }
+
+    private static string BuildPkSummary(DataChangeEvent evt)
+    {
+        if (evt.PrimaryKeyValues.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        return string.Join(", ", evt.PrimaryKeyValues.Select(kv => $"{kv.Key}={kv.Value ?? "null"}"));
+    }
+
+    private static string BuildExportFileName(CaptureSession session)
+    {
+        var label = string.Concat(
+            session.Label.Select(character => char.IsLetterOrDigit(character) ? character : '-'))
+            .Trim('-');
+
+        if (string.IsNullOrWhiteSpace(label))
+        {
+            label = "timeline-session";
+        }
+
+        return $"{label}-{session.StartedAt.UtcDateTime:yyyyMMdd-HHmmss}.json";
+    }
+
+    private static string SessionStateDotColor(CaptureSessionState state) => state switch
+    {
+        CaptureSessionState.Active => "bg-emerald-500",
+        CaptureSessionState.Paused => "bg-amber-500",
+        _ => "bg-slate-500",
+    };
+
+    @* ── Inline sub-components ────────────────────────────────────── *@
+
+    private RenderFragment OperationBadge(DataChangeOperation op) =>
+        @<span class="inline-flex items-center rounded border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider @OperationBadgeClass(op)">@op</span>;
+
+    private RenderFragment OperationBadgeLarge(DataChangeOperation op) =>
+        @<span class="inline-flex items-center rounded border px-2 py-0.5 text-xs font-bold uppercase tracking-wider @OperationBadgeClass(op)">@op</span>;
+
+    private static string OperationBadgeClass(DataChangeOperation op) => op switch
+    {
+        DataChangeOperation.Insert => "border-emerald-500/40 bg-emerald-500/10 text-emerald-300",
+        DataChangeOperation.Update => "border-sky-500/40 bg-sky-500/10 text-sky-300",
+        DataChangeOperation.Delete => "border-rose-500/40 bg-rose-500/10 text-rose-300",
+        _ => "border-slate-600 bg-slate-800 text-slate-400",
+    };
+}
