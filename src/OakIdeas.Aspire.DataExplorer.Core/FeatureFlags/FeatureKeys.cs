@@ -67,4 +67,7 @@ public static class FeatureKeys
 
     /// <summary>Object Definition: retrieve and display the source definition of views, procedures, functions, and triggers.</summary>
     public const string ExplorerObjectDefinition = "Explorer.ObjectDefinition";
+
+    /// <summary>Request-to-Database Trace: correlate Aspire traces with SQL operations produced by each request.</summary>
+    public const string TelemetryRequestTrace = "Telemetry.RequestTrace";
 }

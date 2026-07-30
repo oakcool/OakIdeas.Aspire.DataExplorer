@@ -262,6 +262,18 @@ public static class ApplicationFeatures
         Owner = "Explorer",
     };
 
+    /// <summary>Request-to-Database Trace feature.</summary>
+    public static readonly FeatureFlag RequestTrace = new()
+    {
+        Key = FeatureKeys.TelemetryRequestTrace,
+        DisplayName = "Request-to-Database Trace",
+        Description = "Correlate Aspire application traces with SQL statements, transactions, and database activity produced by each request.",
+        Category = FeatureCategory.Telemetry,
+        DefaultEnabled = false,
+        Lifecycle = FeatureLifecycle.Preview,
+        Owner = "Telemetry",
+    };
+
     /// <summary>
     /// Returns all features defined in the application catalog, in their canonical order.
     /// </summary>
@@ -287,5 +299,6 @@ public static class ApplicationFeatures
         DataUpdate,
         DataDelete,
         MultipleDatabases,
+        RequestTrace,
     ];
 }

@@ -29,5 +29,8 @@ public enum HeroIconKind
     ViewColumns,
     ShareNodes,
     Trash,
-    XMark
+    XMark,
+    Bolt,
+    Clock,
+    CursorArrowRays,
 }

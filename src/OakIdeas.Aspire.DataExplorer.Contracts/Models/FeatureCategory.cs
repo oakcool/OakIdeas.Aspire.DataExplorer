@@ -15,4 +15,7 @@ public enum FeatureCategory
 
     /// <summary>Provider-specific feature capabilities contributed by a database provider.</summary>
     Provider = 7,
+
+    /// <summary>Telemetry and request tracing features.</summary>
+    Telemetry = 8,
 }

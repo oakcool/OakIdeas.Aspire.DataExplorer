@@ -1,0 +1,384 @@
+@page "/request-trace"
+@using OakIdeas.Aspire.DataExplorer.Contracts.Models
+@using OakIdeas.Aspire.DataExplorer.Core.Abstractions
+@using OakIdeas.Aspire.DataExplorer.Core.Services
+@using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Atoms
+@using OakIdeas.Aspire.DataExplorer.Web.Services
+@implements IDisposable
+@inject FeatureFlagStateService FeatureFlags
+@inject ITraceCorrelationService TraceService
+@inject ITraceInsightsAnalyzer InsightsAnalyzer
+
+<PageTitle>Request Trace — Data Explorer</PageTitle>
+
+@if (!FeatureFlags.RequestTraceEnabled)
+{
+    <div class="de-feature-unavailable">
+        <HeroIcon Kind="HeroIconKind.ExclamationTriangle" Size="32" Class="de-feature-unavailable__icon" />
+        <h2 class="de-feature-unavailable__title">Request Trace Unavailable</h2>
+        <p class="de-feature-unavailable__message">The Request-to-Database Trace feature is disabled by configuration.</p>
+    </div>
+    return;
+}
+
+<div class="de-main-page flex h-full min-h-0 flex-col bg-slate-950">
+
+    @* ── Header ────────────────────────────────────────────────────── *@
+    <div class="de-main__header flex shrink-0 flex-wrap items-center gap-3 border-b border-slate-800 bg-slate-900/80 px-5 py-3">
+        <h2 class="de-main__title flex min-w-0 items-center gap-2 text-sm font-semibold text-slate-100">
+            <HeroIcon Kind="HeroIconKind.Bolt" Size="18" Class="de-main__title-icon" />
+            <span>Request Trace</span>
+        </h2>
+        <div class="flex flex-1 flex-wrap items-center gap-2 text-xs">
+            @* Service filter *@
+            <select class="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-slate-200 outline-none focus:border-sky-500"
+                    value="@_filterService"
+                    @onchange="e => OnFilterChanged(nameof(_filterService), e.Value?.ToString())">
+                <option value="">All services</option>
+                @foreach (var svc in _serviceNames)
+                {
+                    <option value="@svc">@svc</option>
+                }
+            </select>
+            @* Database filter *@
+            <select class="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-slate-200 outline-none focus:border-sky-500"
+                    value="@_filterDatabase"
+                    @onchange="e => OnFilterChanged(nameof(_filterDatabase), e.Value?.ToString())">
+                <option value="">All databases</option>
+                @foreach (var db in _databaseNames)
+                {
+                    <option value="@db">@db</option>
+                }
+            </select>
+            @* Status filter *@
+            <select class="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-slate-200 outline-none focus:border-sky-500"
+                    value="@_filterStatus"
+                    @onchange="e => OnStatusFilterChanged(e.Value?.ToString())">
+                <option value="">All statuses</option>
+                <option value="Ok">OK</option>
+                <option value="Error">Error</option>
+                <option value="Unset">Unset</option>
+            </select>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-400">@_response.TotalCount span(s)</span>
+            @if (_response.IsTruncated)
+            {
+                <span class="rounded border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-300">truncated</span>
+            }
+            <button type="button"
+                    class="flex items-center gap-1 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-300 transition hover:border-sky-400 hover:text-slate-100"
+                    @onclick="RefreshAsync"
+                    title="Refresh span list">
+                <HeroIcon Kind="HeroIconKind.ArrowPath" Size="13" />
+                Refresh
+            </button>
+            <button type="button"
+                    class="flex items-center gap-1 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-300 transition hover:border-rose-400 hover:text-rose-300"
+                    @onclick="ClearAsync"
+                    title="Clear all ingested spans">
+                <HeroIcon Kind="HeroIconKind.Trash" Size="13" />
+                Clear
+            </button>
+        </div>
+    </div>
+
+    @* ── Insights bar (Phase 4) ────────────────────────────────────── *@
+    @if (_insights.Count > 0)
+    {
+        <div class="flex shrink-0 flex-col gap-1 border-b border-amber-800/40 bg-amber-950/30 px-5 py-2">
+            <p class="mb-1 text-[10px] font-bold uppercase tracking-wider text-amber-400">Diagnostic Insights</p>
+            @foreach (var insight in _insights)
+            {
+                <div class="flex items-start gap-2 text-xs text-amber-200">
+                    <HeroIcon Kind="@InsightIcon(insight.Kind)" Size="13" Class="mt-0.5 shrink-0 text-amber-400" />
+                    <span>
+                        <span class="mr-1 font-semibold">[@InsightLabel(insight.Kind)]</span>
+                        @insight.Message
+                        <span class="ml-1 text-amber-400/70">(@insight.AffectedSpanIds.Count span(s))</span>
+                    </span>
+                </div>
+            }
+        </div>
+    }
+
+    @* ── Body: list + detail ──────────────────────────────────────── *@
+    <div class="flex min-h-0 flex-1 overflow-hidden">
+
+        @* Span list *@
+        <div class="flex w-80 shrink-0 flex-col overflow-y-auto border-r border-slate-800 bg-slate-900/60">
+            @if (_response.Spans.Count == 0)
+            {
+                <div class="flex flex-col items-center justify-center gap-3 p-8 text-center text-xs text-slate-500">
+                    <HeroIcon Kind="HeroIconKind.Bolt" Size="28" Class="text-slate-700" />
+                    <p>No spans ingested yet.</p>
+                    <p>Instrument your application with an OpenTelemetry database SDK and point the OTLP exporter at the Data Explorer ingestion endpoint.</p>
+                </div>
+            }
+            else
+            {
+                @foreach (var span in _response.Spans)
+                {
+                    var isSelected = _selectedSpan?.SpanId == span.SpanId;
+                    <button type="button"
+                            class="flex w-full flex-col gap-0.5 border-b border-slate-800 px-3 py-2 text-left text-xs transition hover:bg-slate-800/60 @(isSelected ? "bg-sky-500/10 border-l-2 border-l-sky-500" : null)"
+                            @onclick="() => SelectSpan(span)">
+                        <div class="flex items-center gap-1.5 truncate">
+                            <StatusDot StatusCode="span.StatusCode" />
+                            <span class="truncate font-semibold text-slate-200">@span.ServiceName</span>
+                            @if (!string.IsNullOrWhiteSpace(span.DbName))
+                            {
+                                <span class="shrink-0 text-slate-500">·</span>
+                                <span class="truncate text-slate-400">@span.DbName</span>
+                            }
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(span.DbStatement))
+                        {
+                            <p class="truncate text-slate-400">@SqlStatementMasker.Mask(span.DbStatement)</p>
+                        }
+                        <div class="flex items-center gap-2 text-slate-500">
+                            <span>@FormatDuration(span.Duration)</span>
+                            <span>@span.StartTime.ToLocalTime().ToString("HH:mm:ss.fff")</span>
+                        </div>
+                    </button>
+                }
+            }
+        </div>
+
+        @* Detail panel *@
+        <div class="flex min-w-0 flex-1 flex-col overflow-y-auto p-5">
+            @if (_selectedSpan is null)
+            {
+                <div class="flex flex-col items-center justify-center gap-2 text-xs text-slate-600">
+                    <HeroIcon Kind="HeroIconKind.CursorArrowRays" Size="24" Class="text-slate-800" />
+                    <p>Select a span to view details.</p>
+                </div>
+            }
+            else
+            {
+                <div class="flex flex-col gap-4 text-xs text-slate-300">
+
+                    @* Status + duration summary *@
+                    <div class="flex items-center gap-3">
+                        <StatusBadge StatusCode="_selectedSpan.StatusCode" />
+                        <span class="rounded bg-slate-800 px-2 py-0.5 font-mono text-slate-200">@FormatDuration(_selectedSpan.Duration)</span>
+                        <span class="text-slate-500">@_selectedSpan.StartTime.ToLocalTime().ToString("u")</span>
+                    </div>
+
+                    @* SQL statement *@
+                    @if (!string.IsNullOrWhiteSpace(_selectedSpan.DbStatement))
+                    {
+                        <div>
+                            <p class="mb-1 font-semibold text-slate-400 uppercase tracking-wider text-[10px]">SQL Statement <span class="ml-1 font-normal normal-case text-slate-600">(parameters masked)</span></p>
+                            <pre class="overflow-x-auto rounded-lg border border-slate-700 bg-slate-900 p-3 text-xs text-slate-200">@SqlStatementMasker.Mask(_selectedSpan.DbStatement)</pre>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="italic text-slate-600">SQL statement not captured by instrumentation.</p>
+                    }
+
+                    @* Error detail *@
+                    @if (_selectedSpan.StatusCode == SpanStatusCode.Error && !string.IsNullOrWhiteSpace(_selectedSpan.ErrorMessage))
+                    {
+                        <div class="rounded border border-rose-700/50 bg-rose-950/30 p-3">
+                            <p class="mb-1 text-[10px] font-bold uppercase tracking-wider text-rose-400">Error</p>
+                            <p class="text-rose-300">@_selectedSpan.ErrorMessage</p>
+                        </div>
+                    }
+
+                    @* Span metadata table *@
+                    <table class="w-full border-collapse text-xs">
+                        <tbody>
+                            <tr class="border-b border-slate-800">
+                                <th class="w-32 py-1.5 pr-3 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-500">Trace ID</th>
+                                <td class="py-1.5 font-mono text-slate-300">@_selectedSpan.TraceId</td>
+                            </tr>
+                            <tr class="border-b border-slate-800">
+                                <th class="py-1.5 pr-3 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-500">Span ID</th>
+                                <td class="py-1.5 font-mono text-slate-300">@_selectedSpan.SpanId</td>
+                            </tr>
+                            <tr class="border-b border-slate-800">
+                                <th class="py-1.5 pr-3 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-500">Service</th>
+                                <td class="py-1.5 text-slate-300">@_selectedSpan.ServiceName</td>
+                            </tr>
+                            @if (!string.IsNullOrWhiteSpace(_selectedSpan.DbName))
+                            {
+                                <tr class="border-b border-slate-800">
+                                    <th class="py-1.5 pr-3 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-500">Database</th>
+                                    <td class="py-1.5 text-slate-300">@_selectedSpan.DbName</td>
+                                </tr>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(_selectedSpan.DbSystem))
+                            {
+                                <tr class="border-b border-slate-800">
+                                    <th class="py-1.5 pr-3 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-500">DB System</th>
+                                    <td class="py-1.5 text-slate-300">@_selectedSpan.DbSystem</td>
+                                </tr>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(_selectedSpan.PeerAddress))
+                            {
+                                <tr class="border-b border-slate-800">
+                                    <th class="py-1.5 pr-3 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-500">Endpoint</th>
+                                    <td class="py-1.5 font-mono text-slate-300">@_selectedSpan.PeerAddress</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private TraceQueryResponse _response = new([], 0, false);
+    private IReadOnlyList<TraceInsight> _insights = [];
+    private CorrelatedSpan? _selectedSpan;
+    private IReadOnlyList<string> _serviceNames = [];
+    private IReadOnlyList<string> _databaseNames = [];
+
+    private string _filterService = string.Empty;
+    private string _filterDatabase = string.Empty;
+    private string _filterStatus = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        FeatureFlags.FlagsChanged += HandleFlagsChanged;
+        await FeatureFlags.EnsureLoadedAsync(CancellationToken.None);
+
+        if (FeatureFlags.RequestTraceEnabled)
+        {
+            LoadData();
+        }
+    }
+
+    private void LoadData()
+    {
+        _serviceNames = TraceService.ServiceNames;
+        _databaseNames = TraceService.DatabaseNames;
+
+        var request = BuildRequest();
+        _response = TraceService.Query(request);
+        _insights = InsightsAnalyzer.Analyze(_response.Spans);
+
+        if (_selectedSpan is not null
+            && !_response.Spans.Any(s => s.SpanId == _selectedSpan.SpanId))
+        {
+            _selectedSpan = null;
+        }
+    }
+
+    private TraceQueryRequest BuildRequest()
+    {
+        SpanStatusCode? statusCode = _filterStatus switch
+        {
+            "Ok" => SpanStatusCode.Ok,
+            "Error" => SpanStatusCode.Error,
+            "Unset" => SpanStatusCode.Unset,
+            _ => null
+        };
+
+        return new TraceQueryRequest(
+            ServiceName: string.IsNullOrEmpty(_filterService) ? null : _filterService,
+            DbName: string.IsNullOrEmpty(_filterDatabase) ? null : _filterDatabase,
+            StatusCode: statusCode);
+    }
+
+    private void OnFilterChanged(string field, string? value)
+    {
+        switch (field)
+        {
+            case nameof(_filterService):
+                _filterService = value ?? string.Empty;
+                break;
+            case nameof(_filterDatabase):
+                _filterDatabase = value ?? string.Empty;
+                break;
+        }
+        LoadData();
+    }
+
+    private void OnStatusFilterChanged(string? value)
+    {
+        _filterStatus = value ?? string.Empty;
+        LoadData();
+    }
+
+    private async Task RefreshAsync()
+    {
+        LoadData();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ClearAsync()
+    {
+        TraceService.Clear();
+        _selectedSpan = null;
+        _filterService = string.Empty;
+        _filterDatabase = string.Empty;
+        _filterStatus = string.Empty;
+        LoadData();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void SelectSpan(CorrelatedSpan span)
+    {
+        _selectedSpan = _selectedSpan?.SpanId == span.SpanId ? null : span;
+    }
+
+    private void HandleFlagsChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        FeatureFlags.FlagsChanged -= HandleFlagsChanged;
+    }
+
+    private static string FormatDuration(TimeSpan duration)
+        => duration.TotalMilliseconds >= 1000
+            ? $"{duration.TotalSeconds:F2}s"
+            : $"{duration.TotalMilliseconds:F0}ms";
+
+    private static HeroIconKind InsightIcon(TraceInsightKind kind) => kind switch
+    {
+        TraceInsightKind.SlowCall => HeroIconKind.Clock,
+        TraceInsightKind.LikelyNPlusOne => HeroIconKind.ArrowPath,
+        _ => HeroIconKind.ExclamationTriangle,
+    };
+
+    private static string InsightLabel(TraceInsightKind kind) => kind switch
+    {
+        TraceInsightKind.RepeatedQuery => "Repeated Query",
+        TraceInsightKind.SlowCall => "Slow Call",
+        TraceInsightKind.LikelyNPlusOne => "Likely N+1",
+        _ => kind.ToString(),
+    };
+
+    @* ── Sub-components rendered inline ───────────────────────────── *@
+
+    private RenderFragment<SpanStatusCode> StatusDot => statusCode =>
+        @<span class="inline-block h-2 w-2 shrink-0 rounded-full @StatusDotColor(statusCode)"></span>;
+
+    private static string StatusDotColor(SpanStatusCode statusCode) => statusCode switch
+    {
+        SpanStatusCode.Ok => "bg-emerald-500",
+        SpanStatusCode.Error => "bg-rose-500",
+        _ => "bg-slate-500",
+    };
+
+    private RenderFragment<SpanStatusCode> StatusBadge => statusCode =>
+        @<span class="inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider @StatusBadgeClass(statusCode)">
+            @statusCode.ToString()
+        </span>;
+
+    private static string StatusBadgeClass(SpanStatusCode statusCode) => statusCode switch
+    {
+        SpanStatusCode.Ok => "border-emerald-500/40 bg-emerald-500/10 text-emerald-300",
+        SpanStatusCode.Error => "border-rose-500/40 bg-rose-500/10 text-rose-300",
+        _ => "border-slate-600 bg-slate-800 text-slate-400",
+    };
+}
+
