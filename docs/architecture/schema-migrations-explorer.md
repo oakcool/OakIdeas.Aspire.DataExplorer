@@ -51,6 +51,19 @@ The flag uses existing feature flag source providers and precedence rules docume
 2. Configuration source
 3. Catalog default
 
+## AppHost metadata hints
+
+SQL Server migration discovery uses the selected database resource plus optional AppHost metadata that identifies the EF Core project and DbContext:
+
+```csharp
+var database = sqlServer.AddDatabase("sampledb")
+    .WithSchemaMigrationsDbContext(
+        "../OakIdeas.Aspire.DataExplorer.Sample.Api/OakIdeas.Aspire.DataExplorer.Sample.Api.csproj",
+        "OakIdeas.Aspire.DataExplorer.Sample.Api.Data.SampleDbContext");
+```
+
+When the hint is present, the provider loads the compiled application assembly, reads the migrations assembly, compares the runtime model and snapshot to the live schema, and enables script generation and execution controls.
+
 ## Telemetry and retirement guidance
 
 - Track rollout by recording whether `Explorer.SchemaMigrations` evaluated to enabled/disabled.
