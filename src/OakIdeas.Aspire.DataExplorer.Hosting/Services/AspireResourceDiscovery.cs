@@ -81,10 +81,10 @@ internal sealed class AspireResourceDiscovery : IAspireResourceDiscovery
             ["connectionStringEnvironmentVariable"] = connectionResource.ConnectionStringEnvironmentVariable,
         };
 
-        if (resource.Annotations.OfType<SchemaMigrationsDbContextHint>().LastOrDefault() is { } dbContextHint)
+        if (TryGetSchemaMigrationsHint(resource) is { } dbContextHint)
         {
-            metadata["schemaMigrationsProjectPath"] = dbContextHint.ProjectPath;
-            metadata["schemaMigrationsDbContextType"] = dbContextHint.DbContextTypeName;
+            metadata["schemaMigrationsProjectPath"] = dbContextHint.projectPath;
+            metadata["schemaMigrationsDbContextType"] = dbContextHint.dbContextTypeName;
         }
 
         return new DiscoveredDatabaseResourceDescriptor(
@@ -94,5 +94,30 @@ internal sealed class AspireResourceDiscovery : IAspireResourceDiscovery
             "sqlserver",
             metadata,
             true);
+    }
+
+    private static (string projectPath, string dbContextTypeName)? TryGetSchemaMigrationsHint(SqlServerDatabaseResource resource)
+    {
+        var annotation = resource.Annotations.LastOrDefault(static candidate =>
+            string.Equals(
+                candidate.GetType().FullName,
+                "OakIdeas.Aspire.DataExplorer.SqlServer.Models.SchemaMigrationsDbContextAnnotation",
+                StringComparison.Ordinal));
+
+        if (annotation is null)
+        {
+            return null;
+        }
+
+        var annotationType = annotation.GetType();
+        var projectPath = annotationType.GetProperty("ProjectPath")?.GetValue(annotation) as string;
+        var dbContextTypeName = annotationType.GetProperty("DbContextTypeName")?.GetValue(annotation) as string;
+
+        if (string.IsNullOrWhiteSpace(projectPath) || string.IsNullOrWhiteSpace(dbContextTypeName))
+        {
+            return null;
+        }
+
+        return (projectPath.Trim(), dbContextTypeName.Trim());
     }
 }

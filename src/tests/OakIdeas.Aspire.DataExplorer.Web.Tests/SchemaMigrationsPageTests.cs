@@ -20,6 +20,7 @@ public sealed class SchemaMigrationsPageTests : BunitContext
         Services.AddSingleton<IFeatureFlagCatalog>(new FeatureFlagCatalog(ApplicationFeatures.All.ToList()));
         Services.AddScoped<FeatureFlagStateService>();
         Services.AddSingleton<IExplorerService>(new FakeExplorerService());
+        Services.AddSingleton<ISchemaMigrationsService>(new FakeSchemaMigrationsService());
 
         var component = Render<SchemaMigrationsPage>();
 
@@ -34,15 +35,17 @@ public sealed class SchemaMigrationsPageTests : BunitContext
         Services.AddSingleton<IFeatureFlagCatalog>(new FeatureFlagCatalog(ApplicationFeatures.All.ToList()));
         Services.AddScoped<FeatureFlagStateService>();
         Services.AddSingleton<IExplorerService>(new FakeExplorerService());
+        Services.AddSingleton<ISchemaMigrationsService>(new FakeSchemaMigrationsService());
 
         var component = Render<SchemaMigrationsPage>();
 
         component.WaitForAssertion(() =>
         {
             component.Markup.Should().Contain("Schema and Migrations");
-            component.Markup.Should().Contain("Selected database:");
             component.Markup.Should().Contain("applicationdb");
-            component.Markup.Should().Contain("dotnet ef migrations script --idempotent");
+            component.Markup.Should().Contain("Pending script");
+            component.Markup.Should().Contain("Schema Drift");
+            component.Markup.Should().Contain("20240101000000_InitialCreate");
         });
     }
 
@@ -76,7 +79,16 @@ public sealed class SchemaMigrationsPageTests : BunitContext
     private sealed class FakeExplorerService : IExplorerService
     {
         public Task<GetAvailableDatabasesResponse> GetAvailableDatabasesAsync(CancellationToken cancellationToken)
-            => Task.FromResult(new GetAvailableDatabasesResponse([]));
+            => Task.FromResult(new GetAvailableDatabasesResponse([
+                new DiscoveredDatabaseResource(
+                    "sql-main",
+                    "sql-main",
+                    "applicationdb",
+                    DatabaseProviderType.SqlServer,
+                    new ConnectionMetadata(new Dictionary<string, string?>()),
+                    true,
+                    DateTimeOffset.UtcNow)
+            ]));
 
         public Task<SelectDatabaseResponse> SelectDatabaseAsync(string resourceId, CancellationToken cancellationToken)
             => Task.FromResult(new SelectDatabaseResponse(
@@ -111,5 +123,51 @@ public sealed class SchemaMigrationsPageTests : BunitContext
 
         public Task<ExecuteDatabaseQueryResponse> ExecuteQueryAsync(string sql, bool includeExecutionPlan, bool readOnly, CancellationToken cancellationToken)
             => Task.FromResult(new ExecuteDatabaseQueryResponse("applicationdb", [], [], 0, null, TimeSpan.Zero, false));
+    }
+
+    private sealed class FakeSchemaMigrationsService : ISchemaMigrationsService
+    {
+        public Task<SchemaMigrationsOverviewResponse> GetOverviewAsync(SchemaMigrationsOverviewRequest request, CancellationToken cancellationToken)
+            => Task.FromResult(new SchemaMigrationsOverviewResponse(
+                "applicationdb",
+                "OakIdeas.Aspire.DataExplorer.Sample.Api.Data.SampleDbContext",
+                [
+                    new SchemaMigrationEntry(
+                        "20240101000000_InitialCreate",
+                        "10.0.10",
+                        SchemaMigrationState.Applied,
+                        true,
+                        true,
+                        null)
+                ],
+                [
+                    new SchemaDriftItem(
+                        SchemaDriftSource.LiveVsModel,
+                        SchemaDriftSeverity.Additive,
+                        "Column",
+                        "dbo.TodoItems.UpdatedAt",
+                        "Expected column is missing from the live database.")
+                ],
+                [],
+                null,
+                true,
+                true,
+                true));
+
+        public Task<GenerateSchemaMigrationsScriptResponse> GenerateScriptAsync(GenerateSchemaMigrationsScriptRequest request, CancellationToken cancellationToken)
+            => Task.FromResult(new GenerateSchemaMigrationsScriptResponse(
+                "applicationdb",
+                "SELECT 1;",
+                request.Kind,
+                request.Kind == SchemaScriptKind.Idempotent,
+                []));
+
+        public Task<ExecuteSchemaMigrationsScriptResponse> ExecuteScriptAsync(ExecuteSchemaMigrationsScriptRequest request, CancellationToken cancellationToken)
+            => Task.FromResult(new ExecuteSchemaMigrationsScriptResponse(
+                "applicationdb",
+                true,
+                1,
+                ["Executed 1 schema batch(es)."],
+                DateTimeOffset.UtcNow));
     }
 }

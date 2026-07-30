@@ -1,7 +1,6 @@
 using Aspire.Hosting;
 using Aspire.Hosting.ApplicationModel;
-using Aspire.Hosting.SqlServer;
-using OakIdeas.Aspire.DataExplorer.Core.Models;
+using OakIdeas.Aspire.DataExplorer.SqlServer.Models;
 
 namespace OakIdeas.Aspire.DataExplorer.SqlServer.Extensions;
 
@@ -33,7 +32,7 @@ public static class DataExplorerSqlServerHostingExtensions
         }
 
         return database.WithAnnotation(
-            new SchemaMigrationsDbContextHint(
+            new SchemaMigrationsDbContextAnnotation(
                 Path.GetFullPath(projectPath),
                 dbContextTypeName.Trim()));
     }

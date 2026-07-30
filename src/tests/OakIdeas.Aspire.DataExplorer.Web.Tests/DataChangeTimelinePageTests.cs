@@ -28,13 +28,18 @@ public sealed class DataChangeTimelinePageTests : BunitContext
         var component = Render<DataChangeTimelinePage>();
 
         component.FindAll("button")
+            .Single(button => button.TextContent.Contains("seed session", StringComparison.Ordinal))
+            .Click();
+
+        component.FindAll("button")
             .Single(button => button.TextContent.Contains("Export", StringComparison.Ordinal))
             .Click();
 
         downloadCall.Invocations.Should().ContainSingle();
-        downloadCall.Invocations[0].Arguments[0].Should().BeOfType<string>()
+        var invocation = downloadCall.Invocations.Single();
+        invocation.Arguments[0].Should().BeOfType<string>()
             .Which.Should().StartWith("seed-session-");
-        downloadCall.Invocations[0].Arguments[1].Should().BeOfType<string>()
+        invocation.Arguments[1].Should().BeOfType<string>()
             .Which.Should().Contain("\"events\"");
     }
 
