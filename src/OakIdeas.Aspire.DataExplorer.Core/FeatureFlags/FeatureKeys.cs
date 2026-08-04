@@ -76,4 +76,7 @@ public static class FeatureKeys
 
     /// <summary>Relationship-Aware Data Navigator: navigate parent, child, and many-to-many related records without manually writing joins.</summary>
     public const string NavigatorRelationshipAwareNavigator = "Navigator.RelationshipAwareNavigator";
+
+    /// <summary>Test Data Scenario Builder: create, edit, and execute deterministic data scenarios with dependency-ordered inserts.</summary>
+    public const string ScenarioBuilderTestDataScenarioBuilder = "ScenarioBuilder.TestDataScenarioBuilder";
 }
