@@ -21,4 +21,7 @@ public enum FeatureCategory
 
     /// <summary>Relationship navigation and record graph features.</summary>
     Navigator = 9,
+
+    /// <summary>Test data scenario builder features.</summary>
+    Scenarios = 10,
 }

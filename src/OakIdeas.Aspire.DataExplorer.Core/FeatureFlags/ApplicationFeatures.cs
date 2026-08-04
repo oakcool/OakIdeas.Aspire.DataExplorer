@@ -298,6 +298,18 @@ public static class ApplicationFeatures
         Owner = "Navigator",
     };
 
+    /// <summary>Test Data Scenario Builder feature.</summary>
+    public static readonly FeatureFlag TestDataScenarioBuilder = new()
+    {
+        Key = FeatureKeys.ScenarioBuilderTestDataScenarioBuilder,
+        DisplayName = "Test Data Scenario Builder",
+        Description = "Create, edit, and execute reusable deterministic data scenarios that insert related records in dependency order. Supports fixed values, generated values, references, and repeatability seeds.",
+        Category = FeatureCategory.Scenarios,
+        DefaultEnabled = false,
+        Lifecycle = FeatureLifecycle.Preview,
+        Owner = "ScenarioBuilder",
+    };
+
     /// <summary>
     /// Returns all features defined in the application catalog, in their canonical order.
     /// </summary>
@@ -326,5 +338,6 @@ public static class ApplicationFeatures
         RequestTrace,
         DataChangeTimeline,
         RelationshipAwareNavigator,
+        TestDataScenarioBuilder,
     ];
 }

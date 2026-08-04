@@ -186,6 +186,11 @@ public sealed class FeatureFlagStateService(
     /// <summary>Returns whether the Relationship-Aware Data Navigator feature is enabled.</summary>
     public bool RelationshipAwareNavigatorEnabled => IsEnabled(FeatureKeys.NavigatorRelationshipAwareNavigator);
 
+    // ── Scenario Builder ──────────────────────────────────────────────────────
+
+    /// <summary>Returns whether the Test Data Scenario Builder feature is enabled.</summary>
+    public bool TestDataScenarioBuilderEnabled => IsEnabled(FeatureKeys.ScenarioBuilderTestDataScenarioBuilder);
+
     // ── SQL Server ────────────────────────────────────────────────────────────
 
     /// <summary>

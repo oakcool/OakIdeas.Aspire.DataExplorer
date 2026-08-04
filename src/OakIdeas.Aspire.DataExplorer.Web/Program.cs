@@ -61,6 +61,7 @@ builder.Services.AddScoped<FeatureFlagStateService>();
 builder.Services.AddScoped<ISettingsSectionProvider, FeatureFlagsSettingsSectionProvider>();
 builder.Services.AddTraceCorrelationServices();
 builder.Services.AddChangeTimelineServices();
+builder.Services.AddScenarioBuilderServices();
 
 var app = builder.Build();
 
