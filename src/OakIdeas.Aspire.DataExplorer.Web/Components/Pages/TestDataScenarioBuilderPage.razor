@@ -1,7 +1,11 @@
 @page "/scenario-builder"
+@using OakIdeas.Aspire.DataExplorer.Contracts.Models
+@using OakIdeas.Aspire.DataExplorer.Core.Abstractions
 @using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Atoms
 @using OakIdeas.Aspire.DataExplorer.Web.Services
+@implements IDisposable
 @inject FeatureFlagStateService FeatureFlags
+@inject IScenarioBuilderService ScenarioService
 
 <PageTitle>Test Data Scenario Builder — Data Explorer</PageTitle>
 
@@ -24,14 +28,698 @@
             <span>Test Data Scenario Builder</span>
             <span class="rounded border border-violet-500/40 bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-300">preview</span>
         </h2>
+        <div class="flex flex-1 flex-wrap items-center gap-2">
+            <button type="button"
+                    class="flex items-center gap-1 rounded border border-sky-600 bg-sky-600/20 px-3 py-1 text-xs font-semibold text-sky-300 transition hover:border-sky-400 hover:bg-sky-500/20"
+                    @onclick="ShowCreateForm"
+                    title="Create a new scenario">
+                <HeroIcon Kind="HeroIconKind.Plus" Size="13" />
+                New Scenario
+            </button>
+        </div>
     </div>
 
-    @* ── Body ──────────────────────────────────────────────────────── *@
-    <div class="de-main__body flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
-        <HeroIcon Kind="HeroIconKind.RectangleGroup" Size="48" Class="text-slate-600" />
-        <p class="text-sm text-slate-400">
-            Test Data Scenario Builder is coming soon. Define reusable, deterministic scenarios that insert related records in dependency order.
-        </p>
-    </div>
+    <div class="flex min-h-0 flex-1">
 
+        @* ── Scenario list ─────────────────────────────────────────── *@
+        <div class="flex w-72 shrink-0 flex-col border-r border-slate-800 bg-slate-900/50">
+            <div class="border-b border-slate-800 px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                Scenarios (@_scenarios.Count)
+            </div>
+            <div class="flex-1 overflow-y-auto">
+                @if (_scenarios.Count == 0)
+                {
+                    <div class="flex flex-col items-center gap-3 px-4 py-10 text-center text-slate-500">
+                        <HeroIcon Kind="HeroIconKind.RectangleGroup" Size="32" Class="opacity-30" />
+                        <p class="text-xs">No scenarios yet. Create one to get started.</p>
+                    </div>
+                }
+                else
+                {
+                    @foreach (var scenario in _scenarios)
+                    {
+                        var isSelected = _selectedScenarioId == scenario.ScenarioId;
+                        <button type="button"
+                                class="w-full cursor-pointer border-b border-slate-800/60 px-4 py-3 text-left transition hover:bg-slate-800/50 @(isSelected ? "bg-sky-900/20 border-l-2 border-l-sky-500" : "")"
+                                @onclick="() => SelectScenario(scenario.ScenarioId)">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="truncate text-xs font-semibold text-slate-100">@scenario.Name</span>
+                                @if (scenario.LastExecutedAt.HasValue)
+                                {
+                                    <span class="rounded border border-emerald-600/40 bg-emerald-600/10 px-1.5 py-0.5 text-[10px] text-emerald-400">run</span>
+                                }
+                            </div>
+                            <div class="mt-0.5 text-[10px] text-slate-500">
+                                @scenario.Tables.Count table(s) · created @scenario.CreatedAt.ToLocalTime().ToString("MM/dd HH:mm")
+                            </div>
+                        </button>
+                    }
+                }
+            </div>
+        </div>
+
+        @* ── Main area ─────────────────────────────────────────────── *@
+        <div class="flex min-w-0 flex-1 flex-col overflow-auto">
+
+            @if (_showCreateForm)
+            {
+                @* ── Create / Edit form ───────────────────────────────── *@
+                <div class="border-b border-slate-800 bg-slate-900/60 px-5 py-4">
+                    <h3 class="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                        @(_editingScenarioId != null ? "Edit Scenario" : "New Scenario")
+                    </h3>
+                    <div class="flex flex-wrap gap-3">
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Name *</label>
+                            <input class="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-sky-500"
+                                   type="text"
+                                   placeholder="e.g. Create customer with orders"
+                                   maxlength="128"
+                                   @bind="_formName"
+                                   @bind:event="oninput" />
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Description</label>
+                            <input class="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-sky-500"
+                                   type="text"
+                                   placeholder="Optional description"
+                                   maxlength="256"
+                                   @bind="_formDescription"
+                                   @bind:event="oninput" />
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Seed (optional)</label>
+                            <input class="w-28 rounded border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-sky-500"
+                                   type="number"
+                                   placeholder="e.g. 42"
+                                   @bind="_formSeed"
+                                   @bind:event="oninput" />
+                        </div>
+                    </div>
+
+                    @* ── Table operations ──────────────────────────────── *@
+                    <div class="mt-4">
+                        <div class="mb-2 flex items-center gap-2">
+                            <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Table Operations</span>
+                            <button type="button"
+                                    class="flex items-center gap-1 rounded border border-slate-700 bg-slate-900 px-2 py-0.5 text-[10px] text-slate-300 transition hover:border-sky-400 hover:text-sky-300"
+                                    @onclick="AddTableOperation"
+                                    title="Add a table operation">
+                                <HeroIcon Kind="HeroIconKind.Plus" Size="11" />
+                                Add Table
+                            </button>
+                        </div>
+
+                        @for (var ti = 0; ti < _formTables.Count; ti++)
+                        {
+                            var tableIdx = ti;
+                            var tbl = _formTables[tableIdx];
+                            <div class="mb-3 rounded border border-slate-700 bg-slate-900/60 p-3">
+                                <div class="flex flex-wrap items-end gap-2">
+                                    <div class="flex flex-col gap-1">
+                                        <label class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Schema</label>
+                                        <input class="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-sky-500"
+                                               type="text" placeholder="dbo" maxlength="128"
+                                               value="@tbl.SchemaName"
+                                               @onchange="e => UpdateTableSchema(tableIdx, e.Value?.ToString() ?? string.Empty)" />
+                                    </div>
+                                    <div class="flex flex-col gap-1">
+                                        <label class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Table</label>
+                                        <input class="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-sky-500"
+                                               type="text" placeholder="TableName" maxlength="128"
+                                               value="@tbl.TableName"
+                                               @onchange="e => UpdateTableName(tableIdx, e.Value?.ToString() ?? string.Empty)" />
+                                    </div>
+                                    <div class="flex flex-col gap-1">
+                                        <label class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Alias</label>
+                                        <input class="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-sky-500"
+                                               type="text" placeholder="e.g. customer1" maxlength="64"
+                                               value="@tbl.Alias"
+                                               @onchange="e => UpdateTableAlias(tableIdx, e.Value?.ToString())" />
+                                    </div>
+                                    <button type="button"
+                                            class="flex items-center gap-1 rounded border border-rose-700/40 bg-rose-900/10 px-2 py-1 text-[10px] text-rose-400 transition hover:border-rose-500/60 hover:text-rose-300"
+                                            @onclick="() => RemoveTableOperation(tableIdx)"
+                                            title="Remove this table operation">
+                                        <HeroIcon Kind="HeroIconKind.Trash" Size="11" />
+                                    </button>
+                                </div>
+
+                                @* Columns *@
+                                <div class="mt-2">
+                                    <div class="mb-1 flex items-center gap-2">
+                                        <span class="text-[10px] text-slate-500">Columns</span>
+                                        <button type="button"
+                                                class="flex items-center gap-1 rounded border border-slate-700 bg-slate-900 px-1.5 py-0.5 text-[10px] text-slate-400 transition hover:border-sky-400 hover:text-sky-300"
+                                                @onclick="() => AddColumn(tableIdx)"
+                                                title="Add a column value">
+                                            <HeroIcon Kind="HeroIconKind.Plus" Size="10" />
+                                            Column
+                                        </button>
+                                    </div>
+
+                                    @for (var ci = 0; ci < tbl.Columns.Count; ci++)
+                                    {
+                                        var colIdx = ci;
+                                        var col = tbl.Columns[colIdx];
+                                        <div class="mb-1 flex flex-wrap items-end gap-2">
+                                            <input class="w-28 rounded border border-slate-700 bg-slate-950 px-2 py-0.5 text-[10px] text-slate-200 placeholder:text-slate-500 outline-none focus:border-sky-500"
+                                                   type="text" placeholder="ColumnName" maxlength="128"
+                                                   value="@col.ColumnName"
+                                                   @onchange="e => UpdateColumnName(tableIdx, colIdx, e.Value?.ToString() ?? string.Empty)" />
+
+                                            <select class="rounded border border-slate-700 bg-slate-900 px-2 py-0.5 text-[10px] text-slate-300 outline-none focus:border-sky-500"
+                                                    value="@col.ValueKind.ToString()"
+                                                    @onchange="e => UpdateColumnKind(tableIdx, colIdx, e.Value?.ToString())">
+                                                <option value="Fixed">Fixed</option>
+                                                <option value="Generated">Generated</option>
+                                                <option value="Reference">Reference</option>
+                                            </select>
+
+                                            @if (col.ValueKind == ScenarioValueKind.Fixed)
+                                            {
+                                                <input class="w-40 rounded border border-slate-700 bg-slate-950 px-2 py-0.5 text-[10px] text-slate-200 placeholder:text-slate-500 outline-none focus:border-sky-500"
+                                                       type="text" placeholder="value"
+                                                       value="@col.FixedValue"
+                                                       @onchange="e => UpdateColumnFixed(tableIdx, colIdx, e.Value?.ToString())" />
+                                            }
+                                            else if (col.ValueKind == ScenarioValueKind.Generated)
+                                            {
+                                                <input class="w-40 rounded border border-slate-700 bg-slate-950 px-2 py-0.5 text-[10px] text-slate-200 placeholder:text-slate-500 outline-none focus:border-sky-500"
+                                                       type="text" placeholder="guid / utcnow / randomstring(8)"
+                                                       value="@col.GeneratorName"
+                                                       @onchange="e => UpdateColumnGenerator(tableIdx, colIdx, e.Value?.ToString())" />
+                                            }
+                                            else
+                                            {
+                                                <input class="w-28 rounded border border-slate-700 bg-slate-950 px-2 py-0.5 text-[10px] text-slate-200 placeholder:text-slate-500 outline-none focus:border-sky-500"
+                                                       type="text" placeholder="alias"
+                                                       value="@col.ReferenceAlias"
+                                                       @onchange="e => UpdateColumnRefAlias(tableIdx, colIdx, e.Value?.ToString())" />
+                                                <input class="w-28 rounded border border-slate-700 bg-slate-950 px-2 py-0.5 text-[10px] text-slate-200 placeholder:text-slate-500 outline-none focus:border-sky-500"
+                                                       type="text" placeholder="column (optional)"
+                                                       value="@col.ReferenceColumn"
+                                                       @onchange="e => UpdateColumnRefColumn(tableIdx, colIdx, e.Value?.ToString())" />
+                                            }
+
+                                            <button type="button"
+                                                    class="flex items-center gap-1 rounded border border-rose-700/30 bg-rose-900/10 px-1.5 py-0.5 text-[10px] text-rose-500 transition hover:text-rose-300"
+                                                    @onclick="() => RemoveColumn(tableIdx, colIdx)"
+                                                    title="Remove column">
+                                                <HeroIcon Kind="HeroIconKind.XMark" Size="10" />
+                                            </button>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    @if (_formError is not null)
+                    {
+                        <div class="mt-2 flex items-center gap-2 rounded border border-rose-700/40 bg-rose-900/20 px-3 py-2 text-xs text-rose-300">
+                            <HeroIcon Kind="HeroIconKind.ExclamationTriangle" Size="14" />
+                            @_formError
+                        </div>
+                    }
+
+                    <div class="mt-3 flex gap-2">
+                        <button type="button"
+                                class="flex items-center gap-1 rounded border border-sky-600 bg-sky-600/20 px-3 py-1.5 text-xs font-semibold text-sky-300 transition hover:border-sky-400 hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                                @onclick="SaveScenario"
+                                disabled="@string.IsNullOrWhiteSpace(_formName)">
+                            <HeroIcon Kind="HeroIconKind.CheckCircle" Size="13" />
+                            @(_editingScenarioId != null ? "Update" : "Save Scenario")
+                        </button>
+                        <button type="button"
+                                class="flex items-center gap-1 rounded border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-300 transition hover:border-sky-400 hover:text-slate-100"
+                                @onclick="CancelForm">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            }
+
+            @* ── Selected scenario detail ───────────────────────────── *@
+            @if (_selectedScenario is not null && !_showCreateForm)
+            {
+                var scenario = _selectedScenario;
+                <div class="flex flex-col gap-4 px-5 py-4">
+                    <div class="flex flex-wrap items-start gap-3">
+                        <div class="min-w-0 flex-1">
+                            <h3 class="text-sm font-semibold text-slate-100">@scenario.Name</h3>
+                            @if (!string.IsNullOrWhiteSpace(scenario.Description))
+                            {
+                                <p class="mt-0.5 text-xs text-slate-400">@scenario.Description</p>
+                            }
+                            <div class="mt-1 flex flex-wrap gap-3 text-[10px] text-slate-500">
+                                <span>Created @scenario.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</span>
+                                @if (scenario.LastModifiedAt.HasValue)
+                                {
+                                    <span>Modified @scenario.LastModifiedAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</span>
+                                }
+                                @if (scenario.Seed.HasValue)
+                                {
+                                    <span class="rounded bg-slate-800 px-1.5 py-0.5">seed: @scenario.Seed.Value</span>
+                                }
+                                @if (scenario.LastExecutedAt.HasValue)
+                                {
+                                    <span class="rounded border border-emerald-600/40 bg-emerald-600/10 px-1.5 py-0.5 text-emerald-400">
+                                        Last run @scenario.LastExecutedAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+                                    </span>
+                                }
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <button type="button"
+                                    class="flex items-center gap-1 rounded border border-emerald-600 bg-emerald-600/20 px-3 py-1.5 text-xs font-semibold text-emerald-300 transition hover:border-emerald-400 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                                    @onclick="() => ExecuteScenarioAsync(scenario.ScenarioId)"
+                                    disabled="@_isExecuting"
+                                    title="Execute this scenario">
+                                <HeroIcon Kind="HeroIconKind.Play" Size="13" />
+                                @(_isExecuting ? "Running\u2026" : "Run Scenario")
+                            </button>
+                            <button type="button"
+                                    class="flex items-center gap-1 rounded border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-300 transition hover:border-sky-400 hover:text-sky-300"
+                                    @onclick="() => EditScenario(scenario.ScenarioId)"
+                                    title="Edit this scenario">
+                                <HeroIcon Kind="HeroIconKind.CodeBracket" Size="13" />
+                                Edit
+                            </button>
+                            <button type="button"
+                                    class="flex items-center gap-1 rounded border border-rose-700/40 bg-rose-900/10 px-3 py-1.5 text-xs text-rose-400 transition hover:border-rose-500/60 hover:text-rose-300"
+                                    @onclick="() => DeleteScenario(scenario.ScenarioId)"
+                                    title="Delete this scenario">
+                                <HeroIcon Kind="HeroIconKind.Trash" Size="13" />
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+
+                    @* ── Last execution result ──────────────────────────── *@
+                    @if (_lastResult is not null)
+                    {
+                        <div class="rounded border @(_lastResult.Success ? "border-emerald-700/40 bg-emerald-900/10" : "border-rose-700/40 bg-rose-900/10") p-3">
+                            <div class="mb-1 flex items-center gap-2 text-xs font-semibold @(_lastResult.Success ? "text-emerald-300" : "text-rose-300")">
+                                <HeroIcon Kind="@(_lastResult.Success ? HeroIconKind.CheckCircle : HeroIconKind.ExclamationTriangle)" Size="14" />
+                                @(_lastResult.Success ? "Execution succeeded" : "Execution failed")
+                                <span class="ml-auto text-[10px] font-normal text-slate-500">@_lastResult.ExecutedAt.ToLocalTime().ToString("HH:mm:ss")</span>
+                            </div>
+                            @if (_lastResult.Success)
+                            {
+                                <div class="flex flex-wrap gap-3 text-[10px] text-slate-400">
+                                    @foreach (var kv in _lastResult.InsertedRows)
+                                    {
+                                        <span class="rounded bg-slate-800 px-2 py-0.5"><strong class="text-slate-200">@kv.Value</strong> row(s) @kv.Key</span>
+                                    }
+                                </div>
+                                @if (_lastResult.GeneratedKeys.Count > 0)
+                                {
+                                    <div class="mt-2 flex flex-wrap gap-2 text-[10px] text-slate-400">
+                                        @foreach (var kv in _lastResult.GeneratedKeys)
+                                        {
+                                            <span class="rounded bg-slate-800 px-2 py-0.5">
+                                                <span class="text-violet-300">@kv.Key</span>
+                                                <span class="text-slate-500"> = </span>
+                                                <span class="font-mono text-slate-200">@(kv.Value ?? "NULL")</span>
+                                            </span>
+                                        }
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <p class="text-xs text-rose-400">@_lastResult.ErrorMessage</p>
+                            }
+                        </div>
+                    }
+
+                    @* ── Table operations summary ────────────────────────── *@
+                    <div>
+                        <div class="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                            Table Operations (@scenario.Tables.Count)
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            @{var opIndex = 0;}
+                            @foreach (var tbl in scenario.Tables)
+                            {
+                                opIndex++;
+                                var displayIndex = opIndex;
+                                <div class="rounded border border-slate-700 bg-slate-900/50 p-3">
+                                    <div class="flex flex-wrap items-center gap-2 text-xs">
+                                        <span class="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-500">@displayIndex</span>
+                                        <span class="font-semibold text-slate-100">[@tbl.SchemaName].[@tbl.TableName]</span>
+                                        @if (tbl.Alias is not null)
+                                        {
+                                            <span class="rounded border border-violet-500/40 bg-violet-500/10 px-1.5 py-0.5 text-[10px] text-violet-300">alias: @tbl.Alias</span>
+                                        }
+                                    </div>
+                                    @if (tbl.Columns.Count > 0)
+                                    {
+                                        <div class="mt-2 flex flex-wrap gap-2">
+                                            @foreach (var col in tbl.Columns)
+                                            {
+                                                <span class="flex items-center gap-1 rounded bg-slate-800 px-2 py-0.5 text-[10px]">
+                                                    <span class="text-slate-300">@col.ColumnName</span>
+                                                    <span class="text-slate-600">=</span>
+                                                    @if (col.ValueKind == ScenarioValueKind.Fixed)
+                                                    {
+                                                        <span class="font-mono text-amber-300">@(col.FixedValue ?? "null")</span>
+                                                    }
+                                                    else if (col.ValueKind == ScenarioValueKind.Generated)
+                                                    {
+                                                        <span class="font-mono text-sky-300">gen:@col.GeneratorName</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="font-mono text-violet-300">ref:@col.ReferenceAlias@(col.ReferenceColumn is not null ? $".{col.ReferenceColumn}" : "")</span>
+                                                    }
+                                                </span>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (_selectedScenario is null && !_showCreateForm)
+            {
+                <div class="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center text-slate-500">
+                    <HeroIcon Kind="HeroIconKind.RectangleGroup" Size="48" Class="opacity-20" />
+                    <p class="text-sm">Select a scenario from the list, or create a new one.</p>
+                </div>
+            }
+        </div>
+    </div>
 </div>
+
+@code {
+    private IReadOnlyList<TestDataScenario> _scenarios = [];
+    private string? _selectedScenarioId;
+    private TestDataScenario? _selectedScenario;
+    private ExecuteScenarioResponse? _lastResult;
+    private bool _isExecuting;
+
+    // ── Create/Edit form state ─────────────────────────────────────────────────
+    private bool _showCreateForm;
+    private string? _editingScenarioId;
+    private string _formName = string.Empty;
+    private string _formDescription = string.Empty;
+    private string _formSeed = string.Empty;
+    private List<FormTableOperation> _formTables = [];
+    private string? _formError;
+
+    protected override void OnInitialized()
+    {
+        FeatureFlags.FlagsChanged += OnFlagsChanged;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await FeatureFlags.EnsureLoadedAsync(CancellationToken.None);
+        RefreshScenarioList();
+    }
+
+    public void Dispose()
+    {
+        FeatureFlags.FlagsChanged -= OnFlagsChanged;
+    }
+
+    private void OnFlagsChanged() => InvokeAsync(StateHasChanged);
+
+    private void RefreshScenarioList()
+    {
+        _scenarios = ScenarioService.Scenarios;
+    }
+
+    private void SelectScenario(string scenarioId)
+    {
+        _selectedScenarioId = scenarioId;
+        _selectedScenario = ScenarioService.GetScenario(scenarioId);
+        _lastResult = null;
+        _showCreateForm = false;
+        StateHasChanged();
+    }
+
+    private void ShowCreateForm()
+    {
+        _editingScenarioId = null;
+        _formName = string.Empty;
+        _formDescription = string.Empty;
+        _formSeed = string.Empty;
+        _formTables = [];
+        _formError = null;
+        _showCreateForm = true;
+        _selectedScenario = null;
+        StateHasChanged();
+    }
+
+    private void EditScenario(string scenarioId)
+    {
+        var scenario = ScenarioService.GetScenario(scenarioId);
+        if (scenario is null) return;
+
+        _editingScenarioId = scenarioId;
+        _formName = scenario.Name;
+        _formDescription = scenario.Description ?? string.Empty;
+        _formSeed = scenario.Seed?.ToString() ?? string.Empty;
+        _formTables = scenario.Tables.Select(t => new FormTableOperation
+        {
+            SchemaName = t.SchemaName,
+            TableName = t.TableName,
+            Alias = t.Alias,
+            Columns = t.Columns.Select(c => new FormColumnValue
+            {
+                ColumnName = c.ColumnName,
+                ValueKind = c.ValueKind,
+                FixedValue = c.FixedValue ?? string.Empty,
+                GeneratorName = c.GeneratorName ?? string.Empty,
+                ReferenceAlias = c.ReferenceAlias ?? string.Empty,
+                ReferenceColumn = c.ReferenceColumn ?? string.Empty,
+            }).ToList(),
+        }).ToList();
+        _formError = null;
+        _showCreateForm = true;
+        StateHasChanged();
+    }
+
+    private void CancelForm()
+    {
+        _showCreateForm = false;
+        _formError = null;
+        StateHasChanged();
+    }
+
+    private void SaveScenario()
+    {
+        if (string.IsNullOrWhiteSpace(_formName))
+        {
+            _formError = "Scenario name is required.";
+            StateHasChanged();
+            return;
+        }
+
+        var tables = _formTables.Select(t => new ScenarioTableOperation(
+            SchemaName: string.IsNullOrWhiteSpace(t.SchemaName) ? "dbo" : t.SchemaName.Trim(),
+            TableName: t.TableName.Trim(),
+            Alias: string.IsNullOrWhiteSpace(t.Alias) ? null : t.Alias.Trim(),
+            Columns: t.Columns.Select(c => new ScenarioColumnValue(
+                ColumnName: c.ColumnName.Trim(),
+                ValueKind: c.ValueKind,
+                FixedValue: c.ValueKind == ScenarioValueKind.Fixed
+                    ? (string.IsNullOrEmpty(c.FixedValue) ? null : c.FixedValue) : null,
+                GeneratorName: c.ValueKind == ScenarioValueKind.Generated
+                    ? (string.IsNullOrEmpty(c.GeneratorName) ? null : c.GeneratorName) : null,
+                ReferenceAlias: c.ValueKind == ScenarioValueKind.Reference
+                    ? (string.IsNullOrEmpty(c.ReferenceAlias) ? null : c.ReferenceAlias) : null,
+                ReferenceColumn: c.ValueKind == ScenarioValueKind.Reference
+                    ? (string.IsNullOrEmpty(c.ReferenceColumn) ? null : c.ReferenceColumn) : null
+            )).ToList()
+        )).ToList();
+
+        int? seed = null;
+        if (int.TryParse(_formSeed, out var parsedSeed))
+        {
+            seed = parsedSeed;
+        }
+
+        var request = new CreateScenarioRequest(_formName.Trim(), _formDescription.Trim(), seed, tables);
+
+        CreateScenarioResponse result;
+        if (_editingScenarioId != null)
+        {
+            result = ScenarioService.UpdateScenario(_editingScenarioId, request);
+        }
+        else
+        {
+            result = ScenarioService.CreateScenario(request);
+        }
+
+        if (!result.Success)
+        {
+            _formError = result.ErrorMessage;
+            StateHasChanged();
+            return;
+        }
+
+        _showCreateForm = false;
+        _formError = null;
+        RefreshScenarioList();
+
+        if (result.Scenario is not null)
+        {
+            SelectScenario(result.Scenario.ScenarioId);
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task ExecuteScenarioAsync(string scenarioId)
+    {
+        _isExecuting = true;
+        _lastResult = null;
+        StateHasChanged();
+
+        try
+        {
+            var response = await ScenarioService.ExecuteScenarioAsync(
+                new ExecuteScenarioRequest(scenarioId),
+                CancellationToken.None);
+
+            _lastResult = response;
+            RefreshScenarioList();
+            _selectedScenario = ScenarioService.GetScenario(scenarioId);
+        }
+        finally
+        {
+            _isExecuting = false;
+            StateHasChanged();
+        }
+    }
+
+    private void DeleteScenario(string scenarioId)
+    {
+        ScenarioService.DeleteScenario(new DeleteScenarioRequest(scenarioId));
+        RefreshScenarioList();
+
+        if (_selectedScenarioId == scenarioId)
+        {
+            _selectedScenarioId = null;
+            _selectedScenario = null;
+            _lastResult = null;
+        }
+
+        StateHasChanged();
+    }
+
+    // ── Form mutation helpers ──────────────────────────────────────────────────
+
+    private void AddTableOperation()
+    {
+        _formTables.Add(new FormTableOperation { SchemaName = "dbo", TableName = string.Empty });
+        StateHasChanged();
+    }
+
+    private void RemoveTableOperation(int index)
+    {
+        if (index >= 0 && index < _formTables.Count)
+        {
+            _formTables.RemoveAt(index);
+            StateHasChanged();
+        }
+    }
+
+    private void AddColumn(int tableIndex)
+    {
+        if (tableIndex >= 0 && tableIndex < _formTables.Count)
+        {
+            _formTables[tableIndex].Columns.Add(new FormColumnValue());
+            StateHasChanged();
+        }
+    }
+
+    private void RemoveColumn(int tableIndex, int colIndex)
+    {
+        if (tableIndex < _formTables.Count && colIndex < _formTables[tableIndex].Columns.Count)
+        {
+            _formTables[tableIndex].Columns.RemoveAt(colIndex);
+            StateHasChanged();
+        }
+    }
+
+    private void UpdateTableSchema(int ti, string val)
+    {
+        if (ti < _formTables.Count) _formTables[ti].SchemaName = val;
+    }
+
+    private void UpdateTableName(int ti, string val)
+    {
+        if (ti < _formTables.Count) _formTables[ti].TableName = val;
+    }
+
+    private void UpdateTableAlias(int ti, string? val)
+    {
+        if (ti < _formTables.Count) _formTables[ti].Alias = val;
+    }
+
+    private void UpdateColumnName(int ti, int ci, string val)
+    {
+        if (ti < _formTables.Count && ci < _formTables[ti].Columns.Count)
+            _formTables[ti].Columns[ci].ColumnName = val;
+    }
+
+    private void UpdateColumnKind(int ti, int ci, string? val)
+    {
+        if (ti < _formTables.Count && ci < _formTables[ti].Columns.Count
+            && Enum.TryParse<ScenarioValueKind>(val, out var kind))
+        {
+            _formTables[ti].Columns[ci].ValueKind = kind;
+        }
+    }
+
+    private void UpdateColumnFixed(int ti, int ci, string? val)
+    {
+        if (ti < _formTables.Count && ci < _formTables[ti].Columns.Count)
+            _formTables[ti].Columns[ci].FixedValue = val ?? string.Empty;
+    }
+
+    private void UpdateColumnGenerator(int ti, int ci, string? val)
+    {
+        if (ti < _formTables.Count && ci < _formTables[ti].Columns.Count)
+            _formTables[ti].Columns[ci].GeneratorName = val ?? string.Empty;
+    }
+
+    private void UpdateColumnRefAlias(int ti, int ci, string? val)
+    {
+        if (ti < _formTables.Count && ci < _formTables[ti].Columns.Count)
+            _formTables[ti].Columns[ci].ReferenceAlias = val ?? string.Empty;
+    }
+
+    private void UpdateColumnRefColumn(int ti, int ci, string? val)
+    {
+        if (ti < _formTables.Count && ci < _formTables[ti].Columns.Count)
+            _formTables[ti].Columns[ci].ReferenceColumn = val ?? string.Empty;
+    }
+
+    // ── Form helper classes ────────────────────────────────────────────────────
+
+    private sealed class FormTableOperation
+    {
+        public string SchemaName { get; set; } = "dbo";
+        public string TableName { get; set; } = string.Empty;
+        public string? Alias { get; set; }
+        public List<FormColumnValue> Columns { get; set; } = [];
+    }
+
+    private sealed class FormColumnValue
+    {
+        public string ColumnName { get; set; } = string.Empty;
+        public ScenarioValueKind ValueKind { get; set; } = ScenarioValueKind.Fixed;
+        public string FixedValue { get; set; } = string.Empty;
+        public string GeneratorName { get; set; } = string.Empty;
+        public string ReferenceAlias { get; set; } = string.Empty;
+        public string ReferenceColumn { get; set; } = string.Empty;
+    }
+}
