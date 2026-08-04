@@ -191,6 +191,11 @@ public sealed class FeatureFlagStateService(
     /// <summary>Returns whether the Test Data Scenario Builder feature is enabled.</summary>
     public bool TestDataScenarioBuilderEnabled => IsEnabled(FeatureKeys.ScenarioBuilderTestDataScenarioBuilder);
 
+    // ── Snapshots ─────────────────────────────────────────────────────────────
+
+    /// <summary>Returns whether the Database Snapshots feature is enabled.</summary>
+    public bool DatabaseSnapshotsEnabled => IsEnabled(FeatureKeys.SnapshotsDatabaseSnapshots);
+
     // ── SQL Server ────────────────────────────────────────────────────────────
 
     /// <summary>

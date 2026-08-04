@@ -79,4 +79,7 @@ public static class FeatureKeys
 
     /// <summary>Test Data Scenario Builder: create, edit, and execute deterministic data scenarios with dependency-ordered inserts.</summary>
     public const string ScenarioBuilderTestDataScenarioBuilder = "ScenarioBuilder.TestDataScenarioBuilder";
+
+    /// <summary>Database Snapshots: capture named restore points, compare state, and restore the database to a known point during development.</summary>
+    public const string SnapshotsDatabaseSnapshots = "Snapshots.DatabaseSnapshots";
 }

@@ -1,0 +1,47 @@
+@page "/database-snapshots"
+@using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Atoms
+@using OakIdeas.Aspire.DataExplorer.Web.Services
+@inject FeatureFlagStateService FeatureFlags
+
+<PageTitle>Database Snapshots — Data Explorer</PageTitle>
+
+@if (!FeatureFlags.DatabaseSnapshotsEnabled)
+{
+    <div class="de-feature-unavailable">
+        <HeroIcon Kind="HeroIconKind.ExclamationTriangle" Size="32" Class="de-feature-unavailable__icon" />
+        <h2 class="de-feature-unavailable__title">Database Snapshots Unavailable</h2>
+        <p class="de-feature-unavailable__message">The Database Snapshots feature is disabled by configuration.</p>
+    </div>
+    return;
+}
+
+<div class="de-main-page flex h-full min-h-0 flex-col bg-slate-950">
+
+    @* ── Header ────────────────────────────────────────────────────── *@
+    <div class="de-main__header flex shrink-0 flex-wrap items-center gap-3 border-b border-slate-800 bg-slate-900/80 px-5 py-3">
+        <h2 class="de-main__title flex min-w-0 items-center gap-2 text-sm font-semibold text-slate-100">
+            <HeroIcon Kind="HeroIconKind.ArrowPath" Size="18" Class="de-main__title-icon" />
+            <span>Database Snapshots</span>
+            <span class="rounded border border-violet-500/40 bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-300">preview</span>
+        </h2>
+    </div>
+
+    @* ── Coming soon placeholder ──────────────────────────────────── *@
+    <div class="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+        <HeroIcon Kind="HeroIconKind.ArrowPath" Size="48" Class="text-slate-600" />
+        <p class="text-sm font-semibold text-slate-400">Database Snapshots</p>
+        <p class="max-w-sm text-xs text-slate-500">
+            Capture named restore points, compare the current database state against a snapshot,
+            and restore the database to a known development state.
+            Full implementation is in progress.
+        </p>
+    </div>
+
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await FeatureFlags.EnsureLoadedAsync(CancellationToken.None);
+    }
+}

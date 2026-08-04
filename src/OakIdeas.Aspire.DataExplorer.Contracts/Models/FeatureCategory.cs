@@ -24,4 +24,7 @@ public enum FeatureCategory
 
     /// <summary>Test data scenario builder features.</summary>
     Scenarios = 10,
+
+    /// <summary>Database snapshot and restore point features.</summary>
+    Snapshots = 11,
 }
