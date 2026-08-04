@@ -36,4 +36,5 @@ public enum HeroIconKind
     Bolt,
     Clock,
     CursorArrowRays,
+    ArrowsRightLeft,
 }

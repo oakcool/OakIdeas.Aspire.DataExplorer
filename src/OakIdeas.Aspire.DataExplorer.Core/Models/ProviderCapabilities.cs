@@ -23,4 +23,6 @@ public sealed record ProviderCapabilities
     public bool SupportsDefinitionRetrieval { get; init; }
 
     public bool SupportsLiveStats { get; init; }
+
+    public bool SupportsRelationshipNavigation { get; init; }
 }

@@ -286,6 +286,18 @@ public static class ApplicationFeatures
         Owner = "Timeline",
     };
 
+    /// <summary>Relationship-Aware Data Navigator feature.</summary>
+    public static readonly FeatureFlag RelationshipAwareNavigator = new()
+    {
+        Key = FeatureKeys.NavigatorRelationshipAwareNavigator,
+        DisplayName = "Relationship-Aware Data Navigator",
+        Description = "Navigate from a record to its parent, child, and many-to-many related records without manually writing joins. Shows related-record counts, generates relationship queries, and visualizes delete impact.",
+        Category = FeatureCategory.Navigator,
+        DefaultEnabled = false,
+        Lifecycle = FeatureLifecycle.Preview,
+        Owner = "Navigator",
+    };
+
     /// <summary>
     /// Returns all features defined in the application catalog, in their canonical order.
     /// </summary>
@@ -313,5 +325,6 @@ public static class ApplicationFeatures
         MultipleDatabases,
         RequestTrace,
         DataChangeTimeline,
+        RelationshipAwareNavigator,
     ];
 }

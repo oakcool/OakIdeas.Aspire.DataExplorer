@@ -73,4 +73,7 @@ public static class FeatureKeys
 
     /// <summary>Data Change Timeline: capture and display inserts, updates, and deletes that occur during a development session.</summary>
     public const string TimelineDataChangeTimeline = "Timeline.DataChangeTimeline";
+
+    /// <summary>Relationship-Aware Data Navigator: navigate parent, child, and many-to-many related records without manually writing joins.</summary>
+    public const string NavigatorRelationshipAwareNavigator = "Navigator.RelationshipAwareNavigator";
 }

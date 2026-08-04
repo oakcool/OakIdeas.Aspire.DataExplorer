@@ -108,6 +108,7 @@ public sealed class SqlServerFeatureContributorTests
         keys.Should().Contain(SqlServerFeatureKeys.PrimaryKeys);
         keys.Should().Contain(SqlServerFeatureKeys.ObjectDefinition);
         keys.Should().Contain(SqlServerFeatureKeys.ExecutionPlan);
+        keys.Should().Contain(SqlServerFeatureKeys.RelationshipNavigation);
     }
 
     [Fact]
