@@ -1,0 +1,385 @@
+@page "/snapshots"
+@using OakIdeas.Aspire.DataExplorer.Contracts.Models
+@using OakIdeas.Aspire.DataExplorer.Core.Abstractions
+@using OakIdeas.Aspire.DataExplorer.Core.Models
+@using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Atoms
+@using OakIdeas.Aspire.DataExplorer.Web.Services
+@inject FeatureFlagStateService FeatureFlags
+@inject ISnapshotService SnapshotService
+@inject ISelectedDatabaseService SelectedDatabaseService
+
+<PageTitle>Database Snapshots — Data Explorer</PageTitle>
+
+@if (!FeatureFlags.DatabaseSnapshotsEnabled)
+{
+    <div class="de-feature-unavailable">
+        <HeroIcon Kind="HeroIconKind.ExclamationTriangle" Size="32" Class="de-feature-unavailable__icon" />
+        <h2 class="de-feature-unavailable__title">Database Snapshots Unavailable</h2>
+        <p class="de-feature-unavailable__message">The Database Snapshots feature is disabled by configuration.</p>
+    </div>
+    return;
+}
+
+<div class="de-main-page flex h-full min-h-0 flex-col bg-slate-950">
+
+    @* ── Header ───────────────────────────────────────────────────────── *@
+    <div class="de-main__header flex shrink-0 flex-wrap items-center gap-3 border-b border-slate-800 bg-slate-900/80 px-5 py-3">
+        <h2 class="de-main__title flex min-w-0 items-center gap-2 text-sm font-semibold text-slate-100">
+            <HeroIcon Kind="HeroIconKind.CircleStack" Size="18" Class="de-main__title-icon" />
+            <span>Database Snapshots</span>
+        </h2>
+        <div class="flex flex-1 flex-wrap items-center justify-end gap-2">
+            <button class="inline-flex items-center gap-1.5 rounded border border-sky-600 bg-sky-700/30 px-3 py-1.5 text-xs font-semibold text-sky-200 transition hover:bg-sky-700/60 hover:text-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    @onclick="OpenCreateDialog"
+                    disabled="@(_selectedDatabase is null)">
+                <HeroIcon Kind="HeroIconKind.Plus" Size="14" />
+                <span>New Snapshot</span>
+            </button>
+        </div>
+    </div>
+
+    @* ── Body ─────────────────────────────────────────────────────────── *@
+    <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-5">
+
+        @if (_selectedDatabase is null)
+        {
+            <div class="de-empty-state flex flex-col items-center justify-center gap-3 py-16 text-center">
+                <HeroIcon Kind="HeroIconKind.CircleStack" Size="40" Class="text-slate-600" />
+                <p class="text-sm text-slate-400">Select a database from the sidebar to manage snapshots.</p>
+            </div>
+        }
+        else if (_snapshots.Count == 0)
+        {
+            <div class="de-empty-state flex flex-col items-center justify-center gap-3 py-16 text-center">
+                <HeroIcon Kind="HeroIconKind.CircleStack" Size="40" Class="text-slate-600" />
+                <p class="text-sm font-medium text-slate-300">No snapshots yet</p>
+                <p class="text-xs text-slate-500">Create a snapshot to capture the current database state before making changes.</p>
+            </div>
+        }
+        else
+        {
+            <div class="flex flex-col gap-2">
+                @foreach (var snapshot in _snapshots)
+                {
+                    <div class="de-snapshot-card flex items-start gap-3 rounded-lg border border-slate-700 bg-slate-900/60 px-4 py-3 transition hover:border-slate-600">
+                        <HeroIcon Kind="HeroIconKind.CircleStack" Size="18" Class="mt-0.5 shrink-0 text-sky-400" />
+                        <div class="flex min-w-0 flex-1 flex-col gap-1">
+                            <div class="flex items-center gap-2">
+                                <span class="truncate text-sm font-semibold text-slate-100">@snapshot.Name</span>
+                                <span class="shrink-0 rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-medium text-slate-400">@snapshot.State</span>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(snapshot.Notes))
+                            {
+                                <p class="text-xs text-slate-400">@snapshot.Notes</p>
+                            }
+                            <p class="text-[10px] text-slate-500">
+                                Created @snapshot.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss") UTC
+                                @if (snapshot.SizeBytes.HasValue)
+                                {
+                                    <span> · @FormatSize(snapshot.SizeBytes.Value)</span>
+                                }
+                            </p>
+                        </div>
+                        <div class="flex shrink-0 items-center gap-1">
+                            <button class="rounded p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+                                    title="Compare with current state"
+                                    @onclick="() => CompareSnapshot(snapshot.Id)">
+                                <HeroIcon Kind="HeroIconKind.ArrowsRightLeft" Size="14" />
+                            </button>
+                            <button class="rounded p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-amber-300"
+                                    title="Restore to this snapshot"
+                                    @onclick="() => ConfirmRestore(snapshot.Id)">
+                                <HeroIcon Kind="HeroIconKind.ArrowPath" Size="14" />
+                            </button>
+                            <button class="rounded p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-red-400"
+                                    title="Delete snapshot"
+                                    @onclick="() => DeleteSnapshot(snapshot.Id)">
+                                <HeroIcon Kind="HeroIconKind.Trash" Size="14" />
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        @* ── Comparison result ───────────────────────────────────────── *@
+        @if (_compareResult is not null)
+        {
+            <div class="rounded-lg border border-slate-700 bg-slate-900/60 p-4">
+                <h3 class="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    <HeroIcon Kind="HeroIconKind.ArrowsRightLeft" Size="14" />
+                    Comparison: @_compareResult.Snapshot?.Name
+                </h3>
+                @if (!_compareResult.Success)
+                {
+                    <p class="text-xs text-red-400">@_compareResult.Error?.Message</p>
+                }
+                else if (_compareResult.TableDiffs.Count == 0)
+                {
+                    <p class="text-xs text-slate-400">No table differences detected. The in-memory snapshot does not store live row counts; connect a provider for full comparison.</p>
+                }
+                else
+                {
+                    <table class="w-full text-xs text-slate-300">
+                        <thead>
+                            <tr class="border-b border-slate-700 text-left text-[10px] uppercase text-slate-500">
+                                <th class="pb-1.5 pr-4">Table</th>
+                                <th class="pb-1.5 pr-4 text-right">Snapshot Rows</th>
+                                <th class="pb-1.5 pr-4 text-right">Current Rows</th>
+                                <th class="pb-1.5 text-right">Delta</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var diff in _compareResult.TableDiffs)
+                            {
+                                <tr class="border-b border-slate-800">
+                                    <td class="py-1.5 pr-4 font-mono">@diff.TableName</td>
+                                    <td class="py-1.5 pr-4 text-right">@diff.SnapshotRowCount</td>
+                                    <td class="py-1.5 pr-4 text-right">@diff.CurrentRowCount</td>
+                                    <td class="py-1.5 text-right @(diff.RowDelta > 0 ? "text-green-400" : diff.RowDelta < 0 ? "text-red-400" : "text-slate-500")">
+                                        @(diff.RowDelta > 0 ? "+" : "")@diff.RowDelta
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        }
+
+        @* ── Restore result ──────────────────────────────────────────── *@
+        @if (_restoreResult is not null)
+        {
+            <div class="rounded-lg border @(_restoreResult.Success ? "border-sky-700 bg-sky-900/20" : "border-red-700 bg-red-900/20") p-4">
+                <h3 class="mb-2 text-xs font-semibold text-slate-300">
+                    @(_restoreResult.WasDryRun ? "Dry Run Result" : "Restore Result")
+                </h3>
+                @if (!_restoreResult.Success)
+                {
+                    <p class="text-xs text-red-400">@_restoreResult.Error?.Message</p>
+                }
+                else
+                {
+                    <p class="text-xs text-slate-300">@_restoreResult.Summary</p>
+                }
+            </div>
+        }
+    </div>
+
+    @* ── Create dialog ────────────────────────────────────────────────── *@
+    @if (_showCreateDialog)
+    {
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80" @onclick="CloseCreateDialog">
+            <div class="w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p-6 shadow-2xl" @onclick:stopPropagation>
+                <h3 class="mb-4 text-sm font-semibold text-slate-100">New Snapshot</h3>
+                <div class="flex flex-col gap-3">
+                    <label class="flex flex-col gap-1">
+                        <span class="text-xs text-slate-400">Name <span class="text-red-400">*</span></span>
+                        <input class="rounded border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm text-slate-200 outline-none focus:border-sky-500"
+                               placeholder="e.g. Before order-processing refactor"
+                               @bind="_newSnapshotName" />
+                    </label>
+                    <label class="flex flex-col gap-1">
+                        <span class="text-xs text-slate-400">Notes (optional)</span>
+                        <textarea class="rounded border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm text-slate-200 outline-none focus:border-sky-500"
+                                  rows="3"
+                                  placeholder="Describe the purpose of this restore point…"
+                                  @bind="_newSnapshotNotes" />
+                    </label>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(_createError))
+                {
+                    <p class="mt-3 text-xs text-red-400">@_createError</p>
+                }
+                <div class="mt-5 flex justify-end gap-2">
+                    <button class="rounded border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
+                            @onclick="CloseCreateDialog">Cancel</button>
+                    <button class="rounded bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-600 disabled:opacity-50"
+                            disabled="@(string.IsNullOrWhiteSpace(_newSnapshotName) || _creating)"
+                            @onclick="CreateSnapshot">
+                        @(_creating ? "Creating…" : "Create Snapshot")
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @* ── Confirm restore dialog ───────────────────────────────────────── *@
+    @if (_pendingRestoreSnapshotId is not null)
+    {
+        var restoreSnapshot = _snapshots.FirstOrDefault(s => s.Id == _pendingRestoreSnapshotId);
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80">
+            <div class="w-full max-w-md rounded-xl border border-amber-700 bg-slate-900 p-6 shadow-2xl">
+                <h3 class="mb-3 flex items-center gap-2 text-sm font-semibold text-amber-300">
+                    <HeroIcon Kind="HeroIconKind.ExclamationTriangle" Size="16" />
+                    Restore Database
+                </h3>
+                <p class="text-xs text-slate-300">
+                    Restore the database to snapshot <strong class="text-slate-100">@restoreSnapshot?.Name</strong>?
+                    This action will overwrite current data. In-memory snapshots support dry-run validation only.
+                </p>
+                <div class="mt-5 flex justify-end gap-2">
+                    <button class="rounded border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
+                            @onclick="CancelRestore">Cancel</button>
+                    <button class="rounded border border-sky-600 px-3 py-1.5 text-xs text-sky-200 hover:bg-sky-700/30"
+                            @onclick="DryRunRestore">Dry Run</button>
+                    <button class="rounded bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"
+                            @onclick="ExecuteRestore">Restore</button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private string? _selectedDatabase;
+    private IReadOnlyList<DatabaseSnapshot> _snapshots = [];
+    private bool _showCreateDialog;
+    private string _newSnapshotName = string.Empty;
+    private string _newSnapshotNotes = string.Empty;
+    private string? _createError;
+    private bool _creating;
+    private CompareSnapshotResponse? _compareResult;
+    private RestoreSnapshotResponse? _restoreResult;
+    private string? _pendingRestoreSnapshotId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await FeatureFlags.EnsureLoadedAsync(CancellationToken.None);
+        var selected = await SelectedDatabaseService.GetSelectedDatabaseAsync(CancellationToken.None);
+        _selectedDatabase = selected?.Resource.DatabaseName;
+        RefreshSnapshots();
+    }
+
+    private void RefreshSnapshots()
+    {
+        _snapshots = _selectedDatabase is not null
+            ? SnapshotService.GetSnapshots(_selectedDatabase)
+            : [];
+    }
+
+    private void OpenCreateDialog()
+    {
+        _newSnapshotName = string.Empty;
+        _newSnapshotNotes = string.Empty;
+        _createError = null;
+        _showCreateDialog = true;
+    }
+
+    private void CloseCreateDialog()
+    {
+        _showCreateDialog = false;
+    }
+
+    private async Task CreateSnapshot()
+    {
+        if (string.IsNullOrWhiteSpace(_newSnapshotName) || _selectedDatabase is null)
+        {
+            return;
+        }
+
+        _creating = true;
+        _createError = null;
+
+        var result = await SnapshotService.CreateSnapshotAsync(new CreateSnapshotRequest
+        {
+            DatabaseName = _selectedDatabase,
+            Name = _newSnapshotName,
+            Notes = string.IsNullOrWhiteSpace(_newSnapshotNotes) ? null : _newSnapshotNotes,
+        });
+
+        _creating = false;
+
+        if (result.Success)
+        {
+            _showCreateDialog = false;
+            _compareResult = null;
+            _restoreResult = null;
+            RefreshSnapshots();
+        }
+        else
+        {
+            _createError = result.Error?.Message ?? "An error occurred creating the snapshot.";
+        }
+    }
+
+    private async Task CompareSnapshot(string snapshotId)
+    {
+        _restoreResult = null;
+        _compareResult = await SnapshotService.CompareSnapshotAsync(new CompareSnapshotRequest
+        {
+            SnapshotId = snapshotId,
+        });
+    }
+
+    private void ConfirmRestore(string snapshotId)
+    {
+        _pendingRestoreSnapshotId = snapshotId;
+    }
+
+    private void CancelRestore()
+    {
+        _pendingRestoreSnapshotId = null;
+    }
+
+    private async Task DryRunRestore()
+    {
+        if (_pendingRestoreSnapshotId is null)
+        {
+            return;
+        }
+
+        var id = _pendingRestoreSnapshotId;
+        _pendingRestoreSnapshotId = null;
+        _compareResult = null;
+        _restoreResult = await SnapshotService.RestoreSnapshotAsync(new RestoreSnapshotRequest
+        {
+            SnapshotId = id,
+            DryRun = true,
+        });
+    }
+
+    private async Task ExecuteRestore()
+    {
+        if (_pendingRestoreSnapshotId is null)
+        {
+            return;
+        }
+
+        var id = _pendingRestoreSnapshotId;
+        _pendingRestoreSnapshotId = null;
+        _compareResult = null;
+        _restoreResult = await SnapshotService.RestoreSnapshotAsync(new RestoreSnapshotRequest
+        {
+            SnapshotId = id,
+            DryRun = false,
+        });
+    }
+
+    private void DeleteSnapshot(string snapshotId)
+    {
+        SnapshotService.DeleteSnapshot(new DeleteSnapshotRequest { SnapshotId = snapshotId });
+        if (_compareResult?.Snapshot?.Id == snapshotId)
+        {
+            _compareResult = null;
+        }
+
+        if (_restoreResult?.Snapshot?.Id == snapshotId)
+        {
+            _restoreResult = null;
+        }
+
+        RefreshSnapshots();
+    }
+
+    private static string FormatSize(long bytes)
+    {
+        return bytes switch
+        {
+            < 1_024 => $"{bytes} B",
+            < 1_048_576 => $"{bytes / 1_024.0:F1} KB",
+            < 1_073_741_824 => $"{bytes / 1_048_576.0:F1} MB",
+            _ => $"{bytes / 1_073_741_824.0:F1} GB",
+        };
+    }
+}

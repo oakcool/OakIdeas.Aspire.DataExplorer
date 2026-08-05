@@ -310,6 +310,18 @@ public static class ApplicationFeatures
         Owner = "ScenarioBuilder",
     };
 
+    /// <summary>Database Snapshots feature.</summary>
+    public static readonly FeatureFlag DatabaseSnapshots = new()
+    {
+        Key = FeatureKeys.SnapshotsDatabaseSnapshots,
+        DisplayName = "Database Snapshots",
+        Description = "Capture named restore points before testing a feature, compare the current database state with a restore point, and restore the database to a known-good state during development.",
+        Category = FeatureCategory.Snapshots,
+        DefaultEnabled = false,
+        Lifecycle = FeatureLifecycle.Preview,
+        Owner = "Snapshots",
+    };
+
     /// <summary>
     /// Returns all features defined in the application catalog, in their canonical order.
     /// </summary>
@@ -339,5 +351,6 @@ public static class ApplicationFeatures
         DataChangeTimeline,
         RelationshipAwareNavigator,
         TestDataScenarioBuilder,
+        DatabaseSnapshots,
     ];
 }
