@@ -27,4 +27,7 @@ public enum FeatureCategory
 
     /// <summary>Database snapshot and restore point features.</summary>
     Snapshots = 11,
+
+    /// <summary>Query performance workspace and analysis features.</summary>
+    Performance = 12,
 }

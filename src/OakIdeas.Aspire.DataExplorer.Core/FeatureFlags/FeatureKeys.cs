@@ -82,4 +82,7 @@ public static class FeatureKeys
 
     /// <summary>Database Snapshots: create named restore points, compare current state, and restore the database to a previous state.</summary>
     public const string SnapshotsDatabaseSnapshots = "Snapshots.DatabaseSnapshots";
+
+    /// <summary>Query Performance Workspace: surface slow, frequent, expensive, and regressing queries with execution metrics and plan integration.</summary>
+    public const string PerformanceQueryPerformanceWorkspace = "Performance.QueryPerformanceWorkspace";
 }

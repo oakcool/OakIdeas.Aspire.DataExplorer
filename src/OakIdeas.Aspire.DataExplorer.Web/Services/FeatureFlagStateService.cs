@@ -196,6 +196,11 @@ public sealed class FeatureFlagStateService(
     /// <summary>Returns whether the Database Snapshots feature is enabled.</summary>
     public bool DatabaseSnapshotsEnabled => IsEnabled(FeatureKeys.SnapshotsDatabaseSnapshots);
 
+    // ── Performance ───────────────────────────────────────────────────────────
+
+    /// <summary>Returns whether the Query Performance Workspace feature is enabled.</summary>
+    public bool QueryPerformanceWorkspaceEnabled => IsEnabled(FeatureKeys.PerformanceQueryPerformanceWorkspace);
+
     // ── SQL Server ────────────────────────────────────────────────────────────
 
     /// <summary>

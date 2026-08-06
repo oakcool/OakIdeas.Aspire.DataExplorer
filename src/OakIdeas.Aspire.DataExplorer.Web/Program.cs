@@ -63,6 +63,7 @@ builder.Services.AddTraceCorrelationServices();
 builder.Services.AddChangeTimelineServices();
 builder.Services.AddScenarioBuilderServices();
 builder.Services.AddSnapshotServices();
+builder.Services.AddQueryPerformanceServices();
 
 var app = builder.Build();
 
