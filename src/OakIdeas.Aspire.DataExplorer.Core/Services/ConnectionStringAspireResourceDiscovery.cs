@@ -63,21 +63,27 @@ internal sealed class ConnectionStringAspireResourceDiscovery : IAspireResourceD
                     "via environment variables (e.g. ConnectionStrings__<name>) or appsettings.json.");
             }
 
-            var descriptors = sections
-                .Select(section => CreateDescriptor(section, requireLocalConnections))
-                .Where(static descriptor => descriptor is not null)
-                .Cast<DiscoveredDatabaseResourceDescriptor>()
-                .ToArray();
+            var filteredByLocality = 0;
+            var descriptorList = new List<DiscoveredDatabaseResourceDescriptor>(sections.Length);
+            foreach (var section in sections)
+            {
+                var descriptor = CreateDescriptor(section, requireLocalConnections, ref filteredByLocality);
+                if (descriptor is not null)
+                {
+                    descriptorList.Add(descriptor);
+                }
+            }
 
-            var skippedCount = sections.Length - descriptors.Length;
-            if (skippedCount > 0 && requireLocalConnections)
+            var descriptors = descriptorList.ToArray();
+
+            if (filteredByLocality > 0)
             {
                 _logger.LogWarning(
                     "{SkippedCount} connection string(s) were filtered out because RequireLocalConnections=true " +
                     "and the server hostname is not a loopback/local address. In container environments (e.g. Aspire), " +
                     "the database server hostname is the container service name (e.g. 'sampledb'), not 'localhost'. " +
                     "To allow container-hosted databases, set '{ConfigKey}' to false in configuration.",
-                    skippedCount,
+                    filteredByLocality,
                     $"{DataExplorerOptions.SectionName}:RequireLocalConnections");
             }
 
@@ -99,7 +105,8 @@ internal sealed class ConnectionStringAspireResourceDiscovery : IAspireResourceD
 
     private DiscoveredDatabaseResourceDescriptor? CreateDescriptor(
         IConfigurationSection section,
-        bool requireLocalConnections)
+        bool requireLocalConnections,
+        ref int filteredByLocality)
     {
         if (string.IsNullOrWhiteSpace(section.Key) || string.IsNullOrWhiteSpace(section.Value))
         {
@@ -113,6 +120,7 @@ internal sealed class ConnectionStringAspireResourceDiscovery : IAspireResourceD
         // is not on the local machine so the tool cannot be pointed at a remote/shared database.
         if (requireLocalConnections && !IsLocalConnection(connectionString))
         {
+            filteredByLocality++;
             _logger.LogDebug(
                 "Skipping connection string '{Key}': server is not local and RequireLocalConnections=true.",
                 key);
