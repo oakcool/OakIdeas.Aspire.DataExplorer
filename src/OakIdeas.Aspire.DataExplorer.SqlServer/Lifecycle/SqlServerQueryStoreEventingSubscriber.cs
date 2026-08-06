@@ -86,6 +86,17 @@ internal sealed class SqlServerQueryStoreEventingSubscriber(
 
                 await Task.Delay(RetryDelay, cancellationToken).ConfigureAwait(false);
             }
+            catch (Exception ex)
+            {
+                logger.LogError(
+                    ex,
+                    "Unable to enable Query Store for SQL Server database resource {DatabaseResourceName}.",
+                    target.Database.Name);
+
+                throw new InvalidOperationException(
+                    $"Unable to enable Query Store for SQL Server database resource '{target.Database.Name}'.",
+                    ex);
+            }
         }
     }
 
