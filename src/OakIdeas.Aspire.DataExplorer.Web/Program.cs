@@ -62,6 +62,7 @@ builder.Services.AddScoped<ISettingsSectionProvider, FeatureFlagsSettingsSection
 builder.Services.AddTraceCorrelationServices();
 builder.Services.AddChangeTimelineServices();
 builder.Services.AddScenarioBuilderServices();
+builder.Services.AddSnapshotServices();
 
 var app = builder.Build();
 
