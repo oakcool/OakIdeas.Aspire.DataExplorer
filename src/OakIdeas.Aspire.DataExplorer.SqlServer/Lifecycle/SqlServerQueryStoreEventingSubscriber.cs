@@ -62,8 +62,15 @@ internal sealed class SqlServerQueryStoreEventingSubscriber(
 
                 return;
             }
-            catch (Exception ex) when (attempt < MaxRetryAttempts && IsTransient(ex))
+            catch (Exception ex) when (IsTransient(ex))
             {
+                if (attempt == MaxRetryAttempts)
+                {
+                    throw new InvalidOperationException(
+                        $"Unable to enable Query Store for SQL Server database resource '{target.Database.Name}' after {MaxRetryAttempts} attempts.",
+                        ex);
+                }
+
                 logger.LogWarning(
                     ex,
                     "Transient error enabling Query Store for SQL Server database resource {DatabaseResourceName} on attempt {Attempt} of {MaxRetryAttempts}. Retrying.",
@@ -74,9 +81,6 @@ internal sealed class SqlServerQueryStoreEventingSubscriber(
                 await Task.Delay(RetryDelay, cancellationToken).ConfigureAwait(false);
             }
         }
-
-        throw new InvalidOperationException(
-            $"Unable to enable Query Store for SQL Server database resource '{target.Database.Name}' after {MaxRetryAttempts} attempts.");
     }
 
     private static bool IsTransient(Exception exception)
