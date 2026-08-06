@@ -81,6 +81,44 @@ public sealed class ConnectionStringAspireResourceDiscoveryTests
         response.Resources.Select(r => r.ResourceId).Should().BeEquivalentTo("local-app");
     }
 
+    [Theory]
+    [InlineData("Server=sampledb,1433;Database=app;User Id=sa;******;")]
+    [InlineData("Server=my-sql-container;Database=app;User Id=sa;******;")]
+    [InlineData("Server=aspire-db,1433;Database=mydb;")]
+    public async Task DiscoverResourcesAsync_WhenRequireLocalConnectionsDisabled_KeepsContainerHostnames(string connectionString)
+    {
+        var discovery = CreateDiscovery(requireLocalConnections: false, ("container-app", connectionString));
+
+        var response = await discovery.DiscoverResourcesAsync(new DiscoverResourcesRequest(), CancellationToken.None);
+
+        response.Resources.Should().ContainSingle().Which.ResourceId.Should().Be("container-app");
+    }
+
+    [Theory]
+    [InlineData("Server=sampledb,1433;Database=app;User Id=sa;******;")]
+    [InlineData("Server=my-sql-container;Database=app;User Id=sa;******;")]
+    public async Task DiscoverResourcesAsync_WhenRequireLocalConnections_FiltersContainerHostnames(string connectionString)
+    {
+        var discovery = CreateDiscovery(requireLocalConnections: true, ("container-app", connectionString));
+
+        var response = await discovery.DiscoverResourcesAsync(new DiscoverResourcesRequest(), CancellationToken.None);
+
+        response.Resources.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task DiscoverResourcesAsync_StoresConnectionStringDirectlyInMetadata()
+    {
+        const string connectionString = "Server=localhost;Database=app;User Id=sa;******;";
+        var discovery = CreateDiscovery(requireLocalConnections: false, ("local-app", connectionString));
+
+        var response = await discovery.DiscoverResourcesAsync(new DiscoverResourcesRequest(), CancellationToken.None);
+
+        var resource = response.Resources.Should().ContainSingle().Subject;
+        resource.ConnectionMetadata.Properties.Should().ContainKey("connectionString")
+            .WhoseValue.Should().Be(connectionString);
+    }
+
     private static ConnectionStringAspireResourceDiscovery CreateDiscovery(
         bool requireLocalConnections,
         params (string Key, string Value)[] connectionStrings)
@@ -89,7 +127,8 @@ public sealed class ConnectionStringAspireResourceDiscoveryTests
             new StubHostEnvironment(),
             Options.Create(new DataExplorerOptions { RequireLocalConnections = requireLocalConnections }),
             new DiscoveredDatabaseResourceProjector(),
-            new ErrorHandler(NullLogger<ErrorHandler>.Instance, []));
+            new ErrorHandler(NullLogger<ErrorHandler>.Instance, []),
+            NullLogger<ConnectionStringAspireResourceDiscovery>.Instance);
 
     private static IConfiguration BuildConfiguration(params (string Key, string Value)[] connectionStrings)
         => new ConfigurationBuilder()

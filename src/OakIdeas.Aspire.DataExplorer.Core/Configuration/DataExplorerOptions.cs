@@ -14,6 +14,9 @@ public sealed class DataExplorerOptions
 
     public bool IncludeUnavailableResources { get; set; } = true;
 
+    // Secure by default: only loopback/machine connections are discovered.
+    // Aspire container environments inject connection strings with service-name hostnames
+    // (e.g. Server=sampledb,1433). Set to false to allow those container-hosted databases.
     public bool RequireLocalConnections { get; set; } = true;
 
     public int DefaultPageSize { get; set; } = 100;

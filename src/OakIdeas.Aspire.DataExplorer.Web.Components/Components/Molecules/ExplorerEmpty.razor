@@ -1,4 +1,5 @@
 <div class="explorer-state explorer-state--empty">
     <span>No database objects were discovered.</span>
     <small>Choose a database resource and refresh metadata to populate the tree.</small>
+    <small>If you are running in a container or Aspire environment, verify that <code>WithReference</code> wires the database to the Data Explorer in your AppHost. If connections are still missing, check that <code>OakIdeas:Aspire:DataExplorer:RequireLocalConnections</code> is not set to <code>true</code> in configuration — this setting filters out non-loopback hosts such as container service names.</small>
 </div>

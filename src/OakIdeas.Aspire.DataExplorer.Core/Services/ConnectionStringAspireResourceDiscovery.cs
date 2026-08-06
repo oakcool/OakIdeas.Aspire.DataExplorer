@@ -1,6 +1,7 @@
 using System.Data.Common;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OakIdeas.Aspire.DataExplorer.Contracts.Models;
 using OakIdeas.Aspire.DataExplorer.Core.Abstractions;
@@ -19,19 +20,22 @@ internal sealed class ConnectionStringAspireResourceDiscovery : IAspireResourceD
     private readonly IOptions<DataExplorerOptions> _options;
     private readonly DiscoveredDatabaseResourceProjector _projector;
     private readonly IErrorHandler _errorHandler;
+    private readonly ILogger<ConnectionStringAspireResourceDiscovery> _logger;
 
     public ConnectionStringAspireResourceDiscovery(
         IConfiguration configuration,
         IHostEnvironment hostEnvironment,
         IOptions<DataExplorerOptions> options,
         DiscoveredDatabaseResourceProjector projector,
-        IErrorHandler errorHandler)
+        IErrorHandler errorHandler,
+        ILogger<ConnectionStringAspireResourceDiscovery> logger)
     {
         _configuration = configuration;
         _hostEnvironment = hostEnvironment;
         _options = options;
         _projector = projector;
         _errorHandler = errorHandler;
+        _logger = logger;
     }
 
     public Task<DiscoverResourcesResponse> DiscoverResourcesAsync(
@@ -43,22 +47,54 @@ internal sealed class ConnectionStringAspireResourceDiscovery : IAspireResourceD
 
         if (!_options.Value.EnableAspireResourceDiscovery)
         {
+            _logger.LogDebug("Aspire resource discovery is disabled. No connection strings will be discovered.");
             return Task.FromResult(new DiscoverResourcesResponse([]));
         }
 
         try
         {
             var requireLocalConnections = _options.Value.RequireLocalConnections;
+            var sections = _configuration.GetSection("ConnectionStrings").GetChildren().ToArray();
 
-            var descriptors = _configuration.GetSection("ConnectionStrings")
-                .GetChildren()
-                .Select(section => CreateDescriptor(section, requireLocalConnections))
-                .Where(static descriptor => descriptor is not null)
-                .Cast<DiscoveredDatabaseResourceDescriptor>()
-                .ToArray();
+            if (sections.Length == 0)
+            {
+                _logger.LogWarning(
+                    "No connection strings found in configuration. Ensure Aspire has injected connection strings " +
+                    "via environment variables (e.g. ConnectionStrings__<name>) or appsettings.json.");
+            }
+
+            var filteredByLocality = 0;
+            var descriptorList = new List<DiscoveredDatabaseResourceDescriptor>(sections.Length);
+            foreach (var section in sections)
+            {
+                var descriptor = CreateDescriptor(section, requireLocalConnections, ref filteredByLocality);
+                if (descriptor is not null)
+                {
+                    descriptorList.Add(descriptor);
+                }
+            }
+
+            var descriptors = descriptorList.ToArray();
+
+            if (filteredByLocality > 0)
+            {
+                _logger.LogWarning(
+                    "{SkippedCount} connection string(s) were filtered out because RequireLocalConnections=true " +
+                    "and the server hostname is not a loopback/local address. In container environments (e.g. Aspire), " +
+                    "the database server hostname is the container service name (e.g. 'sampledb'), not 'localhost'. " +
+                    "To allow container-hosted databases, set '{ConfigKey}' to false in your configuration " +
+                    "(e.g. appsettings.Development.json).",
+                    filteredByLocality,
+                    $"{DataExplorerOptions.SectionName}:RequireLocalConnections");
+            }
 
             var includeUnavailableResources = request.IncludeUnavailableResources
                 ?? _options.Value.IncludeUnavailableResources;
+
+            _logger.LogDebug(
+                "Discovered {Count} connection string resource(s). RequireLocalConnections={RequireLocal}.",
+                descriptors.Length,
+                requireLocalConnections);
 
             return Task.FromResult(_projector.Project(descriptors, DateTimeOffset.UtcNow, includeUnavailableResources));
         }
@@ -68,9 +104,10 @@ internal sealed class ConnectionStringAspireResourceDiscovery : IAspireResourceD
         }
     }
 
-    private static DiscoveredDatabaseResourceDescriptor? CreateDescriptor(
+    private DiscoveredDatabaseResourceDescriptor? CreateDescriptor(
         IConfigurationSection section,
-        bool requireLocalConnections)
+        bool requireLocalConnections,
+        ref int filteredByLocality)
     {
         if (string.IsNullOrWhiteSpace(section.Key) || string.IsNullOrWhiteSpace(section.Value))
         {
@@ -84,15 +121,23 @@ internal sealed class ConnectionStringAspireResourceDiscovery : IAspireResourceD
         // is not on the local machine so the tool cannot be pointed at a remote/shared database.
         if (requireLocalConnections && !IsLocalConnection(connectionString))
         {
+            filteredByLocality++;
+            _logger.LogDebug(
+                "Skipping connection string '{Key}': server is not local and RequireLocalConnections=true.",
+                key);
             return null;
         }
 
         var databaseName = TryGetDatabaseName(connectionString) ?? key;
         var providerHint = InferProviderHint(connectionString);
 
+        // Store the resolved connection string directly so the connection provider can use it
+        // without a second environment-variable lookup. The env-var name is retained as a
+        // fallback for the AppHost-hosted scenario where Aspire injects it as an env var.
         var metadata = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
         {
             ["resourceType"] = "ConnectionString",
+            ["connectionString"] = connectionString,
             ["connectionStringEnvironmentVariable"] = $"ConnectionStrings__{key}",
         };
 

@@ -11,6 +11,7 @@ Aspire makes it easy to stand up local application environments, but inspecting 
 - Aspire-hosted database discovery for local development
 - Multiple database resources in one Data Explorer instance with explicit database switching
 - SQL Server-first metadata exploration for schemas, tables, views, procedures, functions, triggers, and definitions
+- Fluent SQL Server Query Store enablement for Query Performance Workspace scenarios
 - Query Window with read-only mode support, row limits, timeout controls, and execution-plan integration
 - Development-only runtime and hosting guardrails
 - Provider-based architecture that keeps provider-specific SQL and error mapping isolated
@@ -42,6 +43,13 @@ The Aspire dashboard opens automatically and exposes the Data Explorer web resou
 3. Browse metadata in Object Explorer.
 4. Open **Query** to run ad-hoc SQL with the configured guardrails.
 5. Optionally start `samples/OakIdeas.Aspire.DataExplorer.Sample.AppHost` to validate a consumer-style setup with both `sampledb` and `warehousedb`.
+
+If you plan to use the Query Performance Workspace with SQL Server resources, enable Query Store in the AppHost:
+
+```csharp
+var sqlServer = builder.AddSqlServer("sample-sql", password)
+    .WithQueryStore();
+```
 
 ## Website
 
