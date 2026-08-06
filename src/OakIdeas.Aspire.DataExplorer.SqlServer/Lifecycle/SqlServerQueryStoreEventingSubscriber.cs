@@ -66,6 +66,12 @@ internal sealed class SqlServerQueryStoreEventingSubscriber(
             {
                 if (attempt == MaxRetryAttempts)
                 {
+                    logger.LogError(
+                        ex,
+                        "Unable to enable Query Store for SQL Server database resource {DatabaseResourceName} after {MaxRetryAttempts} attempts.",
+                        target.Database.Name,
+                        MaxRetryAttempts);
+
                     throw new InvalidOperationException(
                         $"Unable to enable Query Store for SQL Server database resource '{target.Database.Name}' after {MaxRetryAttempts} attempts.",
                         ex);
