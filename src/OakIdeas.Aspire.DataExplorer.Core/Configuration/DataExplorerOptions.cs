@@ -14,10 +14,10 @@ public sealed class DataExplorerOptions
 
     public bool IncludeUnavailableResources { get; set; } = true;
 
-    // Default false: Aspire deployments inject connection strings for container-hosted databases
-    // (e.g. Server=sampledb,1433) whose hostnames are not localhost. The IsDevelopment() guard
-    // is the primary safety net. Set to true to restrict discovery to loopback/machine connections only.
-    public bool RequireLocalConnections { get; set; } = false;
+    // Secure by default: only loopback/machine connections are discovered.
+    // Aspire container environments inject connection strings with service-name hostnames
+    // (e.g. Server=sampledb,1433). Set to false to allow those container-hosted databases.
+    public bool RequireLocalConnections { get; set; } = true;
 
     public int DefaultPageSize { get; set; } = 100;
 

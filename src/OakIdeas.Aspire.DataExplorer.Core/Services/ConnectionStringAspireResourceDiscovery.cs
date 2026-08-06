@@ -82,7 +82,8 @@ internal sealed class ConnectionStringAspireResourceDiscovery : IAspireResourceD
                     "{SkippedCount} connection string(s) were filtered out because RequireLocalConnections=true " +
                     "and the server hostname is not a loopback/local address. In container environments (e.g. Aspire), " +
                     "the database server hostname is the container service name (e.g. 'sampledb'), not 'localhost'. " +
-                    "To allow container-hosted databases, set '{ConfigKey}' to false in configuration.",
+                    "To allow container-hosted databases, set '{ConfigKey}' to false in your configuration " +
+                    "(e.g. appsettings.Development.json).",
                     filteredByLocality,
                     $"{DataExplorerOptions.SectionName}:RequireLocalConnections");
             }

@@ -18,6 +18,7 @@ public static class DataExplorerServiceCollectionExtensions
         services.AddSingleton(configuration);
         services.AddSingleton<DiscoveredDatabaseResourceProjector>();
         services.AddSingleton<IAspireResourceDiscovery, ConnectionStringAspireResourceDiscovery>();
+        services.AddHostedService<DataExplorerSetupLogService>();
 
         return services;
     }
