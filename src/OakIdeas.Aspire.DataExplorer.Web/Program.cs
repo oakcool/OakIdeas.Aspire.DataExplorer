@@ -28,6 +28,7 @@ if (sqlServerProviderEnabled)
     builder.Services.AddSingleton<IProviderErrorMapper, SqlServerErrorMapper>();
     builder.Services.AddSingleton<ISchemaMigrationsProvider, SqlServerSchemaMigrationsProvider>();
     builder.Services.AddSingleton<IRelationshipNavigationProvider, SqlServerRelationshipNavigationProvider>();
+    builder.Services.AddSingleton<IQueryPerformanceService, SqlServerQueryPerformanceService>();
 }
 
 builder.Services.AddSingleton<IProviderFactory, MetadataProviderFactory>();
