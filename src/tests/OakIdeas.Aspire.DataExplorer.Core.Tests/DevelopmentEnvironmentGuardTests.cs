@@ -32,7 +32,7 @@ public sealed class DevelopmentEnvironmentGuardTests
         options.EnableAdHocQueries.Should().BeTrue();
         options.EnableAspireResourceDiscovery.Should().BeTrue();
         options.IncludeUnavailableResources.Should().BeTrue();
-        options.RequireLocalConnections.Should().BeTrue();
+        options.RequireLocalConnections.Should().BeFalse();
         options.DefaultPageSize.Should().Be(100);
         options.MaxPageSize.Should().Be(1000);
         options.QueryTimeoutSeconds.Should().Be(30);
