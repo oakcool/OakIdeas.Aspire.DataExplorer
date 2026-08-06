@@ -322,6 +322,18 @@ public static class ApplicationFeatures
         Owner = "Snapshots",
     };
 
+    /// <summary>Query Performance Workspace feature.</summary>
+    public static readonly FeatureFlag QueryPerformanceWorkspace = new()
+    {
+        Key = FeatureKeys.PerformanceQueryPerformanceWorkspace,
+        DisplayName = "Query Performance Workspace",
+        Description = "Surface slow, frequent, expensive, and regressing queries with execution metrics, plan integration, and evidence-based developer guidance. Backed by SQL Server Query Store and equivalent provider sources.",
+        Category = FeatureCategory.Performance,
+        DefaultEnabled = false,
+        Lifecycle = FeatureLifecycle.Preview,
+        Owner = "Performance",
+    };
+
     /// <summary>
     /// Returns all features defined in the application catalog, in their canonical order.
     /// </summary>
@@ -352,5 +364,6 @@ public static class ApplicationFeatures
         RelationshipAwareNavigator,
         TestDataScenarioBuilder,
         DatabaseSnapshots,
+        QueryPerformanceWorkspace,
     ];
 }

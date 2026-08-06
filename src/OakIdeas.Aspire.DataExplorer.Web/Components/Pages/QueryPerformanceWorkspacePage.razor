@@ -1,0 +1,260 @@
+@page "/query-performance"
+@using OakIdeas.Aspire.DataExplorer.Contracts.Models
+@using OakIdeas.Aspire.DataExplorer.Core.Abstractions
+@using OakIdeas.Aspire.DataExplorer.Core.FeatureFlags
+@using OakIdeas.Aspire.DataExplorer.Web.Components.Components.Atoms
+@using OakIdeas.Aspire.DataExplorer.Web.Services
+@implements IDisposable
+@inject FeatureFlagStateService FeatureFlags
+@inject IQueryPerformanceService PerformanceService
+
+<PageTitle>Query Performance — Data Explorer</PageTitle>
+
+@if (!FeatureFlags.QueryPerformanceWorkspaceEnabled)
+{
+    <div class="de-feature-unavailable">
+        <HeroIcon Kind="HeroIconKind.ExclamationTriangle" Size="32" Class="de-feature-unavailable__icon" />
+        <h2 class="de-feature-unavailable__title">Query Performance Workspace Unavailable</h2>
+        <p class="de-feature-unavailable__message">The Query Performance Workspace feature is disabled by configuration.</p>
+    </div>
+    return;
+}
+
+<div class="de-main-page flex h-full min-h-0 flex-col bg-slate-950">
+
+    @* ── Header ────────────────────────────────────────────────────── *@
+    <div class="de-main__header flex shrink-0 flex-wrap items-center gap-3 border-b border-slate-800 bg-slate-900/80 px-5 py-3">
+        <h2 class="de-main__title flex min-w-0 items-center gap-2 text-sm font-semibold text-slate-100">
+            <HeroIcon Kind="HeroIconKind.TableCells" Size="18" Class="de-main__title-icon" />
+            <span>Query Performance</span>
+            <span class="rounded border border-violet-500/40 bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-300">preview</span>
+        </h2>
+
+        @* ── Filters ─────────────────────────────────────────────────────── *@
+        <div class="flex flex-1 flex-wrap items-center gap-2 text-xs">
+            <input class="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-slate-200 placeholder:text-slate-500 outline-none focus:border-sky-500"
+                   type="text"
+                   placeholder="Filter query text…"
+                   maxlength="200"
+                   @bind="_queryTextFilter"
+                   @bind:event="oninput" />
+
+            <select class="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-slate-200 outline-none focus:border-sky-500"
+                    @bind="_sortBy">
+                <option value="@QueryPerformanceSortField.AvgDuration">Slowest (avg duration)</option>
+                <option value="@QueryPerformanceSortField.TotalDuration">Most expensive (total duration)</option>
+                <option value="@QueryPerformanceSortField.ExecutionCount">Most frequent</option>
+                <option value="@QueryPerformanceSortField.TotalLogicalReads">Highest I/O</option>
+                <option value="@QueryPerformanceSortField.FailureCount">Most failures</option>
+                <option value="@QueryPerformanceSortField.LastSeenAt">Recently executed</option>
+            </select>
+
+            <label class="flex cursor-pointer items-center gap-1.5 text-slate-300 select-none">
+                <input type="checkbox" class="accent-violet-500" @bind="_regressionsOnly" />
+                Regressions only
+            </label>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <button type="button"
+                    class="flex items-center gap-1 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-300 transition hover:border-sky-400 hover:text-slate-100"
+                    @onclick="LoadAsync"
+                    title="Refresh query performance data">
+                <HeroIcon Kind="HeroIconKind.ArrowPath" Size="13" />
+                Refresh
+            </button>
+        </div>
+    </div>
+
+    @* ── Body ──────────────────────────────────────────────────────── *@
+    <div class="flex min-h-0 flex-1 flex-col overflow-auto px-5 py-4">
+
+        @if (_loading)
+        {
+            <div class="flex items-center gap-2 text-xs text-slate-400">
+                <HeroIcon Kind="HeroIconKind.ArrowPath" Size="14" Class="animate-spin" />
+                Loading performance data…
+            </div>
+        }
+        else if (_response is not null && !_response.IsSupported)
+        {
+            <div class="flex flex-col items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-5 py-4 text-sm text-amber-200">
+                <div class="flex items-center gap-2 font-semibold">
+                    <HeroIcon Kind="HeroIconKind.ExclamationTriangle" Size="16" />
+                    Query performance data unavailable
+                </div>
+                <p class="text-xs text-amber-300/80">@_response.UnsupportedReason</p>
+            </div>
+        }
+        else if (_response is not null)
+        {
+            @* ── Data source badge ───────────────────────────────────── *@
+            @if (_response.DataSource is not null)
+            {
+                <p class="mb-3 text-[11px] text-slate-500">Data source: <span class="text-slate-400">@_response.DataSource</span></p>
+            }
+
+            @* ── Empty state ────────────────────────────────────────── *@
+            @if (_filteredEntries.Count == 0)
+            {
+                <div class="flex flex-col items-center gap-2 py-12 text-center text-slate-500">
+                    <HeroIcon Kind="HeroIconKind.TableCells" Size="32" />
+                    <p class="text-sm">No queries match the current filters.</p>
+                </div>
+            }
+            else
+            {
+                @* ── Table ──────────────────────────────────────────────── *@
+                <div class="overflow-x-auto rounded-lg border border-slate-800">
+                    <table class="w-full text-xs text-slate-300">
+                        <thead class="bg-slate-900/80 text-[11px] uppercase tracking-wider text-slate-500">
+                            <tr>
+                                <th class="px-3 py-2 text-left font-semibold">Query</th>
+                                <th class="px-3 py-2 text-right font-semibold">Executions</th>
+                                <th class="px-3 py-2 text-right font-semibold">Avg Duration</th>
+                                <th class="px-3 py-2 text-right font-semibold">Total Duration</th>
+                                <th class="px-3 py-2 text-right font-semibold">Avg Reads</th>
+                                <th class="px-3 py-2 text-right font-semibold">Failures</th>
+                                <th class="px-3 py-2 text-right font-semibold">Plans</th>
+                                <th class="px-3 py-2 text-center font-semibold">Regression</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var entry in _filteredEntries)
+                            {
+                                <tr class="border-t border-slate-800 hover:bg-slate-900/60 @(entry.HasRegression ? "bg-rose-950/20" : "")"
+                                    @key="entry.QueryId">
+                                    <td class="max-w-xs truncate px-3 py-2 font-mono" title="@entry.QueryText">
+                                        @TruncateQuery(entry.QueryText)
+                                        @if (entry.ObjectName is not null)
+                                        {
+                                            <span class="ml-1 text-[10px] text-slate-500">(@entry.ObjectName)</span>
+                                        }
+                                    </td>
+                                    <td class="px-3 py-2 text-right tabular-nums">@entry.ExecutionCount.ToString("N0")</td>
+                                    <td class="px-3 py-2 text-right tabular-nums">@FormatDuration(entry.AvgDurationMs)</td>
+                                    <td class="px-3 py-2 text-right tabular-nums">@FormatDuration(entry.TotalDurationMs)</td>
+                                    <td class="px-3 py-2 text-right tabular-nums">@entry.AvgLogicalReads.ToString("N0")</td>
+                                    <td class="px-3 py-2 text-right tabular-nums @(entry.FailureCount > 0 ? "text-rose-400" : "")">
+                                        @entry.FailureCount.ToString("N0")
+                                    </td>
+                                    <td class="px-3 py-2 text-right tabular-nums">@entry.PlanCount</td>
+                                    <td class="px-3 py-2 text-center">
+                                        @if (entry.HasRegression)
+                                        {
+                                            <span class="rounded border border-rose-500/40 bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-rose-300">⚠</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                @if (_response.TotalCount > _filteredEntries.Count)
+                {
+                    <p class="mt-2 text-[11px] text-slate-500">
+                        Showing @_filteredEntries.Count of @_response.TotalCount entries.
+                    </p>
+                }
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private GetQueryPerformanceResponse? _response;
+    private bool _loading = true;
+    private string _queryTextFilter = string.Empty;
+    private QueryPerformanceSortField _sortBy = QueryPerformanceSortField.AvgDuration;
+    private bool _regressionsOnly;
+
+    private IReadOnlyList<QueryPerformanceEntry> _filteredEntries => FilterAndSort();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await FeatureFlags.EnsureLoadedAsync();
+        if (FeatureFlags.QueryPerformanceWorkspaceEnabled)
+        {
+            await LoadAsync();
+        }
+        else
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        try
+        {
+            var request = new GetQueryPerformanceRequest
+            {
+                QueryTextFilter = string.IsNullOrWhiteSpace(_queryTextFilter) ? null : _queryTextFilter,
+                SortBy = _sortBy,
+                RegressionsOnly = _regressionsOnly,
+                Limit = 100,
+            };
+
+            _response = await PerformanceService.GetTopQueriesAsync(request);
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private IReadOnlyList<QueryPerformanceEntry> FilterAndSort()
+    {
+        if (_response is null)
+        {
+            return [];
+        }
+
+        var entries = _response.Entries.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(_queryTextFilter))
+        {
+            entries = entries.Where(e => e.QueryText.Contains(_queryTextFilter, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (_regressionsOnly)
+        {
+            entries = entries.Where(e => e.HasRegression);
+        }
+
+        return entries.ToList();
+    }
+
+    private static string TruncateQuery(string queryText)
+    {
+        const int maxLength = 80;
+        if (queryText.Length <= maxLength)
+        {
+            return queryText;
+        }
+
+        return string.Concat(queryText.AsSpan(0, maxLength), "…");
+    }
+
+    private static string FormatDuration(double ms)
+    {
+        if (ms < 1.0)
+        {
+            return $"{ms:N3} ms";
+        }
+
+        if (ms < 1000.0)
+        {
+            return $"{ms:N1} ms";
+        }
+
+        return $"{ms / 1000.0:N2} s";
+    }
+
+    public void Dispose() { }
+}

@@ -48,6 +48,7 @@ public sealed class ApplicationFeaturesCatalogTests
             FeatureKeys.NavigatorRelationshipAwareNavigator,
             FeatureKeys.ScenarioBuilderTestDataScenarioBuilder,
             FeatureKeys.SnapshotsDatabaseSnapshots,
+            FeatureKeys.PerformanceQueryPerformanceWorkspace,
         };
 
         foreach (var feature in ApplicationFeatures.All)
@@ -96,6 +97,12 @@ public sealed class ApplicationFeaturesCatalogTests
     public void DatabaseSnapshots_DefaultsToDisabledForSafeRollout()
     {
         ApplicationFeatures.DatabaseSnapshots.DefaultEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void QueryPerformanceWorkspace_DefaultsToDisabledForSafeRollout()
+    {
+        ApplicationFeatures.QueryPerformanceWorkspace.DefaultEnabled.Should().BeFalse();
     }
 
     [Fact]
@@ -178,5 +185,6 @@ public sealed class ApplicationFeaturesCatalogTests
         keys.Should().Contain(FeatureKeys.NavigatorRelationshipAwareNavigator);
         keys.Should().Contain(FeatureKeys.ScenarioBuilderTestDataScenarioBuilder);
         keys.Should().Contain(FeatureKeys.SnapshotsDatabaseSnapshots);
+        keys.Should().Contain(FeatureKeys.PerformanceQueryPerformanceWorkspace);
     }
 }
