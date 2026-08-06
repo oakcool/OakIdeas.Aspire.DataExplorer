@@ -85,6 +85,7 @@ internal sealed class SqlServerQueryStoreEventingSubscriber(
 
     private static bool IsTransient(Exception exception)
     {
-        return exception is SqlException or InvalidOperationException or TimeoutException;
+        return exception is TimeoutException
+            || exception is SqlException { IsTransient: true };
     }
 }
