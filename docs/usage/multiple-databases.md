@@ -13,18 +13,20 @@ One Data Explorer instance can explore multiple Aspire database resources at the
 ## Single-database configuration
 
 ```csharp
-var sql = builder.AddSqlServer("sql", password)
-    .AddDatabase("applicationdb");
+var sqlServer = builder.AddSqlServer("sql", password)
+    .WithQueryStore();
+var database = sqlServer.AddDatabase("applicationdb");
 
 builder.AddDataExplorer()
     .AddSqlServer()
-    .WithReference(sql);
+    .WithReference(database);
 ```
 
 ## Multiple-database configuration
 
 ```csharp
-var sqlServer = builder.AddSqlServer("sample-sql", password);
+var sqlServer = builder.AddSqlServer("sample-sql", password)
+    .WithQueryStore();
 var appDatabase = sqlServer.AddDatabase("sampledb");
 var warehouseDatabase = sqlServer.AddDatabase("warehousedb");
 
@@ -58,6 +60,8 @@ When the selected database changes:
 ## Backward compatibility
 
 Existing single-database setups continue to work unchanged. Repeated `WithReference(...)` calls are additive, so the single-resource case remains the simplest valid configuration.
+
+If only one database should participate in Query Store-backed features, call `WithQueryStore()` on that database resource instead of the parent SQL Server resource.
 
 ## Sample application
 

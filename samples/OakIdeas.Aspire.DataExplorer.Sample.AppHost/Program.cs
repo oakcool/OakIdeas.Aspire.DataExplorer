@@ -7,7 +7,8 @@ var builder = DistributedApplication.CreateBuilder(args);
 var password = builder.AddParameter("sql-password", secret: true);
 var sqlServer = builder.AddSqlServer("sample-sql", password)
     .WithLifetime(ContainerLifetime.Persistent)
-    .WithDataVolume();
+    .WithDataVolume()
+    .WithQueryStore();
 var todoDatabase = sqlServer.AddDatabase("sampledb")
     .WithSchemaMigrationsDbContext(
         "../OakIdeas.Aspire.DataExplorer.Sample.Api/OakIdeas.Aspire.DataExplorer.Sample.Api.csproj",

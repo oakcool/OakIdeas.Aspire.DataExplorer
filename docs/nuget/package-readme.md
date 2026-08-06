@@ -21,18 +21,20 @@ dotnet add package OakIdeas.Aspire.DataExplorer.SqlServer --version <version>
 ## Basic usage
 
 ```csharp
-var sql = builder.AddSqlServer("sql", password)
-    .AddDatabase("applicationdb");
+var sqlServer = builder.AddSqlServer("sql", password)
+    .WithQueryStore();
+var database = sqlServer.AddDatabase("applicationdb");
 
 builder.AddDataExplorer()
     .AddSqlServer()
-    .WithReference(sql);
+    .WithReference(database);
 ```
 
 ## Multiple database example
 
 ```csharp
-var sqlServer = builder.AddSqlServer("sample-sql", password);
+var sqlServer = builder.AddSqlServer("sample-sql", password)
+    .WithQueryStore();
 var appDatabase = sqlServer.AddDatabase("sampledb");
 var warehouseDatabase = sqlServer.AddDatabase("warehousedb");
 
